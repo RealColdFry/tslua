@@ -1,0 +1,27 @@
+/tslua
+/tslua-client
+/luabench
+/tstltest.test
+
+# Generated TSTL test files
+internal/tstltest/*_codegen_test.go
+!internal/tstltest/testhelper_test.go
+
+go.work
+go.work.sum
+
+/node_modules/
+*.tsbuildinfo
+.cache/
+
+tmp/
+notes
+notes/
+*.pprof
+*.out
+justfile.local
+.vscode-env
+.lua-runtimes/
+
+# macOS-specific files
+.DS_Store

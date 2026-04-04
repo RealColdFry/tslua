@@ -1,0 +1,7 @@
+{
+  "name": "@tslua/cli",
+  "version": "0.0.1",
+  "description": "TypeScript-to-Lua transpiler",
+  "author": "Cold Fry",
+  "license": "MIT"
+}

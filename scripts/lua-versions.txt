@@ -1,0 +1,14 @@
+# Lua versions to build for tslua development/CI.
+# Format: binary-name version source
+# Lines starting with # are comments.
+#
+# Lua: tarballs from lua.org
+# LuaJIT: archive snapshot from GitHub mirror, pinned to commit hash
+
+lua5.0  5.0.3   https://www.lua.org/ftp/lua-5.0.3.tar.gz
+lua5.1  5.1.5   https://www.lua.org/ftp/lua-5.1.5.tar.gz
+lua5.2  5.2.4   https://www.lua.org/ftp/lua-5.2.4.tar.gz
+lua5.3  5.3.6   https://www.lua.org/ftp/lua-5.3.6.tar.gz
+lua5.4  5.4.7   https://www.lua.org/ftp/lua-5.4.7.tar.gz
+lua5.5  5.5.0   https://www.lua.org/ftp/lua-5.5.0.tar.gz
+luajit  2.1     https://github.com/LuaJIT/LuaJIT/archive/18b087cd2cd4ddc4a79782bf155383a689d5093d.tar.gz

@@ -1,0 +1,58 @@
+---
+import AstrolightSiteTitle from "@astrojs/starlight/components/SiteTitle.astro";
+
+const menuItems = [
+  { name: "Docs", href: "/guides/installation/", match: (p: string) => p !== "/" && p !== "/playground/" },
+  { name: "Playground", href: "/playground/", match: (p: string) => p === "/playground/" },
+];
+---
+
+<div class="site-title-nav">
+  <AstrolightSiteTitle {...Astro.props} />
+  <div class="separator"></div>
+  <div class="menu-items">
+    {menuItems.map((item) => (
+      <a
+        href={item.href}
+        aria-current={item.match(Astro.url.pathname) ? "page" : undefined}
+      >
+        {item.name}
+      </a>
+    ))}
+  </div>
+</div>
+
+<style>
+  .site-title-nav {
+    display: flex;
+    gap: var(--sl-content-pad-x);
+    align-items: center;
+  }
+  .separator {
+    display: none;
+    height: 1.5rem;
+    border-inline-end: 1px solid var(--sl-color-gray-5);
+  }
+  .menu-items {
+    display: none;
+    gap: var(--sl-content-pad-x);
+  }
+  .menu-items a {
+    text-decoration: none;
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-sm);
+    font-weight: 500;
+    transition: color 0.15s;
+  }
+  .menu-items a:hover {
+    color: var(--sl-color-white);
+  }
+  .menu-items a[aria-current="page"] {
+    color: var(--sl-color-text-accent);
+    font-weight: 600;
+  }
+  @media (min-width: 30em) {
+    .separator { display: block; }
+    .menu-items { display: flex; }
+  }
+</style>

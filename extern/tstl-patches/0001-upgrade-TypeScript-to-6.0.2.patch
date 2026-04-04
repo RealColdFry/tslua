@@ -1,0 +1,2813 @@
+From d5caf857a682836b5c45669afe9a2d207e3330be Mon Sep 17 00:00:00 2001
+From: Cold Fry <coldfry.business@gmail.com>
+Date: Thu, 2 Apr 2026 22:31:30 +0100
+Subject: [PATCH 1/9] upgrade TypeScript to 6.0.2
+
+---
+ benchmark/tsconfig.json                       |   2 +-
+ eslint.config.mjs                             |   1 +
+ package-lock.json                             | 753 ++++++++++++------
+ package.json                                  |   9 +-
+ src/CompilerOptions.ts                        |   4 +-
+ src/transpilation/diagnostics.ts              |   4 -
+ src/transpilation/resolve.ts                  |  21 +-
+ src/utils.ts                                  |   2 +-
+ test/setup.ts                                 |   2 +-
+ .../module-resolution.spec.ts.snap            |   2 +-
+ test/transpile/module-resolution.spec.ts      |  21 +-
+ .../paths-base-tsconfig/tsconfig.base.json    |   1 +
+ .../paths-no-baseurl/mypackage/bar.ts         |   1 +
+ .../paths-no-baseurl/mypackage/index.ts       |   1 +
+ .../paths-no-baseurl/myprogram/main.ts        |   4 +
+ .../paths-no-baseurl/myprogram/tsconfig.json  |  10 +
+ .../paths-simple/myprogram/tsconfig.json      |   2 +-
+ .../tsconfig.json                             |   2 +-
+ .../tsconfig.json                             |   2 +-
+ .../project-with-node-modules/tsconfig.json   |   5 +-
+ .../project-with-sourceDir/tsconfig.json      |   2 +-
+ test/transpile/transformers/fixtures.ts       |   2 +-
+ test/tsconfig.json                            |   3 +-
+ .../__snapshots__/identifiers.spec.ts.snap    |   8 +-
+ .../annotations/customConstructor.spec.ts     |   4 +-
+ test/unit/assignments.spec.ts                 |   6 +-
+ test/unit/builtins/array.spec.ts              |  61 +-
+ test/unit/builtins/async-await.spec.ts        |   9 +-
+ test/unit/builtins/map.spec.ts                |   2 +-
+ test/unit/builtins/object.spec.ts             |   8 +-
+ test/unit/builtins/set.spec.ts                |   2 +-
+ test/unit/builtins/string.spec.ts             |   2 +-
+ test/unit/builtins/weakMap.spec.ts            |   2 +-
+ test/unit/classes/classes.spec.ts             |   2 +-
+ test/unit/classes/decorators.spec.ts          | 100 +--
+ test/unit/conditionals.spec.ts                |   2 +-
+ test/unit/destructuring.spec.ts               |  18 +-
+ test/unit/enum.spec.ts                        |   2 +-
+ test/unit/error.spec.ts                       |   8 +-
+ .../unit/functions/functionProperties.spec.ts |   6 +-
+ test/unit/functions/functions.spec.ts         |  35 +-
+ test/unit/functions/generators.spec.ts        |   2 +-
+ .../functionExpressionTypeInference.spec.ts   |   2 +-
+ .../invalidFunctionAssignments.spec.ts        |   8 +-
+ .../validFunctionAssignments.spec.ts          |  24 +-
+ test/unit/hoisting.spec.ts                    |   2 +-
+ test/unit/identifiers.spec.ts                 |   3 +-
+ test/unit/language-extensions/multi.spec.ts   |   7 +-
+ test/unit/loops.spec.ts                       |   6 +-
+ test/unit/modules/modules.spec.ts             |   3 +-
+ test/unit/namespaces.spec.ts                  |   4 +-
+ test/unit/optionalChaining.spec.ts            |  45 +-
+ test/unit/overloads.spec.ts                   |   8 +-
+ test/unit/precedingStatements.spec.ts         |  12 +-
+ test/unit/spread.spec.ts                      |   2 +-
+ test/unit/switch.spec.ts                      |   2 +-
+ test/unit/using.spec.ts                       |   6 +-
+ test/util.ts                                  |  12 +-
+ tsconfig.eslint.json                          |   9 +
+ tsconfig.json                                 |   2 +-
+ 60 files changed, 801 insertions(+), 491 deletions(-)
+ create mode 100644 test/transpile/module-resolution/paths-no-baseurl/mypackage/bar.ts
+ create mode 100644 test/transpile/module-resolution/paths-no-baseurl/mypackage/index.ts
+ create mode 100644 test/transpile/module-resolution/paths-no-baseurl/myprogram/main.ts
+ create mode 100644 test/transpile/module-resolution/paths-no-baseurl/myprogram/tsconfig.json
+ create mode 100644 tsconfig.eslint.json
+
+diff --git a/benchmark/tsconfig.json b/benchmark/tsconfig.json
+index e1c9c29..b56f07f 100644
+--- a/benchmark/tsconfig.json
++++ b/benchmark/tsconfig.json
+@@ -4,7 +4,7 @@
+         "lib": ["esnext"],
+         // Dev types are JIT
+         "types": ["lua-types/jit", "@typescript-to-lua/language-extensions"],
+-        "moduleResolution": "node",
++        "moduleResolution": "bundler",
+         "outDir": "dist",
+         "rootDir": "src",
+         "strict": true,
+diff --git a/eslint.config.mjs b/eslint.config.mjs
+index 0ea4d78..326f2b2 100644
+--- a/eslint.config.mjs
++++ b/eslint.config.mjs
+@@ -214,6 +214,7 @@ export default tseslint.config(
+     {
+         ignores: [
+             ".github/scripts/create_benchmark_check.js",
++            "coverage/",
+             "dist/",
+             "eslint.config.mjs",
+             "jest.config.js",
+diff --git a/package-lock.json b/package-lock.json
+index 1b482b4..3d4281d 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -36,14 +36,14 @@
+                 "prettier": "^2.8.8",
+                 "ts-jest": "^29.2.5",
+                 "ts-node": "^10.9.2",
+-                "typescript": "5.9.3",
++                "typescript": "6.0.2",
+                 "typescript-eslint": "^8.46.3"
+             },
+             "engines": {
+                 "node": ">=16.10.0"
+             },
+             "peerDependencies": {
+-                "typescript": "5.9.3"
++                "typescript": "6.0.2"
+             }
+         },
+         "node_modules/@ampproject/remapping": {
+@@ -91,7 +91,6 @@
+             "integrity": "sha512-BBt3opiCOxUr9euZ5/ro/Xv8/V7yJ5bjYMqG/C1YAo8MIKAnumZalCN+msbci3Pigy4lIQfPUpfMM27HMGaYEA==",
+             "dev": true,
+             "license": "MIT",
+-            "peer": true,
+             "dependencies": {
+                 "@ampproject/remapping": "^2.2.0",
+                 "@babel/code-frame": "^7.24.7",
+@@ -616,9 +615,9 @@
+             }
+         },
+         "node_modules/@eslint-community/eslint-utils": {
+-            "version": "4.9.0",
+-            "resolved": "https://registry.npmjs.org/@eslint-community/eslint-utils/-/eslint-utils-4.9.0.tgz",
+-            "integrity": "sha512-ayVFHdtZ+hsq1t2Dy24wCmGXGe4q9Gu3smhLYALJrr473ZH27MsnSL+LKUlimp4BWJqMDMLmPpx/Q9R3OAlL4g==",
++            "version": "4.9.1",
++            "resolved": "https://registry.npmjs.org/@eslint-community/eslint-utils/-/eslint-utils-4.9.1.tgz",
++            "integrity": "sha512-phrYmNiYppR7znFEdqgfWHXR6NCkZEK7hwWDHZUjit/2/U0r6XvkDl0SYnoM51Hq7FhCGdLDT6zxCCOY1hexsQ==",
+             "dev": true,
+             "license": "MIT",
+             "dependencies": {
+@@ -1548,7 +1547,6 @@
+             "resolved": "https://registry.npmjs.org/@types/node/-/node-22.10.0.tgz",
+             "integrity": "sha512-XC70cRZVElFHfIUB40FgZOBbgJYFKKMa5nb9lxcwYstFG/Mi+/Y0bGS+rs6Dmhmkpq4pnNiLiuZAbc02YCOnmA==",
+             "dev": true,
+-            "peer": true,
+             "dependencies": {
+                 "undici-types": "~6.20.0"
+             }
+@@ -1601,95 +1599,6 @@
+             "dev": true,
+             "license": "MIT"
+         },
+-        "node_modules/@typescript-eslint/eslint-plugin": {
+-            "version": "8.46.3",
+-            "resolved": "https://registry.npmjs.org/@typescript-eslint/eslint-plugin/-/eslint-plugin-8.46.3.tgz",
+-            "integrity": "sha512-sbaQ27XBUopBkRiuY/P9sWGOWUW4rl8fDoHIUmLpZd8uldsTyB4/Zg6bWTegPoTLnKj9Hqgn3QD6cjPNB32Odw==",
+-            "dev": true,
+-            "license": "MIT",
+-            "peer": true,
+-            "dependencies": {
+-                "@eslint-community/regexpp": "^4.10.0",
+-                "@typescript-eslint/scope-manager": "8.46.3",
+-                "@typescript-eslint/type-utils": "8.46.3",
+-                "@typescript-eslint/utils": "8.46.3",
+-                "@typescript-eslint/visitor-keys": "8.46.3",
+-                "graphemer": "^1.4.0",
+-                "ignore": "^7.0.0",
+-                "natural-compare": "^1.4.0",
+-                "ts-api-utils": "^2.1.0"
+-            },
+-            "engines": {
+-                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
+-            },
+-            "funding": {
+-                "type": "opencollective",
+-                "url": "https://opencollective.com/typescript-eslint"
+-            },
+-            "peerDependencies": {
+-                "@typescript-eslint/parser": "^8.46.3",
+-                "eslint": "^8.57.0 || ^9.0.0",
+-                "typescript": ">=4.8.4 <6.0.0"
+-            }
+-        },
+-        "node_modules/@typescript-eslint/eslint-plugin/node_modules/ignore": {
+-            "version": "7.0.5",
+-            "resolved": "https://registry.npmjs.org/ignore/-/ignore-7.0.5.tgz",
+-            "integrity": "sha512-Hs59xBNfUIunMFgWAbGX5cq6893IbWg4KnrjbYwX3tx0ztorVgTDA6B2sxf8ejHJ4wz8BqGUMYlnzNBer5NvGg==",
+-            "dev": true,
+-            "license": "MIT",
+-            "engines": {
+-                "node": ">= 4"
+-            }
+-        },
+-        "node_modules/@typescript-eslint/parser": {
+-            "version": "8.46.3",
+-            "resolved": "https://registry.npmjs.org/@typescript-eslint/parser/-/parser-8.46.3.tgz",
+-            "integrity": "sha512-6m1I5RmHBGTnUGS113G04DMu3CpSdxCAU/UvtjNWL4Nuf3MW9tQhiJqRlHzChIkhy6kZSAQmc+I1bcGjE3yNKg==",
+-            "dev": true,
+-            "license": "MIT",
+-            "peer": true,
+-            "dependencies": {
+-                "@typescript-eslint/scope-manager": "8.46.3",
+-                "@typescript-eslint/types": "8.46.3",
+-                "@typescript-eslint/typescript-estree": "8.46.3",
+-                "@typescript-eslint/visitor-keys": "8.46.3",
+-                "debug": "^4.3.4"
+-            },
+-            "engines": {
+-                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
+-            },
+-            "funding": {
+-                "type": "opencollective",
+-                "url": "https://opencollective.com/typescript-eslint"
+-            },
+-            "peerDependencies": {
+-                "eslint": "^8.57.0 || ^9.0.0",
+-                "typescript": ">=4.8.4 <6.0.0"
+-            }
+-        },
+-        "node_modules/@typescript-eslint/project-service": {
+-            "version": "8.46.3",
+-            "resolved": "https://registry.npmjs.org/@typescript-eslint/project-service/-/project-service-8.46.3.tgz",
+-            "integrity": "sha512-Fz8yFXsp2wDFeUElO88S9n4w1I4CWDTXDqDr9gYvZgUpwXQqmZBr9+NTTql5R3J7+hrJZPdpiWaB9VNhAKYLuQ==",
+-            "dev": true,
+-            "license": "MIT",
+-            "dependencies": {
+-                "@typescript-eslint/tsconfig-utils": "^8.46.3",
+-                "@typescript-eslint/types": "^8.46.3",
+-                "debug": "^4.3.4"
+-            },
+-            "engines": {
+-                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
+-            },
+-            "funding": {
+-                "type": "opencollective",
+-                "url": "https://opencollective.com/typescript-eslint"
+-            },
+-            "peerDependencies": {
+-                "typescript": ">=4.8.4 <6.0.0"
+-            }
+-        },
+         "node_modules/@typescript-eslint/scope-manager": {
+             "version": "8.46.3",
+             "resolved": "https://registry.npmjs.org/@typescript-eslint/scope-manager/-/scope-manager-8.46.3.tgz",
+@@ -1708,48 +1617,6 @@
+                 "url": "https://opencollective.com/typescript-eslint"
+             }
+         },
+-        "node_modules/@typescript-eslint/tsconfig-utils": {
+-            "version": "8.46.3",
+-            "resolved": "https://registry.npmjs.org/@typescript-eslint/tsconfig-utils/-/tsconfig-utils-8.46.3.tgz",
+-            "integrity": "sha512-GLupljMniHNIROP0zE7nCcybptolcH8QZfXOpCfhQDAdwJ/ZTlcaBOYebSOZotpti/3HrHSw7D3PZm75gYFsOA==",
+-            "dev": true,
+-            "license": "MIT",
+-            "engines": {
+-                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
+-            },
+-            "funding": {
+-                "type": "opencollective",
+-                "url": "https://opencollective.com/typescript-eslint"
+-            },
+-            "peerDependencies": {
+-                "typescript": ">=4.8.4 <6.0.0"
+-            }
+-        },
+-        "node_modules/@typescript-eslint/type-utils": {
+-            "version": "8.46.3",
+-            "resolved": "https://registry.npmjs.org/@typescript-eslint/type-utils/-/type-utils-8.46.3.tgz",
+-            "integrity": "sha512-ZPCADbr+qfz3aiTTYNNkCbUt+cjNwI/5McyANNrFBpVxPt7GqpEYz5ZfdwuFyGUnJ9FdDXbGODUu6iRCI6XRXw==",
+-            "dev": true,
+-            "license": "MIT",
+-            "dependencies": {
+-                "@typescript-eslint/types": "8.46.3",
+-                "@typescript-eslint/typescript-estree": "8.46.3",
+-                "@typescript-eslint/utils": "8.46.3",
+-                "debug": "^4.3.4",
+-                "ts-api-utils": "^2.1.0"
+-            },
+-            "engines": {
+-                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
+-            },
+-            "funding": {
+-                "type": "opencollective",
+-                "url": "https://opencollective.com/typescript-eslint"
+-            },
+-            "peerDependencies": {
+-                "eslint": "^8.57.0 || ^9.0.0",
+-                "typescript": ">=4.8.4 <6.0.0"
+-            }
+-        },
+         "node_modules/@typescript-eslint/types": {
+             "version": "8.46.3",
+             "resolved": "https://registry.npmjs.org/@typescript-eslint/types/-/types-8.46.3.tgz",
+@@ -1764,85 +1631,6 @@
+                 "url": "https://opencollective.com/typescript-eslint"
+             }
+         },
+-        "node_modules/@typescript-eslint/typescript-estree": {
+-            "version": "8.46.3",
+-            "resolved": "https://registry.npmjs.org/@typescript-eslint/typescript-estree/-/typescript-estree-8.46.3.tgz",
+-            "integrity": "sha512-f/NvtRjOm80BtNM5OQtlaBdM5BRFUv7gf381j9wygDNL+qOYSNOgtQ/DCndiYi80iIOv76QqaTmp4fa9hwI0OA==",
+-            "dev": true,
+-            "license": "MIT",
+-            "dependencies": {
+-                "@typescript-eslint/project-service": "8.46.3",
+-                "@typescript-eslint/tsconfig-utils": "8.46.3",
+-                "@typescript-eslint/types": "8.46.3",
+-                "@typescript-eslint/visitor-keys": "8.46.3",
+-                "debug": "^4.3.4",
+-                "fast-glob": "^3.3.2",
+-                "is-glob": "^4.0.3",
+-                "minimatch": "^9.0.4",
+-                "semver": "^7.6.0",
+-                "ts-api-utils": "^2.1.0"
+-            },
+-            "engines": {
+-                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
+-            },
+-            "funding": {
+-                "type": "opencollective",
+-                "url": "https://opencollective.com/typescript-eslint"
+-            },
+-            "peerDependencies": {
+-                "typescript": ">=4.8.4 <6.0.0"
+-            }
+-        },
+-        "node_modules/@typescript-eslint/typescript-estree/node_modules/brace-expansion": {
+-            "version": "2.0.2",
+-            "resolved": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-2.0.2.tgz",
+-            "integrity": "sha512-Jt0vHyM+jmUBqojB7E1NIYadt0vI0Qxjxd2TErW94wDz+E2LAm5vKMXXwg6ZZBTHPuUlDgQHKXvjGBdfcF1ZDQ==",
+-            "dev": true,
+-            "license": "MIT",
+-            "dependencies": {
+-                "balanced-match": "^1.0.0"
+-            }
+-        },
+-        "node_modules/@typescript-eslint/typescript-estree/node_modules/minimatch": {
+-            "version": "9.0.9",
+-            "resolved": "https://registry.npmjs.org/minimatch/-/minimatch-9.0.9.tgz",
+-            "integrity": "sha512-OBwBN9AL4dqmETlpS2zasx+vTeWclWzkblfZk7KTA5j3jeOONz/tRCnZomUyvNg83wL5Zv9Ss6HMJXAgL8R2Yg==",
+-            "dev": true,
+-            "license": "ISC",
+-            "dependencies": {
+-                "brace-expansion": "^2.0.2"
+-            },
+-            "engines": {
+-                "node": ">=16 || 14 >=14.17"
+-            },
+-            "funding": {
+-                "url": "https://github.com/sponsors/isaacs"
+-            }
+-        },
+-        "node_modules/@typescript-eslint/utils": {
+-            "version": "8.46.3",
+-            "resolved": "https://registry.npmjs.org/@typescript-eslint/utils/-/utils-8.46.3.tgz",
+-            "integrity": "sha512-VXw7qmdkucEx9WkmR3ld/u6VhRyKeiF1uxWwCy/iuNfokjJ7VhsgLSOTjsol8BunSw190zABzpwdNsze2Kpo4g==",
+-            "dev": true,
+-            "license": "MIT",
+-            "dependencies": {
+-                "@eslint-community/eslint-utils": "^4.7.0",
+-                "@typescript-eslint/scope-manager": "8.46.3",
+-                "@typescript-eslint/types": "8.46.3",
+-                "@typescript-eslint/typescript-estree": "8.46.3"
+-            },
+-            "engines": {
+-                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
+-            },
+-            "funding": {
+-                "type": "opencollective",
+-                "url": "https://opencollective.com/typescript-eslint"
+-            },
+-            "peerDependencies": {
+-                "eslint": "^8.57.0 || ^9.0.0",
+-                "typescript": ">=4.8.4 <6.0.0"
+-            }
+-        },
+         "node_modules/@typescript-eslint/visitor-keys": {
+             "version": "8.46.3",
+             "resolved": "https://registry.npmjs.org/@typescript-eslint/visitor-keys/-/visitor-keys-8.46.3.tgz",
+@@ -1873,7 +1661,6 @@
+             "integrity": "sha512-NZyJarBfL7nWwIq+FDL6Zp/yHEhePMNnnJ0y3qfieCrmNvYct8uvtiV41UvlSe6apAfk0fY1FbWx+NwfmpvtTg==",
+             "dev": true,
+             "license": "MIT",
+-            "peer": true,
+             "bin": {
+                 "acorn": "bin/acorn"
+             },
+@@ -2175,7 +1962,6 @@
+                 }
+             ],
+             "license": "MIT",
+-            "peer": true,
+             "dependencies": {
+                 "caniuse-lite": "^1.0.30001646",
+                 "electron-to-chromium": "^1.5.4",
+@@ -2421,9 +2207,9 @@
+             }
+         },
+         "node_modules/debug": {
+-            "version": "4.3.7",
+-            "resolved": "https://registry.npmjs.org/debug/-/debug-4.3.7.tgz",
+-            "integrity": "sha512-Er2nc/H7RrMXZBFCEim6TCmMk02Z8vLC2Rbi1KEBggpo0fS6l0S1nnapwmIi3yW/+GOJap1Krg4w0Hg80oCqgQ==",
++            "version": "4.4.3",
++            "resolved": "https://registry.npmjs.org/debug/-/debug-4.4.3.tgz",
++            "integrity": "sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==",
+             "dev": true,
+             "license": "MIT",
+             "dependencies": {
+@@ -2595,7 +2381,6 @@
+             "integrity": "sha512-BhHmn2yNOFA9H9JmmIVKJmd288g9hrVRDkdoIgRCRuSySRUHH7r/DI6aAXW9T1WwUuY3DFgrcaqB+deURBLR5g==",
+             "dev": true,
+             "license": "MIT",
+-            "peer": true,
+             "dependencies": {
+                 "@eslint-community/eslint-utils": "^4.8.0",
+                 "@eslint-community/regexpp": "^4.12.1",
+@@ -2644,36 +2429,229 @@
+             "peerDependencies": {
+                 "jiti": "*"
+             },
+-            "peerDependenciesMeta": {
+-                "jiti": {
+-                    "optional": true
+-                }
++            "peerDependenciesMeta": {
++                "jiti": {
++                    "optional": true
++                }
++            }
++        },
++        "node_modules/eslint-plugin-jest": {
++            "version": "28.8.3",
++            "resolved": "https://registry.npmjs.org/eslint-plugin-jest/-/eslint-plugin-jest-28.8.3.tgz",
++            "integrity": "sha512-HIQ3t9hASLKm2IhIOqnu+ifw7uLZkIlR7RYNv7fMcEi/p0CIiJmfriStQS2LDkgtY4nyLbIZAD+JL347Yc2ETQ==",
++            "dev": true,
++            "license": "MIT",
++            "dependencies": {
++                "@typescript-eslint/utils": "^6.0.0 || ^7.0.0 || ^8.0.0"
++            },
++            "engines": {
++                "node": "^16.10.0 || ^18.12.0 || >=20.0.0"
++            },
++            "peerDependencies": {
++                "@typescript-eslint/eslint-plugin": "^6.0.0 || ^7.0.0 || ^8.0.0",
++                "eslint": "^7.0.0 || ^8.0.0 || ^9.0.0",
++                "jest": "*"
++            },
++            "peerDependenciesMeta": {
++                "@typescript-eslint/eslint-plugin": {
++                    "optional": true
++                },
++                "jest": {
++                    "optional": true
++                }
++            }
++        },
++        "node_modules/eslint-plugin-jest/node_modules/@typescript-eslint/project-service": {
++            "version": "8.57.2",
++            "resolved": "https://registry.npmjs.org/@typescript-eslint/project-service/-/project-service-8.57.2.tgz",
++            "integrity": "sha512-FuH0wipFywXRTHf+bTTjNyuNQQsQC3qh/dYzaM4I4W0jrCqjCVuUh99+xd9KamUfmCGPvbO8NDngo/vsnNVqgw==",
++            "dev": true,
++            "license": "MIT",
++            "dependencies": {
++                "@typescript-eslint/tsconfig-utils": "^8.57.2",
++                "@typescript-eslint/types": "^8.57.2",
++                "debug": "^4.4.3"
++            },
++            "engines": {
++                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
++            },
++            "funding": {
++                "type": "opencollective",
++                "url": "https://opencollective.com/typescript-eslint"
++            },
++            "peerDependencies": {
++                "typescript": ">=4.8.4 <6.0.0"
++            }
++        },
++        "node_modules/eslint-plugin-jest/node_modules/@typescript-eslint/scope-manager": {
++            "version": "8.57.2",
++            "resolved": "https://registry.npmjs.org/@typescript-eslint/scope-manager/-/scope-manager-8.57.2.tgz",
++            "integrity": "sha512-snZKH+W4WbWkrBqj4gUNRIGb/jipDW3qMqVJ4C9rzdFc+wLwruxk+2a5D+uoFcKPAqyqEnSb4l2ULuZf95eSkw==",
++            "dev": true,
++            "license": "MIT",
++            "dependencies": {
++                "@typescript-eslint/types": "8.57.2",
++                "@typescript-eslint/visitor-keys": "8.57.2"
++            },
++            "engines": {
++                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
++            },
++            "funding": {
++                "type": "opencollective",
++                "url": "https://opencollective.com/typescript-eslint"
++            }
++        },
++        "node_modules/eslint-plugin-jest/node_modules/@typescript-eslint/tsconfig-utils": {
++            "version": "8.57.2",
++            "resolved": "https://registry.npmjs.org/@typescript-eslint/tsconfig-utils/-/tsconfig-utils-8.57.2.tgz",
++            "integrity": "sha512-3Lm5DSM+DCowsUOJC+YqHHnKEfFh5CoGkj5Z31NQSNF4l5wdOwqGn99wmwN/LImhfY3KJnmordBq/4+VDe2eKw==",
++            "dev": true,
++            "license": "MIT",
++            "engines": {
++                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
++            },
++            "funding": {
++                "type": "opencollective",
++                "url": "https://opencollective.com/typescript-eslint"
++            },
++            "peerDependencies": {
++                "typescript": ">=4.8.4 <6.0.0"
++            }
++        },
++        "node_modules/eslint-plugin-jest/node_modules/@typescript-eslint/types": {
++            "version": "8.57.2",
++            "resolved": "https://registry.npmjs.org/@typescript-eslint/types/-/types-8.57.2.tgz",
++            "integrity": "sha512-/iZM6FnM4tnx9csuTxspMW4BOSegshwX5oBDznJ7S4WggL7Vczz5d2W11ecc4vRrQMQHXRSxzrCsyG5EsPPTbA==",
++            "dev": true,
++            "license": "MIT",
++            "engines": {
++                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
++            },
++            "funding": {
++                "type": "opencollective",
++                "url": "https://opencollective.com/typescript-eslint"
++            }
++        },
++        "node_modules/eslint-plugin-jest/node_modules/@typescript-eslint/typescript-estree": {
++            "version": "8.57.2",
++            "resolved": "https://registry.npmjs.org/@typescript-eslint/typescript-estree/-/typescript-estree-8.57.2.tgz",
++            "integrity": "sha512-2MKM+I6g8tJxfSmFKOnHv2t8Sk3T6rF20A1Puk0svLK+uVapDZB/4pfAeB7nE83uAZrU6OxW+HmOd5wHVdXwXA==",
++            "dev": true,
++            "license": "MIT",
++            "dependencies": {
++                "@typescript-eslint/project-service": "8.57.2",
++                "@typescript-eslint/tsconfig-utils": "8.57.2",
++                "@typescript-eslint/types": "8.57.2",
++                "@typescript-eslint/visitor-keys": "8.57.2",
++                "debug": "^4.4.3",
++                "minimatch": "^10.2.2",
++                "semver": "^7.7.3",
++                "tinyglobby": "^0.2.15",
++                "ts-api-utils": "^2.4.0"
++            },
++            "engines": {
++                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
++            },
++            "funding": {
++                "type": "opencollective",
++                "url": "https://opencollective.com/typescript-eslint"
++            },
++            "peerDependencies": {
++                "typescript": ">=4.8.4 <6.0.0"
++            }
++        },
++        "node_modules/eslint-plugin-jest/node_modules/@typescript-eslint/utils": {
++            "version": "8.57.2",
++            "resolved": "https://registry.npmjs.org/@typescript-eslint/utils/-/utils-8.57.2.tgz",
++            "integrity": "sha512-krRIbvPK1ju1WBKIefiX+bngPs+odIQUtR7kymzPfo1POVw3jlF+nLkmexdSSd4UCbDcQn+wMBATOOmpBbqgKg==",
++            "dev": true,
++            "license": "MIT",
++            "dependencies": {
++                "@eslint-community/eslint-utils": "^4.9.1",
++                "@typescript-eslint/scope-manager": "8.57.2",
++                "@typescript-eslint/types": "8.57.2",
++                "@typescript-eslint/typescript-estree": "8.57.2"
++            },
++            "engines": {
++                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
++            },
++            "funding": {
++                "type": "opencollective",
++                "url": "https://opencollective.com/typescript-eslint"
++            },
++            "peerDependencies": {
++                "eslint": "^8.57.0 || ^9.0.0 || ^10.0.0",
++                "typescript": ">=4.8.4 <6.0.0"
++            }
++        },
++        "node_modules/eslint-plugin-jest/node_modules/@typescript-eslint/visitor-keys": {
++            "version": "8.57.2",
++            "resolved": "https://registry.npmjs.org/@typescript-eslint/visitor-keys/-/visitor-keys-8.57.2.tgz",
++            "integrity": "sha512-zhahknjobV2FiD6Ee9iLbS7OV9zi10rG26odsQdfBO/hjSzUQbkIYgda+iNKK1zNiW2ey+Lf8MU5btN17V3dUw==",
++            "dev": true,
++            "license": "MIT",
++            "dependencies": {
++                "@typescript-eslint/types": "8.57.2",
++                "eslint-visitor-keys": "^5.0.0"
++            },
++            "engines": {
++                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
++            },
++            "funding": {
++                "type": "opencollective",
++                "url": "https://opencollective.com/typescript-eslint"
++            }
++        },
++        "node_modules/eslint-plugin-jest/node_modules/balanced-match": {
++            "version": "4.0.4",
++            "resolved": "https://registry.npmjs.org/balanced-match/-/balanced-match-4.0.4.tgz",
++            "integrity": "sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==",
++            "dev": true,
++            "license": "MIT",
++            "engines": {
++                "node": "18 || 20 || >=22"
++            }
++        },
++        "node_modules/eslint-plugin-jest/node_modules/brace-expansion": {
++            "version": "5.0.5",
++            "resolved": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-5.0.5.tgz",
++            "integrity": "sha512-VZznLgtwhn+Mact9tfiwx64fA9erHH/MCXEUfB/0bX/6Fz6ny5EGTXYltMocqg4xFAQZtnO3DHWWXi8RiuN7cQ==",
++            "dev": true,
++            "license": "MIT",
++            "dependencies": {
++                "balanced-match": "^4.0.2"
++            },
++            "engines": {
++                "node": "18 || 20 || >=22"
++            }
++        },
++        "node_modules/eslint-plugin-jest/node_modules/eslint-visitor-keys": {
++            "version": "5.0.1",
++            "resolved": "https://registry.npmjs.org/eslint-visitor-keys/-/eslint-visitor-keys-5.0.1.tgz",
++            "integrity": "sha512-tD40eHxA35h0PEIZNeIjkHoDR4YjjJp34biM0mDvplBe//mB+IHCqHDGV7pxF+7MklTvighcCPPZC7ynWyjdTA==",
++            "dev": true,
++            "license": "Apache-2.0",
++            "engines": {
++                "node": "^20.19.0 || ^22.13.0 || >=24"
++            },
++            "funding": {
++                "url": "https://opencollective.com/eslint"
+             }
+         },
+-        "node_modules/eslint-plugin-jest": {
+-            "version": "28.8.3",
+-            "resolved": "https://registry.npmjs.org/eslint-plugin-jest/-/eslint-plugin-jest-28.8.3.tgz",
+-            "integrity": "sha512-HIQ3t9hASLKm2IhIOqnu+ifw7uLZkIlR7RYNv7fMcEi/p0CIiJmfriStQS2LDkgtY4nyLbIZAD+JL347Yc2ETQ==",
++        "node_modules/eslint-plugin-jest/node_modules/minimatch": {
++            "version": "10.2.4",
++            "resolved": "https://registry.npmjs.org/minimatch/-/minimatch-10.2.4.tgz",
++            "integrity": "sha512-oRjTw/97aTBN0RHbYCdtF1MQfvusSIBQM0IZEgzl6426+8jSC0nF1a/GmnVLpfB9yyr6g6FTqWqiZVbxrtaCIg==",
+             "dev": true,
+-            "license": "MIT",
++            "license": "BlueOak-1.0.0",
+             "dependencies": {
+-                "@typescript-eslint/utils": "^6.0.0 || ^7.0.0 || ^8.0.0"
++                "brace-expansion": "^5.0.2"
+             },
+             "engines": {
+-                "node": "^16.10.0 || ^18.12.0 || >=20.0.0"
+-            },
+-            "peerDependencies": {
+-                "@typescript-eslint/eslint-plugin": "^6.0.0 || ^7.0.0 || ^8.0.0",
+-                "eslint": "^7.0.0 || ^8.0.0 || ^9.0.0",
+-                "jest": "*"
++                "node": "18 || 20 || >=22"
+             },
+-            "peerDependenciesMeta": {
+-                "@typescript-eslint/eslint-plugin": {
+-                    "optional": true
+-                },
+-                "jest": {
+-                    "optional": true
+-                }
++            "funding": {
++                "url": "https://github.com/sponsors/isaacs"
+             }
+         },
+         "node_modules/eslint-scope": {
+@@ -2963,9 +2941,9 @@
+             "license": "MIT"
+         },
+         "node_modules/fastq": {
+-            "version": "1.19.1",
+-            "resolved": "https://registry.npmjs.org/fastq/-/fastq-1.19.1.tgz",
+-            "integrity": "sha512-GwLTyxkCXjXbxqIhTsMI2Nui8huMPtnxg7krajPJAjnEG/iiOS7i+zCtWGZR9G0NBKbXKh6X9m9UIsYX/N6vvQ==",
++            "version": "1.20.1",
++            "resolved": "https://registry.npmjs.org/fastq/-/fastq-1.20.1.tgz",
++            "integrity": "sha512-GGToxJ/w1x32s/D2EKND7kTil4n8OVk/9mycTc4VDza13lOvpUZTGX3mFSCtV9ksdGBVzvsyAVLM6mHFThxXxw==",
+             "dev": true,
+             "license": "ISC",
+             "dependencies": {
+@@ -3552,7 +3530,6 @@
+             "integrity": "sha512-NIy3oAFp9shda19hy4HK0HRTWKtPJmGdnvywu01nOqNC2vZg+Z+fvJDxpMQA88eb2I9EcafcdjYgsDthnYTvGw==",
+             "dev": true,
+             "license": "MIT",
+-            "peer": true,
+             "dependencies": {
+                 "@jest/core": "^29.7.0",
+                 "@jest/types": "^29.6.3",
+@@ -5290,9 +5267,9 @@
+             }
+         },
+         "node_modules/semver": {
+-            "version": "7.6.3",
+-            "resolved": "https://registry.npmjs.org/semver/-/semver-7.6.3.tgz",
+-            "integrity": "sha512-oVekP1cKtI+CTDvHWYFUcMtsK/00wmAEfyqKfNdARm8u1wNVhSgaX7A8d4UuIlUI5e84iEwOhs7ZPYRmzU9U6A==",
++            "version": "7.7.4",
++            "resolved": "https://registry.npmjs.org/semver/-/semver-7.7.4.tgz",
++            "integrity": "sha512-vFKC2IEtQnVhpT78h1Yp8wzwrf8CM+MzKMHGJZfBtzhZNycRFnXsHk6E5TxIkkMsgNS7mdX3AGB7x2QM2di4lA==",
+             "dev": true,
+             "license": "ISC",
+             "bin": {
+@@ -5533,6 +5510,54 @@
+                 "node": ">=8"
+             }
+         },
++        "node_modules/tinyglobby": {
++            "version": "0.2.15",
++            "resolved": "https://registry.npmjs.org/tinyglobby/-/tinyglobby-0.2.15.tgz",
++            "integrity": "sha512-j2Zq4NyQYG5XMST4cbs02Ak8iJUdxRM0XI5QyxXuZOzKOINmWurp3smXu3y5wDcJrptwpSjgXHzIQxR0omXljQ==",
++            "dev": true,
++            "license": "MIT",
++            "dependencies": {
++                "fdir": "^6.5.0",
++                "picomatch": "^4.0.3"
++            },
++            "engines": {
++                "node": ">=12.0.0"
++            },
++            "funding": {
++                "url": "https://github.com/sponsors/SuperchupuDev"
++            }
++        },
++        "node_modules/tinyglobby/node_modules/fdir": {
++            "version": "6.5.0",
++            "resolved": "https://registry.npmjs.org/fdir/-/fdir-6.5.0.tgz",
++            "integrity": "sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==",
++            "dev": true,
++            "license": "MIT",
++            "engines": {
++                "node": ">=12.0.0"
++            },
++            "peerDependencies": {
++                "picomatch": "^3 || ^4"
++            },
++            "peerDependenciesMeta": {
++                "picomatch": {
++                    "optional": true
++                }
++            }
++        },
++        "node_modules/tinyglobby/node_modules/picomatch": {
++            "version": "4.0.4",
++            "resolved": "https://registry.npmjs.org/picomatch/-/picomatch-4.0.4.tgz",
++            "integrity": "sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A==",
++            "dev": true,
++            "license": "MIT",
++            "engines": {
++                "node": ">=12"
++            },
++            "funding": {
++                "url": "https://github.com/sponsors/jonschlinkert"
++            }
++        },
+         "node_modules/tmpl": {
+             "version": "1.0.5",
+             "resolved": "https://registry.npmjs.org/tmpl/-/tmpl-1.0.5.tgz",
+@@ -5554,9 +5579,9 @@
+             }
+         },
+         "node_modules/ts-api-utils": {
+-            "version": "2.1.0",
+-            "resolved": "https://registry.npmjs.org/ts-api-utils/-/ts-api-utils-2.1.0.tgz",
+-            "integrity": "sha512-CUgTZL1irw8u29bzrOD/nH85jqyc74D6SshFgujOIA7osm2Rz7dYH77agkx7H4FBNxDq7Cjf+IjaX/8zwFW+ZQ==",
++            "version": "2.5.0",
++            "resolved": "https://registry.npmjs.org/ts-api-utils/-/ts-api-utils-2.5.0.tgz",
++            "integrity": "sha512-OJ/ibxhPlqrMM0UiNHJ/0CKQkoKF243/AEmplt3qpRgkW8VG7IfOS41h7V8TjITqdByHzrjcS/2si+y4lIh8NA==",
+             "dev": true,
+             "license": "MIT",
+             "engines": {
+@@ -5619,7 +5644,6 @@
+             "resolved": "https://registry.npmjs.org/ts-node/-/ts-node-10.9.2.tgz",
+             "integrity": "sha512-f0FFpIdcHgn8zcPSbf1dRevwt047YMnaiJM3u2w2RewrB+fob/zePZcrOyQoLMMO7aBIddLcQIEK5dYjkLnGrQ==",
+             "dev": true,
+-            "peer": true,
+             "dependencies": {
+                 "@cspotcode/source-map-support": "^0.8.0",
+                 "@tsconfig/node10": "^1.0.7",
+@@ -5695,12 +5719,11 @@
+             }
+         },
+         "node_modules/typescript": {
+-            "version": "5.9.3",
+-            "resolved": "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz",
+-            "integrity": "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==",
++            "version": "6.0.2",
++            "resolved": "https://registry.npmjs.org/typescript/-/typescript-6.0.2.tgz",
++            "integrity": "sha512-bGdAIrZ0wiGDo5l8c++HWtbaNCWTS4UTv7RaTH/ThVIgjkveJt83m74bBHMJkuCbslY8ixgLBVZJIOiQlQTjfQ==",
+             "dev": true,
+             "license": "Apache-2.0",
+-            "peer": true,
+             "bin": {
+                 "tsc": "bin/tsc",
+                 "tsserver": "bin/tsserver"
+@@ -5733,6 +5756,214 @@
+                 "typescript": ">=4.8.4 <6.0.0"
+             }
+         },
++        "node_modules/typescript-eslint/node_modules/@typescript-eslint/eslint-plugin": {
++            "version": "8.46.3",
++            "resolved": "https://registry.npmjs.org/@typescript-eslint/eslint-plugin/-/eslint-plugin-8.46.3.tgz",
++            "integrity": "sha512-sbaQ27XBUopBkRiuY/P9sWGOWUW4rl8fDoHIUmLpZd8uldsTyB4/Zg6bWTegPoTLnKj9Hqgn3QD6cjPNB32Odw==",
++            "dev": true,
++            "license": "MIT",
++            "dependencies": {
++                "@eslint-community/regexpp": "^4.10.0",
++                "@typescript-eslint/scope-manager": "8.46.3",
++                "@typescript-eslint/type-utils": "8.46.3",
++                "@typescript-eslint/utils": "8.46.3",
++                "@typescript-eslint/visitor-keys": "8.46.3",
++                "graphemer": "^1.4.0",
++                "ignore": "^7.0.0",
++                "natural-compare": "^1.4.0",
++                "ts-api-utils": "^2.1.0"
++            },
++            "engines": {
++                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
++            },
++            "funding": {
++                "type": "opencollective",
++                "url": "https://opencollective.com/typescript-eslint"
++            },
++            "peerDependencies": {
++                "@typescript-eslint/parser": "^8.46.3",
++                "eslint": "^8.57.0 || ^9.0.0",
++                "typescript": ">=4.8.4 <6.0.0"
++            }
++        },
++        "node_modules/typescript-eslint/node_modules/@typescript-eslint/eslint-plugin/node_modules/@typescript-eslint/type-utils": {
++            "version": "8.46.3",
++            "resolved": "https://registry.npmjs.org/@typescript-eslint/type-utils/-/type-utils-8.46.3.tgz",
++            "integrity": "sha512-ZPCADbr+qfz3aiTTYNNkCbUt+cjNwI/5McyANNrFBpVxPt7GqpEYz5ZfdwuFyGUnJ9FdDXbGODUu6iRCI6XRXw==",
++            "dev": true,
++            "license": "MIT",
++            "dependencies": {
++                "@typescript-eslint/types": "8.46.3",
++                "@typescript-eslint/typescript-estree": "8.46.3",
++                "@typescript-eslint/utils": "8.46.3",
++                "debug": "^4.3.4",
++                "ts-api-utils": "^2.1.0"
++            },
++            "engines": {
++                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
++            },
++            "funding": {
++                "type": "opencollective",
++                "url": "https://opencollective.com/typescript-eslint"
++            },
++            "peerDependencies": {
++                "eslint": "^8.57.0 || ^9.0.0",
++                "typescript": ">=4.8.4 <6.0.0"
++            }
++        },
++        "node_modules/typescript-eslint/node_modules/@typescript-eslint/parser": {
++            "version": "8.46.3",
++            "resolved": "https://registry.npmjs.org/@typescript-eslint/parser/-/parser-8.46.3.tgz",
++            "integrity": "sha512-6m1I5RmHBGTnUGS113G04DMu3CpSdxCAU/UvtjNWL4Nuf3MW9tQhiJqRlHzChIkhy6kZSAQmc+I1bcGjE3yNKg==",
++            "dev": true,
++            "license": "MIT",
++            "dependencies": {
++                "@typescript-eslint/scope-manager": "8.46.3",
++                "@typescript-eslint/types": "8.46.3",
++                "@typescript-eslint/typescript-estree": "8.46.3",
++                "@typescript-eslint/visitor-keys": "8.46.3",
++                "debug": "^4.3.4"
++            },
++            "engines": {
++                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
++            },
++            "funding": {
++                "type": "opencollective",
++                "url": "https://opencollective.com/typescript-eslint"
++            },
++            "peerDependencies": {
++                "eslint": "^8.57.0 || ^9.0.0",
++                "typescript": ">=4.8.4 <6.0.0"
++            }
++        },
++        "node_modules/typescript-eslint/node_modules/@typescript-eslint/typescript-estree": {
++            "version": "8.46.3",
++            "resolved": "https://registry.npmjs.org/@typescript-eslint/typescript-estree/-/typescript-estree-8.46.3.tgz",
++            "integrity": "sha512-f/NvtRjOm80BtNM5OQtlaBdM5BRFUv7gf381j9wygDNL+qOYSNOgtQ/DCndiYi80iIOv76QqaTmp4fa9hwI0OA==",
++            "dev": true,
++            "license": "MIT",
++            "dependencies": {
++                "@typescript-eslint/project-service": "8.46.3",
++                "@typescript-eslint/tsconfig-utils": "8.46.3",
++                "@typescript-eslint/types": "8.46.3",
++                "@typescript-eslint/visitor-keys": "8.46.3",
++                "debug": "^4.3.4",
++                "fast-glob": "^3.3.2",
++                "is-glob": "^4.0.3",
++                "minimatch": "^9.0.4",
++                "semver": "^7.6.0",
++                "ts-api-utils": "^2.1.0"
++            },
++            "engines": {
++                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
++            },
++            "funding": {
++                "type": "opencollective",
++                "url": "https://opencollective.com/typescript-eslint"
++            },
++            "peerDependencies": {
++                "typescript": ">=4.8.4 <6.0.0"
++            }
++        },
++        "node_modules/typescript-eslint/node_modules/@typescript-eslint/typescript-estree/node_modules/@typescript-eslint/project-service": {
++            "version": "8.46.3",
++            "resolved": "https://registry.npmjs.org/@typescript-eslint/project-service/-/project-service-8.46.3.tgz",
++            "integrity": "sha512-Fz8yFXsp2wDFeUElO88S9n4w1I4CWDTXDqDr9gYvZgUpwXQqmZBr9+NTTql5R3J7+hrJZPdpiWaB9VNhAKYLuQ==",
++            "dev": true,
++            "license": "MIT",
++            "dependencies": {
++                "@typescript-eslint/tsconfig-utils": "^8.46.3",
++                "@typescript-eslint/types": "^8.46.3",
++                "debug": "^4.3.4"
++            },
++            "engines": {
++                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
++            },
++            "funding": {
++                "type": "opencollective",
++                "url": "https://opencollective.com/typescript-eslint"
++            },
++            "peerDependencies": {
++                "typescript": ">=4.8.4 <6.0.0"
++            }
++        },
++        "node_modules/typescript-eslint/node_modules/@typescript-eslint/typescript-estree/node_modules/@typescript-eslint/tsconfig-utils": {
++            "version": "8.46.3",
++            "resolved": "https://registry.npmjs.org/@typescript-eslint/tsconfig-utils/-/tsconfig-utils-8.46.3.tgz",
++            "integrity": "sha512-GLupljMniHNIROP0zE7nCcybptolcH8QZfXOpCfhQDAdwJ/ZTlcaBOYebSOZotpti/3HrHSw7D3PZm75gYFsOA==",
++            "dev": true,
++            "license": "MIT",
++            "engines": {
++                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
++            },
++            "funding": {
++                "type": "opencollective",
++                "url": "https://opencollective.com/typescript-eslint"
++            },
++            "peerDependencies": {
++                "typescript": ">=4.8.4 <6.0.0"
++            }
++        },
++        "node_modules/typescript-eslint/node_modules/@typescript-eslint/utils": {
++            "version": "8.46.3",
++            "resolved": "https://registry.npmjs.org/@typescript-eslint/utils/-/utils-8.46.3.tgz",
++            "integrity": "sha512-VXw7qmdkucEx9WkmR3ld/u6VhRyKeiF1uxWwCy/iuNfokjJ7VhsgLSOTjsol8BunSw190zABzpwdNsze2Kpo4g==",
++            "dev": true,
++            "license": "MIT",
++            "dependencies": {
++                "@eslint-community/eslint-utils": "^4.7.0",
++                "@typescript-eslint/scope-manager": "8.46.3",
++                "@typescript-eslint/types": "8.46.3",
++                "@typescript-eslint/typescript-estree": "8.46.3"
++            },
++            "engines": {
++                "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
++            },
++            "funding": {
++                "type": "opencollective",
++                "url": "https://opencollective.com/typescript-eslint"
++            },
++            "peerDependencies": {
++                "eslint": "^8.57.0 || ^9.0.0",
++                "typescript": ">=4.8.4 <6.0.0"
++            }
++        },
++        "node_modules/typescript-eslint/node_modules/brace-expansion": {
++            "version": "2.0.3",
++            "resolved": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-2.0.3.tgz",
++            "integrity": "sha512-MCV/fYJEbqx68aE58kv2cA/kiky1G8vux3OR6/jbS+jIMe/6fJWa0DTzJU7dqijOWYwHi1t29FlfYI9uytqlpA==",
++            "dev": true,
++            "license": "MIT",
++            "dependencies": {
++                "balanced-match": "^1.0.0"
++            }
++        },
++        "node_modules/typescript-eslint/node_modules/ignore": {
++            "version": "7.0.5",
++            "resolved": "https://registry.npmjs.org/ignore/-/ignore-7.0.5.tgz",
++            "integrity": "sha512-Hs59xBNfUIunMFgWAbGX5cq6893IbWg4KnrjbYwX3tx0ztorVgTDA6B2sxf8ejHJ4wz8BqGUMYlnzNBer5NvGg==",
++            "dev": true,
++            "license": "MIT",
++            "engines": {
++                "node": ">= 4"
++            }
++        },
++        "node_modules/typescript-eslint/node_modules/minimatch": {
++            "version": "9.0.9",
++            "resolved": "https://registry.npmjs.org/minimatch/-/minimatch-9.0.9.tgz",
++            "integrity": "sha512-OBwBN9AL4dqmETlpS2zasx+vTeWclWzkblfZk7KTA5j3jeOONz/tRCnZomUyvNg83wL5Zv9Ss6HMJXAgL8R2Yg==",
++            "dev": true,
++            "license": "ISC",
++            "dependencies": {
++                "brace-expansion": "^2.0.2"
++            },
++            "engines": {
++                "node": ">=16 || 14 >=14.17"
++            },
++            "funding": {
++                "url": "https://github.com/sponsors/isaacs"
++            }
++        },
+         "node_modules/undici-types": {
+             "version": "6.20.0",
+             "resolved": "https://registry.npmjs.org/undici-types/-/undici-types-6.20.0.tgz",
+diff --git a/package.json b/package.json
+index fe67711..5001668 100644
+--- a/package.json
++++ b/package.json
+@@ -31,7 +31,7 @@
+         "lint:prettier": "prettier --check . || (echo 'Run `npm run fix:prettier` to fix it.' && exit 1)",
+         "lint:eslint": "eslint .",
+         "fix:prettier": "prettier --write .",
+-        "check:language-extensions": "tsc --strict language-extensions/index.d.ts",
++        "check:language-extensions": "tsc --strict --ignoreConfig language-extensions/index.d.ts",
+         "preversion": "npm run build && npm test",
+         "postversion": "git push && git push --tags"
+     },
+@@ -42,7 +42,7 @@
+         "node": ">=16.10.0"
+     },
+     "peerDependencies": {
+-        "typescript": "5.9.3"
++        "typescript": "6.0.2"
+     },
+     "dependencies": {
+         "@typescript-to-lua/language-extensions": "1.19.0",
+@@ -69,7 +69,10 @@
+         "prettier": "^2.8.8",
+         "ts-jest": "^29.2.5",
+         "ts-node": "^10.9.2",
+-        "typescript": "5.9.3",
++        "typescript": "6.0.2",
+         "typescript-eslint": "^8.46.3"
++    },
++    "overrides": {
++        "typescript": "$typescript"
+     }
+ }
+diff --git a/src/CompilerOptions.ts b/src/CompilerOptions.ts
+index 47ada91..ca06e6c 100644
+--- a/src/CompilerOptions.ts
++++ b/src/CompilerOptions.ts
+@@ -99,9 +99,7 @@ export function validateOptions(options: CompilerOptions): ts.Diagnostic[] {
+         diagnostics.push(diagnosticFactories.unsupportedJsxEmit());
+     }
+ 
+-    if (options.paths && !options.baseUrl) {
+-        diagnostics.push(diagnosticFactories.pathsWithoutBaseUrl());
+-    }
++    // paths without baseUrl is now supported (TS 6.0+ resolves paths relative to tsconfig location)
+ 
+     return diagnostics;
+ }
+diff --git a/src/transpilation/diagnostics.ts b/src/transpilation/diagnostics.ts
+index 348542a..0428e0e 100644
+--- a/src/transpilation/diagnostics.ts
++++ b/src/transpilation/diagnostics.ts
+@@ -55,7 +55,3 @@ export const cannotBundleLibrary = createDiagnosticFactory(
+ );
+ 
+ export const unsupportedJsxEmit = createDiagnosticFactory(() => 'JSX is only supported with "react" jsx option.');
+-
+-export const pathsWithoutBaseUrl = createDiagnosticFactory(
+-    () => "When configuring 'paths' in tsconfig.json, the option 'baseUrl' must also be provided."
+-);
+diff --git a/src/transpilation/resolve.ts b/src/transpilation/resolve.ts
+index bd16773..b73740a 100644
+--- a/src/transpilation/resolve.ts
++++ b/src/transpilation/resolve.ts
+@@ -10,7 +10,7 @@ import { couldNotReadDependency, couldNotResolveRequire } from "./diagnostics";
+ import { BuildMode, CompilerOptions } from "../CompilerOptions";
+ import { findLuaRequires, LuaRequire } from "./find-lua-requires";
+ import { Plugin } from "./plugins";
+-import * as picomatch from "picomatch";
++import picomatch from "picomatch";
+ 
+ const resolver = resolve.ResolverFactory.createResolver({
+     extensions: [".lua"],
+@@ -39,8 +39,7 @@ class ResolutionContext {
+         private readonly plugins: Plugin[]
+     ) {
+         const unique = [...new Set(options.noResolvePaths)];
+-        const matchers = unique.map(x => picomatch(x));
+-        this.noResolvePaths = matchers;
++        this.noResolvePaths = unique.map(x => picomatch(x));
+     }
+ 
+     public addAndResolveDependencies(file: ProcessedFile): void {
+@@ -215,14 +214,16 @@ class ResolutionContext {
+         const fileFromPath = this.getFileFromPath(resolvedPath);
+         if (fileFromPath) return fileFromPath;
+ 
+-        if (this.options.paths && this.options.baseUrl) {
++        if (this.options.paths) {
+             // If no file found yet and paths are present, try to find project file via paths mappings
+-            const fileFromPaths = this.tryGetModuleNameFromPaths(
+-                dependencyPath,
+-                this.options.paths,
+-                this.options.baseUrl
+-            );
+-            if (fileFromPaths) return fileFromPaths;
++            // When baseUrl is not set, resolve paths relative to the tsconfig directory (TS 6.0+ behavior)
++            const pathsBase =
++                this.options.baseUrl ??
++                (this.options.configFilePath ? path.dirname(this.options.configFilePath) : undefined);
++            if (pathsBase) {
++                const fileFromPaths = this.tryGetModuleNameFromPaths(dependencyPath, this.options.paths, pathsBase);
++                if (fileFromPaths) return fileFromPaths;
++            }
+         }
+ 
+         // Not a TS file in our project sources, use resolver to check if we can find dependency
+diff --git a/src/utils.ts b/src/utils.ts
+index b1877e3..70cdb29 100644
+--- a/src/utils.ts
++++ b/src/utils.ts
+@@ -77,7 +77,7 @@ export function cast<TOriginal, TCast extends TOriginal>(
+ }
+ 
+ export function assert(value: any, message?: string | Error): asserts value {
+-    nativeAssert(value, message);
++    nativeAssert.ok(value, message);
+ }
+ 
+ export function assertNever(_value: never): never {
+diff --git a/test/setup.ts b/test/setup.ts
+index e431d85..704c59b 100644
+--- a/test/setup.ts
++++ b/test/setup.ts
+@@ -13,7 +13,7 @@ declare global {
+ 
+ expect.extend({
+     toHaveDiagnostics(diagnostics: ts.Diagnostic[], expected?: number[]): jest.CustomMatcherResult {
+-        assert(Array.isArray(diagnostics));
++        assert.ok(Array.isArray(diagnostics));
+         // @ts-ignore
+         const matcherHint = this.utils.matcherHint("toHaveDiagnostics", undefined, "", this);
+ 
+diff --git a/test/transpile/__snapshots__/module-resolution.spec.ts.snap b/test/transpile/__snapshots__/module-resolution.spec.ts.snap
+index c9f0be2..e87569d 100644
+--- a/test/transpile/__snapshots__/module-resolution.spec.ts.snap
++++ b/test/transpile/__snapshots__/module-resolution.spec.ts.snap
+@@ -10,8 +10,8 @@ exports[`supports complicated paths configuration 1`] = `
+ 
+ exports[`supports paths configuration 1`] = `
+ [
+-  "/paths-simple/myprogram/dist/main.lua",
+   "/paths-simple/myprogram/dist/mypackage/bar.lua",
+   "/paths-simple/myprogram/dist/mypackage/index.lua",
++  "/paths-simple/myprogram/dist/myprogram/main.lua",
+ ]
+ `;
+diff --git a/test/transpile/module-resolution.spec.ts b/test/transpile/module-resolution.spec.ts
+index ff29ac9..618eea5 100644
+--- a/test/transpile/module-resolution.spec.ts
++++ b/test/transpile/module-resolution.spec.ts
+@@ -4,7 +4,6 @@ import * as util from "../util";
+ import * as ts from "typescript";
+ import { BuildMode } from "../../src";
+ import { normalizeSlashes } from "../../src/utils";
+-import { pathsWithoutBaseUrl } from "../../src/transpilation/diagnostics";
+ 
+ describe("basic module resolution", () => {
+     const projectPath = path.resolve(__dirname, "module-resolution", "project-with-node-modules");
+@@ -471,6 +470,7 @@ describe("module resolution should not try to resolve modules in noResolvePaths"
+                     export function foo(): void;
+                 }`
+             )
++            .addExtraFile("preload.d.ts", `declare module "preload" {}`)
+             .setOptions({ noResolvePaths: ["ignore*"] })
+             .expectToHaveNoDiagnostics()
+             .expectToEqual({ result: "foo" });
+@@ -598,7 +598,7 @@ test("module resolution uses baseURL to resolve imported files", () => {
+                 return { baz = function() return "baz" end }
+             `
+         )
+-        .setOptions({ baseUrl: "./myproject/mydeps" })
++        .setOptions({ baseUrl: "./myproject/mydeps", ignoreDeprecations: "6.0" })
+         .expectToEqual({
+             fooResult: "foo",
+             barResult: "bar",
+@@ -707,8 +707,21 @@ test("supports complicated paths configuration", () => {
+         .expectToEqual({ foo: 314, bar: 271 });
+ });
+ 
+-test("paths without baseUrl is error", () => {
+-    util.testFunction``.setOptions({ paths: {} }).expectToHaveDiagnostics([pathsWithoutBaseUrl.code]);
++test("paths without baseUrl is not an error", () => {
++    util.testFunction``.setOptions({ paths: {} }).expectToHaveNoDiagnostics();
++});
++
++test("supports paths configuration without baseUrl", () => {
++    const baseProjectPath = path.resolve(__dirname, "module-resolution", "paths-no-baseurl");
++    const projectPath = path.join(baseProjectPath, "myprogram");
++    const projectTsConfig = path.join(projectPath, "tsconfig.json");
++    const mainFile = path.join(projectPath, "main.ts");
++
++    // Bundle to have all files required to execute and check result
++    util.testProject(projectTsConfig)
++        .setMainFileName(mainFile)
++        .setOptions({ luaBundle: "bundle.lua", luaBundleEntry: mainFile })
++        .expectToEqual({ foo: 314, bar: 271 });
+ });
+ 
+ test("module resolution using plugin", () => {
+diff --git a/test/transpile/module-resolution/paths-base-tsconfig/tsconfig.base.json b/test/transpile/module-resolution/paths-base-tsconfig/tsconfig.base.json
+index 3f961c7..4d3934b 100644
+--- a/test/transpile/module-resolution/paths-base-tsconfig/tsconfig.base.json
++++ b/test/transpile/module-resolution/paths-base-tsconfig/tsconfig.base.json
+@@ -2,6 +2,7 @@
+     "compilerOptions": {
+         "rootDir": ".",
+         "baseUrl": ".",
++        "ignoreDeprecations": "6.0",
+         "paths": {
+             "mypackage": ["packages/mypackage/src/index.ts"],
+             "mypackage/*": ["packages/mypackage/src/*"]
+diff --git a/test/transpile/module-resolution/paths-no-baseurl/mypackage/bar.ts b/test/transpile/module-resolution/paths-no-baseurl/mypackage/bar.ts
+new file mode 100644
+index 0000000..fef4e9e
+--- /dev/null
++++ b/test/transpile/module-resolution/paths-no-baseurl/mypackage/bar.ts
+@@ -0,0 +1 @@
++export const bar = 271;
+diff --git a/test/transpile/module-resolution/paths-no-baseurl/mypackage/index.ts b/test/transpile/module-resolution/paths-no-baseurl/mypackage/index.ts
+new file mode 100644
+index 0000000..c932fa9
+--- /dev/null
++++ b/test/transpile/module-resolution/paths-no-baseurl/mypackage/index.ts
+@@ -0,0 +1 @@
++export const foo = 314;
+diff --git a/test/transpile/module-resolution/paths-no-baseurl/myprogram/main.ts b/test/transpile/module-resolution/paths-no-baseurl/myprogram/main.ts
+new file mode 100644
+index 0000000..e768787
+--- /dev/null
++++ b/test/transpile/module-resolution/paths-no-baseurl/myprogram/main.ts
+@@ -0,0 +1,4 @@
++import { foo } from "myOtherPackage";
++import { bar } from "myOtherPackage/bar";
++
++export { foo, bar };
+diff --git a/test/transpile/module-resolution/paths-no-baseurl/myprogram/tsconfig.json b/test/transpile/module-resolution/paths-no-baseurl/myprogram/tsconfig.json
+new file mode 100644
+index 0000000..a21584f
+--- /dev/null
++++ b/test/transpile/module-resolution/paths-no-baseurl/myprogram/tsconfig.json
+@@ -0,0 +1,10 @@
++{
++    "compilerOptions": {
++        "rootDir": "..",
++        "outDir": "dist",
++        "paths": {
++            "myOtherPackage": ["../mypackage"],
++            "myOtherPackage/*": ["../mypackage/*"]
++        }
++    }
++}
+diff --git a/test/transpile/module-resolution/paths-simple/myprogram/tsconfig.json b/test/transpile/module-resolution/paths-simple/myprogram/tsconfig.json
+index f01271a..a21584f 100644
+--- a/test/transpile/module-resolution/paths-simple/myprogram/tsconfig.json
++++ b/test/transpile/module-resolution/paths-simple/myprogram/tsconfig.json
+@@ -1,6 +1,6 @@
+ {
+     "compilerOptions": {
+-        "baseUrl": ".",
++        "rootDir": "..",
+         "outDir": "dist",
+         "paths": {
+             "myOtherPackage": ["../mypackage"],
+diff --git a/test/transpile/module-resolution/project-with-complicated-dependency/tsconfig.json b/test/transpile/module-resolution/project-with-complicated-dependency/tsconfig.json
+index b765332..884408e 100644
+--- a/test/transpile/module-resolution/project-with-complicated-dependency/tsconfig.json
++++ b/test/transpile/module-resolution/project-with-complicated-dependency/tsconfig.json
+@@ -1,7 +1,7 @@
+ {
+     "compilerOptions": {
+         "strict": true,
+-        "moduleResolution": "Node",
++        "moduleResolution": "Bundler",
+         "target": "esnext",
+         "lib": ["esnext"],
+         "types": [],
+diff --git a/test/transpile/module-resolution/project-with-dependency-chain/tsconfig.json b/test/transpile/module-resolution/project-with-dependency-chain/tsconfig.json
+index b765332..884408e 100644
+--- a/test/transpile/module-resolution/project-with-dependency-chain/tsconfig.json
++++ b/test/transpile/module-resolution/project-with-dependency-chain/tsconfig.json
+@@ -1,7 +1,7 @@
+ {
+     "compilerOptions": {
+         "strict": true,
+-        "moduleResolution": "Node",
++        "moduleResolution": "Bundler",
+         "target": "esnext",
+         "lib": ["esnext"],
+         "types": [],
+diff --git a/test/transpile/module-resolution/project-with-node-modules/tsconfig.json b/test/transpile/module-resolution/project-with-node-modules/tsconfig.json
+index 935b64a..06220c0 100644
+--- a/test/transpile/module-resolution/project-with-node-modules/tsconfig.json
++++ b/test/transpile/module-resolution/project-with-node-modules/tsconfig.json
+@@ -1,12 +1,13 @@
+ {
+     "compilerOptions": {
+         "strict": true,
+-        "moduleResolution": "Node",
++        "moduleResolution": "Bundler",
+         "noUnusedLocals": true,
+         "noUnusedParameters": true,
+         "target": "esnext",
+         "lib": ["esnext"],
+         "types": [],
+-        "rootDir": "."
++        "rootDir": ".",
++        "noUncheckedSideEffectImports": false
+     }
+ }
+diff --git a/test/transpile/module-resolution/project-with-sourceDir/tsconfig.json b/test/transpile/module-resolution/project-with-sourceDir/tsconfig.json
+index 200df24..de7638c 100644
+--- a/test/transpile/module-resolution/project-with-sourceDir/tsconfig.json
++++ b/test/transpile/module-resolution/project-with-sourceDir/tsconfig.json
+@@ -1,7 +1,7 @@
+ {
+     "compilerOptions": {
+         "strict": true,
+-        "moduleResolution": "Node",
++        "moduleResolution": "Bundler",
+         "target": "esnext",
+         "lib": ["esnext"],
+         "types": [],
+diff --git a/test/transpile/transformers/fixtures.ts b/test/transpile/transformers/fixtures.ts
+index dff7667..4bb8901 100644
+--- a/test/transpile/transformers/fixtures.ts
++++ b/test/transpile/transformers/fixtures.ts
+@@ -36,7 +36,7 @@ export const compilerOptions =
+     (options: tstl.CompilerOptions): ts.TransformerFactory<ts.SourceFile> =>
+     context =>
+     file => {
+-        assert(options.plugins?.length === 1);
++        assert.ok(options.plugins?.length === 1);
+         return visitAndReplace(context, file, node => {
+             if (!ts.isReturnStatement(node)) return;
+             return ts.factory.updateReturnStatement(node, ts.factory.createTrue());
+diff --git a/test/tsconfig.json b/test/tsconfig.json
+index 86d7c93..d2fee5e 100644
+--- a/test/tsconfig.json
++++ b/test/tsconfig.json
+@@ -2,8 +2,7 @@
+     "extends": "../tsconfig.json",
+     "compilerOptions": {
+         "rootDir": "..",
+-        "types": ["node", "jest"],
+-        "baseUrl": "."
++        "types": ["node", "jest"]
+     },
+     "include": [".", "../src"],
+     "exclude": [
+diff --git a/test/unit/__snapshots__/identifiers.spec.ts.snap b/test/unit/__snapshots__/identifiers.spec.ts.snap
+index b90b103..cfd11a8 100644
+--- a/test/unit/__snapshots__/identifiers.spec.ts.snap
++++ b/test/unit/__snapshots__/identifiers.spec.ts.snap
+@@ -52,18 +52,14 @@ exports[`ambient identifier must be a valid lua identifier ("enum $$ {}"): code
+ 
+ exports[`ambient identifier must be a valid lua identifier ("enum $$ {}"): diagnostics 1`] = `"main.ts(3,9): error TSTL: Invalid ambient identifier name '$$$'. Ambient identifiers must be valid lua identifiers."`;
+ 
+-exports[`ambient identifier must be a valid lua identifier ("function $$();"): code 1`] = `"local ____ = _____24_24_24"`;
++exports[`ambient identifier must be a valid lua identifier ("function $$(): void;"): code 1`] = `"local ____ = _____24_24_24"`;
+ 
+-exports[`ambient identifier must be a valid lua identifier ("function $$();"): diagnostics 1`] = `"main.ts(3,9): error TSTL: Invalid ambient identifier name '$$$'. Ambient identifiers must be valid lua identifiers."`;
++exports[`ambient identifier must be a valid lua identifier ("function $$(): void;"): diagnostics 1`] = `"main.ts(3,9): error TSTL: Invalid ambient identifier name '$$$'. Ambient identifiers must be valid lua identifiers."`;
+ 
+ exports[`ambient identifier must be a valid lua identifier ("let $$: any;"): code 1`] = `"local ____ = _____24_24_24"`;
+ 
+ exports[`ambient identifier must be a valid lua identifier ("let $$: any;"): diagnostics 1`] = `"main.ts(3,9): error TSTL: Invalid ambient identifier name '$$$'. Ambient identifiers must be valid lua identifiers."`;
+ 
+-exports[`ambient identifier must be a valid lua identifier ("module $$ { export const bar: any; }"): code 1`] = `"local ____ = _____24_24_24"`;
+-
+-exports[`ambient identifier must be a valid lua identifier ("module $$ { export const bar: any; }"): diagnostics 1`] = `"main.ts(3,9): error TSTL: Invalid ambient identifier name '$$$'. Ambient identifiers must be valid lua identifiers."`;
+-
+ exports[`ambient identifier must be a valid lua identifier ("namespace $$ { export const bar: any; }"): code 1`] = `"local ____ = _____24_24_24"`;
+ 
+ exports[`ambient identifier must be a valid lua identifier ("namespace $$ { export const bar: any; }"): diagnostics 1`] = `"main.ts(3,9): error TSTL: Invalid ambient identifier name '$$$'. Ambient identifiers must be valid lua identifiers."`;
+diff --git a/test/unit/annotations/customConstructor.spec.ts b/test/unit/annotations/customConstructor.spec.ts
+index 86858f7..c9ddcf7 100644
+--- a/test/unit/annotations/customConstructor.spec.ts
++++ b/test/unit/annotations/customConstructor.spec.ts
+@@ -11,8 +11,8 @@ test("CustomCreate", () => {
+     const tsHeader = `
+         /** @customConstructor Point2DCreate */
+         class Point2D {
+-            public x: number;
+-            public y: number;
++            public x!: number;
++            public y!: number;
+             constructor(x: number, y: number) {
+                 // No values assigned
+             }
+diff --git a/test/unit/assignments.spec.ts b/test/unit/assignments.spec.ts
+index 53291f5..97926a0 100644
+--- a/test/unit/assignments.spec.ts
++++ b/test/unit/assignments.spec.ts
+@@ -342,7 +342,7 @@ test.each([
+ 
+ test("local variable declaration referencing self indirectly", () => {
+     util.testFunction`
+-        let cb: () => void;
++        let cb!: () => void;
+ 
+         function foo(newCb: () => void) {
+             cb = newCb;
+@@ -360,7 +360,7 @@ test("local variable declaration referencing self indirectly", () => {
+ 
+ test("local multiple variable declaration referencing self indirectly", () => {
+     util.testFunction`
+-        let cb: () => void;
++        let cb!: () => void;
+ 
+         function foo(newCb: () => void) {
+             cb = newCb;
+@@ -395,7 +395,7 @@ describe.each(["x &&= y", "x ||= y"])("boolean compound assignment (%p)", assign
+ 
+ test.each([undefined, 3])("nullish coalescing compound assignment", initialValue => {
+     util.testFunction`
+-        let x: number = ${util.formatCode(initialValue)};
++        let x: number | undefined = ${util.formatCode(initialValue)};
+         x ??= 5;
+         return x;
+     `.expectToMatchJsResult();
+diff --git a/test/unit/builtins/array.spec.ts b/test/unit/builtins/array.spec.ts
+index dfb6807..b72cac4 100644
+--- a/test/unit/builtins/array.spec.ts
++++ b/test/unit/builtins/array.spec.ts
+@@ -316,7 +316,7 @@ test("array.forEach (%p)", () => {
+ });
+ 
+ test.each([
+-    { array: [], predicate: "elem > 3" },
++    { array: [] as number[], predicate: "elem > 3" },
+     { array: [0, 2, 4, 8], predicate: "elem > 10" },
+     { array: [0, 2, 4, 8], predicate: "elem > 7" },
+     { array: [0, 2, 4, 8], predicate: "elem == 0" },
+@@ -325,19 +325,19 @@ test.each([
+     { array: [0, 2, 4, 8], predicate: "false" },
+ ])("array.find (%p)", ({ array, predicate }) => {
+     util.testFunction`
+-        const array = ${util.formatCode(array)};
++        const array: number[] = ${util.formatCode(array)};
+         return array.find((elem, index, arr) => ${predicate} && arr[index] === elem);
+     `.expectToMatchJsResult();
+ });
+ 
+ test.each([
+-    { array: [], searchElement: 3 },
++    { array: [] as number[], searchElement: 3 },
+     { array: [0, 2, 4, 8], searchElement: 10 },
+     { array: [0, 2, 4, 8], searchElement: 0 },
+     { array: [0, 2, 4, 8], searchElement: 8 },
+ ])("array.findIndex (%p)", ({ array, searchElement }) => {
+     util.testFunction`
+-        const array = ${util.formatCode(array)};
++        const array: number[] = ${util.formatCode(array)};
+         return array.findIndex((elem, index, arr) => elem === ${searchElement} && arr[index] === elem);
+     `.expectToMatchJsResult();
+ });
+@@ -399,7 +399,7 @@ test.each([
+ 
+ test.each([
+     // Insert
+-    { array: [], start: 0, deleteCount: 0, newElements: [9, 10, 11] },
++    { array: [] as number[], start: 0, deleteCount: 0, newElements: [9, 10, 11] },
+     { array: [0, 1, 2, 3], start: 1, deleteCount: 0, newElements: [9, 10, 11] },
+     { array: [0, 1, 2, 3], start: 2, deleteCount: 2, newElements: [9, 10, 11] },
+     { array: [0, 1, 2, 3], start: 4, deleteCount: 1, newElements: [8, 9] },
+@@ -413,7 +413,7 @@ test.each([
+     { array: [0, 1, 2, 3, 4, 5, 6, 7, 8], start: 5, deleteCount: null, newElements: [10, 11] },
+ 
+     // Remove
+-    { array: [], start: 1, deleteCount: 1 },
++    { array: [] as number[], start: 1, deleteCount: 1 },
+     { array: [0, 1, 2, 3], start: 1, deleteCount: 1 },
+     { array: [0, 1, 2, 3], start: 10, deleteCount: 1 },
+     { array: [0, 1, 2, 3, 4, 5], start: 2, deleteCount: 2 },
+@@ -421,9 +421,16 @@ test.each([
+     { array: [0, 1, 2, 3], start: 1, deleteCount: undefined },
+     { array: [0, 1, 2, 3], start: 1, deleteCount: null },
+ ])("array.splice (%p)", ({ array, start, deleteCount, newElements = [] }) => {
++    const deleteCountCode =
++        deleteCount === undefined
++            ? "undefined as any"
++            : deleteCount === null
++            ? "null as any"
++            : util.formatCode(deleteCount);
++    const newElementsCode = newElements.length > 0 ? ", " + util.formatCode(...newElements) : "";
+     util.testFunction`
+-        const array = ${util.formatCode(array)};
+-        array.splice(${util.formatCode(start, deleteCount, ...newElements)});
++        const array: number[] = ${util.formatCode(array)};
++        array.splice(${util.formatCode(start)}, ${deleteCountCode}${newElementsCode});
+         return array;
+     `.expectToMatchJsResult();
+ });
+@@ -511,7 +518,6 @@ test("array.join without separator argument", () => {
+ });
+ 
+ test.each([
+-    { array: [], args: ["test1"] },
+     { array: ["test1"], args: ["test1"] },
+     { array: ["test1", "test2"], args: ["test2"] },
+     { array: ["test1", "test2", "test3"], args: ["test3", 1] },
+@@ -522,6 +528,10 @@ test.each([
+     util.testExpression`${util.formatCode(array)}.indexOf(${util.formatCode(...args)})`.expectToMatchJsResult();
+ });
+ 
++test("array.indexOf empty array", () => {
++    util.testExpression`([] as string[]).indexOf("test1")`.expectToMatchJsResult();
++});
++
+ test.each([
+     { args: "1" },
+     { args: "1, 2, 3" },
+@@ -567,20 +577,20 @@ test.each([
+     `.expectToEqual(expected);
+ });
+ 
+-test.each([{ array: [1, 2, 3] }, { array: [1, 2, 3, 4] }, { array: [1] }, { array: [] }])(
++test.each([{ array: [1, 2, 3] }, { array: [1, 2, 3, 4] }, { array: [1] }, { array: [] as number[] }])(
+     "array.reverse (%p)",
+     ({ array }) => {
+         util.testFunction`
+-            const array = ${util.formatCode(array)};
++            const array: number[] = ${util.formatCode(array)};
+             array.reverse();
+             return array;
+         `.expectToMatchJsResult();
+     }
+ );
+ 
+-test.each([{ array: [1, 2, 3] }, { array: [1] }, { array: [] }])("array.shift (%p)", ({ array }) => {
++test.each([{ array: [1, 2, 3] }, { array: [1] }, { array: [] as number[] }])("array.shift (%p)", ({ array }) => {
+     util.testFunction`
+-        const array = ${util.formatCode(array)};
++        const array: number[] = ${util.formatCode(array)};
+         const value = array.shift();
+         return { array, value };
+     `.expectToMatchJsResult();
+@@ -588,20 +598,20 @@ test.each([{ array: [1, 2, 3] }, { array: [1] }, { array: [] }])("array.shift (%
+ 
+ test.each([
+     { array: [3, 4, 5], args: [1, 2] },
+-    { array: [], args: [] },
++    { array: [] as number[], args: [] },
+     { array: [1], args: [] },
+-    { array: [], args: [1] },
++    { array: [] as number[], args: [1] },
+ ])("array.unshift (%p)", ({ array, args }) => {
+     util.testFunction`
+-        const array = ${util.formatCode(array)};
++        const array: number[] = ${util.formatCode(array)};
+         const value = array.unshift(${util.formatCode(...args)});
+         return { array, value };
+     `.expectToMatchJsResult();
+ });
+ 
+-test.each([{ array: [4, 5, 3, 2, 1] }, { array: [1] }, { array: [] }])("array.sort (%p)", ({ array }) => {
++test.each([{ array: [4, 5, 3, 2, 1] }, { array: [1] }, { array: [] as number[] }])("array.sort (%p)", ({ array }) => {
+     util.testFunctionTemplate`
+-        const array = ${array};
++        const array: number[] = ${array};
+         array.sort();
+         return array;
+     `.expectToMatchJsResult();
+@@ -659,7 +669,7 @@ describe.each(["reduce", "reduceRight"])("array.%s", reduce => {
+     });
+ 
+     test("empty no initial", () => {
+-        util.testExpression`[].${reduce}(() => {})`.expectToMatchJsResult(true);
++        util.testExpression`([] as any[]).${reduce}(() => {})`.expectToMatchJsResult(true);
+     });
+ 
+     test("undefined returning callback", () => {
+@@ -671,11 +681,11 @@ describe.each(["reduce", "reduceRight"])("array.%s", reduce => {
+     });
+ });
+ 
+-test.each([{ array: [] }, { array: ["a", "b", "c"] }, { array: [{ foo: "foo" }, { bar: "bar" }] }])(
++test.each([{ array: [] as any[] }, { array: ["a", "b", "c"] }, { array: [{ foo: "foo" }, { bar: "bar" }] }])(
+     "array.entries (%p)",
+     ({ array }) => {
+         util.testFunction`
+-            const array = ${util.formatCode(array)};
++            const array: any[] = ${util.formatCode(array)};
+             const result = [];
+             for (const [i, v] of array.entries()) {
+                 result.push([i, v]);
+@@ -800,9 +810,12 @@ test.each([
+ });
+ 
+ describe("array.fill", () => {
+-    test.each(["[]", "[1]", "[1,2,3,4]"])("Fills full length of array without other parameters (%p)", arr => {
+-        util.testExpression`${arr}.fill(5)`.expectToMatchJsResult();
+-    });
++    test.each(["([] as number[])", "[1]", "[1,2,3,4]"])(
++        "Fills full length of array without other parameters (%p)",
++        arr => {
++            util.testExpression`${arr}.fill(5)`.expectToMatchJsResult();
++        }
++    );
+ 
+     test.each(["[1,2,3]", "[1,2,3,4,5,6]"])("Fills starting from start parameter (%p)", arr => {
+         util.testExpression`${arr}.fill(5, 3)`.expectToMatchJsResult();
+diff --git a/test/unit/builtins/async-await.spec.ts b/test/unit/builtins/async-await.spec.ts
+index 45adb45..5e4290a 100644
+--- a/test/unit/builtins/async-await.spec.ts
++++ b/test/unit/builtins/async-await.spec.ts
+@@ -38,7 +38,7 @@ test("high amount of chained awaits doesn't cause stack overflow", () => {
+                     await delay();
+                 }
+                 result = "success";
+-            } catch (e) {
++            } catch (e: any) {
+                 result = e;
+             }
+         }
+@@ -51,7 +51,7 @@ test("high amount of chained awaits doesn't cause stack overflow", () => {
+ 
+ test("can await already resolved promise", () => {
+     util.testFunction`
+-        const result = [];
++        const result: number[] = [];
+         async function abc() {
+             return await Promise.resolve(30);
+         }
+@@ -63,7 +63,7 @@ test("can await already resolved promise", () => {
+ 
+ test("can await already rejected promise", () => {
+     util.testFunction`
+-        const result = [];
++        const result: string[] = [];
+         async function abc() {
+             return await Promise.reject("test rejection");
+         }
+@@ -604,7 +604,7 @@ describe("try/catch in async function", () => {
+         () =>
+             util.testModule`
+             export let reason = "";
+-            let reject: (reason: string) => void;
++            let reject: (reason: string) => void = () => {};
+ 
+             async function foo(): Promise<number> {
+                 try {
+@@ -675,6 +675,7 @@ describe("try/catch in async function", () => {
+                 }
+                 catch
+                 {
++                    return "" as string;
+                 }
+             }
+ 
+diff --git a/test/unit/builtins/map.spec.ts b/test/unit/builtins/map.spec.ts
+index 27b5395..c9f6c1a 100644
+--- a/test/unit/builtins/map.spec.ts
++++ b/test/unit/builtins/map.spec.ts
+@@ -251,7 +251,7 @@ describe.each(iterationMethods)("map.%s() handles mutation", iterationMethod =>
+ describe("Map.groupBy", () => {
+     test("empty", () => {
+         util.testFunction`
+-            const array = [];
++            const array: number[] = [];
+ 
+             const map = Map.groupBy(array, (num, index) => {
+                 return num % 2 === 0 ? "even": "odd";
+diff --git a/test/unit/builtins/object.spec.ts b/test/unit/builtins/object.spec.ts
+index dfed735..734af23 100644
+--- a/test/unit/builtins/object.spec.ts
++++ b/test/unit/builtins/object.spec.ts
+@@ -147,7 +147,7 @@ describe("Object.defineProperty", () => {
+ 
+     test.each(trueFalseTests)("configurable (%p)", value => {
+         util.testFunction`
+-            const foo = { bar: true };
++            const foo: { bar?: boolean } = { bar: true };
+             Object.defineProperty(foo, "bar", { configurable: ${value} });
+             try { delete foo.bar } catch {};
+             return foo.bar;
+@@ -296,7 +296,7 @@ describe("Object.getOwnPropertyDescriptors", () => {
+ describe("delete from object", () => {
+     test("delete from object", () => {
+         util.testFunction`
+-            const obj = { foo: "bar", bar: "baz" };
++            const obj: { foo?: string, bar: string } = { foo: "bar", bar: "baz" };
+             return [delete obj["foo"], obj];
+         `.expectToMatchJsResult();
+     });
+@@ -311,7 +311,7 @@ describe("delete from object", () => {
+     // https://github.com/TypeScriptToLua/TypeScriptToLua/issues/993
+     test("delete from object with metatable", () => {
+         util.testFunction`
+-        const obj = { foo: "bar", bar: "baz" };
++        const obj: { foo?: string, bar: string } = { foo: "bar", bar: "baz" };
+         setmetatable(obj, {});
+         return [delete obj["foo"], obj];
+     `
+@@ -343,7 +343,7 @@ describe("delete from object", () => {
+ describe("Object.groupBy", () => {
+     test("empty", () => {
+         util.testFunction`
+-            const array = [];
++            const array: number[] = [];
+ 
+             return Object.groupBy(array, (num, index) => {
+                 return num % 2 === 0 ? "even": "odd";
+diff --git a/test/unit/builtins/set.spec.ts b/test/unit/builtins/set.spec.ts
+index 65ee4ae..234be91 100644
+--- a/test/unit/builtins/set.spec.ts
++++ b/test/unit/builtins/set.spec.ts
+@@ -100,7 +100,7 @@ test("set has false", () => {
+ 
+ test("set has null", () => {
+     util.testFunction`
+-        let myset = new Set(["a", "c"]);
++        let myset = new Set<string | null>(["a", "c"]);
+         return myset.has(null);
+     `.expectToMatchJsResult();
+ });
+diff --git a/test/unit/builtins/string.spec.ts b/test/unit/builtins/string.spec.ts
+index 977944e..34ff96d 100644
+--- a/test/unit/builtins/string.spec.ts
++++ b/test/unit/builtins/string.spec.ts
+@@ -83,7 +83,7 @@ describe.each(["replace", "replaceAll"])("string.%s", method => {
+ 
+     test.each(testCases)("function replacer %p", ({ inp, searchValue, replaceValue }) => {
+         util.testFunction`
+-            const result = {
++            const result: { args: any[], string: string } = {
+                 args: [],
+                 string: ""
+             }
+diff --git a/test/unit/builtins/weakMap.spec.ts b/test/unit/builtins/weakMap.spec.ts
+index 812e436..8ff5d4c 100644
+--- a/test/unit/builtins/weakMap.spec.ts
++++ b/test/unit/builtins/weakMap.spec.ts
+@@ -74,7 +74,7 @@ test("weakMap has null", () => {
+     util.testFunction`
+         ${initRefsTs}
+         let mymap = new WeakMap([[{}, true]]);
+-        return mymap.has(null);
++        return mymap.has(null as any);
+     `.expectToMatchJsResult();
+ });
+ 
+diff --git a/test/unit/classes/classes.spec.ts b/test/unit/classes/classes.spec.ts
+index f28c3b4..173bbc1 100644
+--- a/test/unit/classes/classes.spec.ts
++++ b/test/unit/classes/classes.spec.ts
+@@ -894,7 +894,7 @@ test("get inherted __index member from super (DotA 2 inheritance) (#1537)", () =
+             interface Connected extends I {}
+             class Connected {}
+ 
+-            declare function setmetatable(this: void, t: any, mt: any);
++            declare function setmetatable(this: void, t: any, mt: any): any;
+             
+             const A = {
+                 foo() {
+diff --git a/test/unit/classes/decorators.spec.ts b/test/unit/classes/decorators.spec.ts
+index 4782746..2780c5e 100644
+--- a/test/unit/classes/decorators.spec.ts
++++ b/test/unit/classes/decorators.spec.ts
+@@ -6,7 +6,7 @@ import * as util from "../../util";
+ 
+ test("Class decorator with no parameters", () => {
+     util.testFunction`
+-        let classDecoratorContext;
++        let classDecoratorContext: ClassDecoratorContext | undefined;
+ 
+         function classDecorator<T extends new (...args: any[]) => {}>(constructor: T, context: ClassDecoratorContext) {
+             classDecoratorContext = context;
+@@ -22,8 +22,8 @@ test("Class decorator with no parameters", () => {
+         }
+ 
+         return { decoratedClass: new TestClass(), context: {
+-            kind: classDecoratorContext.kind,
+-            name: classDecoratorContext.name,
++            kind: classDecoratorContext!.kind,
++            name: classDecoratorContext!.name,
+         } };
+     `.expectToMatchJsResult();
+ });
+@@ -40,7 +40,7 @@ test("Class decorator with parameters", () => {
+ 
+         @setNum(420)
+         class TestClass {
+-            public decoratorNum;
++            public decoratorNum: any;
+         }
+ 
+         return new TestClass();
+@@ -64,8 +64,8 @@ test("Multiple class decorators", () => {
+         @setTen
+         @setNum
+         class TestClass {
+-            public decoratorTen;
+-            public decoratorNum;
++            public decoratorTen: any;
++            public decoratorNum: any;
+         }
+ 
+         return new TestClass();
+@@ -95,7 +95,7 @@ test("Class decorator with inheritance", () => {
+ 
+ test("Class decorators are applied in order and executed in reverse order", () => {
+     util.testFunction`
+-        const order = [];
++        const order: string[] = [];
+ 
+         function pushOrder(index: number) {
+             order.push("eval " + index);
+@@ -214,7 +214,7 @@ test("default exported class with decorator", () => {
+ 
+ test("class method decorator", () => {
+     util.testFunction`
+-        let methodDecoratorContext;
++        let methodDecoratorContext: ClassMethodDecoratorContext | undefined;
+ 
+         function methodDecorator(method: (v: number) => number, context: ClassMethodDecoratorContext) {
+             methodDecoratorContext = context;
+@@ -232,10 +232,10 @@ test("class method decorator", () => {
+         }
+ 
+         return { result: new TestClass().myMethod(4), context: {
+-            kind: methodDecoratorContext.kind,
+-            name: methodDecoratorContext.name,
+-            private: methodDecoratorContext.private,
+-            static: methodDecoratorContext.static
++            kind: methodDecoratorContext!.kind,
++            name: methodDecoratorContext!.name,
++            private: methodDecoratorContext!.private,
++            static: methodDecoratorContext!.static
+         } };
+     `.expectToMatchJsResult();
+ });
+@@ -243,7 +243,7 @@ test("class method decorator", () => {
+ test("this in decorator points to class being decorated", () => {
+     util.testFunction`
+         function methodDecorator(method: (v: number) => number, context: ClassMethodDecoratorContext) {
+-            return function() {
++            return function(this: any) {
+                 const thisCallTime = this.myInstanceVariable;
+                 return thisCallTime;
+             };
+@@ -264,7 +264,7 @@ test("this in decorator points to class being decorated", () => {
+ 
+ test("class getter decorator", () => {
+     util.testFunction`
+-        let getterDecoratorContext;
++        let getterDecoratorContext: ClassGetterDecoratorContext | undefined;
+ 
+         function getterDecorator(getter: () => number, context: ClassGetterDecoratorContext) {
+             getterDecoratorContext = context;
+@@ -280,28 +280,28 @@ test("class getter decorator", () => {
+         }
+ 
+         return { result: new TestClass().getterValue, context: {
+-            kind: getterDecoratorContext.kind,
+-            name: getterDecoratorContext.name,
+-            private: getterDecoratorContext.private,
+-            static: getterDecoratorContext.static
++            kind: getterDecoratorContext!.kind,
++            name: getterDecoratorContext!.name,
++            private: getterDecoratorContext!.private,
++            static: getterDecoratorContext!.static
+         } };
+     `.expectToMatchJsResult();
+ });
+ 
+ test("class setter decorator", () => {
+     util.testFunction`
+-        let setterDecoratorContext;
++        let setterDecoratorContext: ClassSetterDecoratorContext | undefined;
+ 
+         function setterDecorator(setter: (v: number) => void, context: ClassSetterDecoratorContext) {
+             setterDecoratorContext = context;
+ 
+-            return function(v: number) {
++            return function(this: any, v: number) {
+                 setter.call(this, v + 15);
+             };
+         }
+ 
+         class TestClass {
+-            public value: number;
++            public value!: number;
+ 
+             @setterDecorator
+             set valueSetter(v: number) { this.value = v; }
+@@ -310,17 +310,17 @@ test("class setter decorator", () => {
+         const instance = new TestClass();
+         instance.valueSetter = 23;
+         return { result: instance.value, context: {
+-            kind: setterDecoratorContext.kind,
+-            name: setterDecoratorContext.name,
+-            private: setterDecoratorContext.private,
+-            static: setterDecoratorContext.static
++            kind: setterDecoratorContext!.kind,
++            name: setterDecoratorContext!.name,
++            private: setterDecoratorContext!.private,
++            static: setterDecoratorContext!.static
+         } };
+     `.expectToMatchJsResult();
+ });
+ 
+ test("class field decorator", () => {
+     util.testFunction`
+-        let fieldDecoratorContext;
++        let fieldDecoratorContext: ClassFieldDecoratorContext | undefined;
+ 
+         function fieldDecorator(_: undefined, context: ClassFieldDecoratorContext) {
+             fieldDecoratorContext = context;
+@@ -331,11 +331,11 @@ test("class field decorator", () => {
+             public value: number = 22;
+         }
+ 
+-        return { result: new TestClass(), context: { 
+-            kind: fieldDecoratorContext.kind,
+-            name: fieldDecoratorContext.name,
+-            private: fieldDecoratorContext.private,
+-            static: fieldDecoratorContext.static,
++        return { result: new TestClass(), context: {
++            kind: fieldDecoratorContext!.kind,
++            name: fieldDecoratorContext!.name,
++            private: fieldDecoratorContext!.private,
++            static: fieldDecoratorContext!.static,
+         } };
+     `.expectToEqual({
+         result: {
+@@ -352,7 +352,7 @@ test("class field decorator", () => {
+ 
+ test("class field decorator warns the return value is ignored", () => {
+     util.testFunction`
+-        let fieldDecoratorContext;
++        let fieldDecoratorContext: ClassFieldDecoratorContext | undefined;
+ 
+         function fieldDecorator(_: undefined, context: ClassFieldDecoratorContext) {
+             fieldDecoratorContext = context;
+@@ -399,7 +399,7 @@ describe("legacy experimentalDecorators", () => {
+ 
+             @setNum(420)
+             class TestClass {
+-                public decoratorNum;
++                public decoratorNum: any;
+             }
+ 
+             return new TestClass();
+@@ -425,8 +425,8 @@ describe("legacy experimentalDecorators", () => {
+             @setTen
+             @setNum
+             class TestClass {
+-                public decoratorTen;
+-                public decoratorNum;
++                public decoratorTen: any;
++                public decoratorNum: any;
+             }
+ 
+             return new TestClass();
+@@ -460,7 +460,7 @@ describe("legacy experimentalDecorators", () => {
+ 
+     test("Class decorators are applied in order and executed in reverse order", () => {
+         util.testFunction`
+-            const order = [];
++            const order: string[] = [];
+ 
+             function pushOrder(index: number) {
+                 order.push("eval " + index);
+@@ -509,25 +509,25 @@ describe("legacy experimentalDecorators", () => {
+ 
+     test.each([
+         ["@decorator method() {}"],
+-        ["@decorator property;"],
++        ["@decorator property: any;"],
+         ["@decorator propertyWithInitializer = () => {};"],
+-        ["@decorator ['evaluated property'];"],
++        ["@decorator ['evaluated property']: any;"],
+         ["@decorator get getter() { return 5 }"],
+-        ["@decorator set setter(value) {}"],
++        ["@decorator set setter(value: any) {}"],
+         ["@decorator static method() {}"],
+-        ["@decorator static property;"],
++        ["@decorator static property: any;"],
+         ["@decorator static propertyWithInitializer = () => {}"],
+         ["@decorator static get getter() { return 5 }"],
+-        ["@decorator static set setter(value) {}"],
+-        ["@decorator static ['evaluated property'];"],
+-        ["method(@decorator a) {}"],
+-        ["static method(@decorator a) {}"],
+-        ["constructor(@decorator a) {}"],
++        ["@decorator static set setter(value: any) {}"],
++        ["@decorator static ['evaluated property']: any;"],
++        ["method(@decorator a: any) {}"],
++        ["static method(@decorator a: any) {}"],
++        ["constructor(@decorator a: any) {}"],
+     ])("Decorate class member (%p)", classMember => {
+         util.testFunction`
+             let decoratorParameters: any;
+ 
+-            const decorator = (target, key, index?) => {
++            const decorator = (target: any, key: any, index?: any) => {
+                 const targetKind = target === Foo ? "Foo" : target === Foo.prototype ? "Foo.prototype" : "unknown";
+                 decoratorParameters = { targetKind, key, index: typeof index };
+             };
+@@ -548,10 +548,10 @@ describe("legacy experimentalDecorators", () => {
+             ["desc.writable = true", "return { configurable: true }"],
+         ])("Combine decorators (%p + %p)", (decorateA, decorateB) => {
+             util.testFunction`
+-                const A = (target, key, desc): any => { ${decorateA} };
+-                const B = (target, key, desc): any => { ${decorateB} };
++                const A = (target: any, key: any, desc: any): any => { ${decorateA} };
++                const B = (target: any, key: any, desc: any): any => { ${decorateB} };
+                 class Foo { @A @B static method() {} }
+-                const { value, ...rest } = Object.getOwnPropertyDescriptor(Foo, "method");
++                const { value, ...rest } = Object.getOwnPropertyDescriptor(Foo, "method")!;
+                 return rest;
+             `
+                 .setOptions({ experimentalDecorators: true })
+@@ -562,7 +562,7 @@ describe("legacy experimentalDecorators", () => {
+             "Use decorator to override method value %s",
+             overrideStatement => {
+                 util.testFunction`
+-                    const decorator = (target, key, desc): any => { ${overrideStatement} };
++                    const decorator = (target: any, key: any, desc: any): any => { ${overrideStatement} };
+                     class Foo { @decorator static method() {} }
+                     return Foo.method;
+                 `
+diff --git a/test/unit/conditionals.spec.ts b/test/unit/conditionals.spec.ts
+index f862ca8..59ca587 100644
+--- a/test/unit/conditionals.spec.ts
++++ b/test/unit/conditionals.spec.ts
+@@ -75,7 +75,7 @@ test.each([
+ ])("Ternary operator (%p)", ({ input, options }) => {
+     util.testFunction`
+         const literalValue = "literal";
+-        let variableValue: string;
++        let variableValue: string = "variable";
+         let maybeBooleanValue: string | boolean = false;
+         let maybeUndefinedValue: string | undefined;
+         return ${input};
+diff --git a/test/unit/destructuring.spec.ts b/test/unit/destructuring.spec.ts
+index 65ecf95..bab80cb 100644
+--- a/test/unit/destructuring.spec.ts
++++ b/test/unit/destructuring.spec.ts
+@@ -29,11 +29,21 @@ const testCases = [
+     { binding: "{ x: [{ y }] }", value: { x: [{ y: "y" }] } },
+ ].map(({ binding, value }) => ({ binding, value: util.formatCode(value) }));
+ 
++test.each([...testCases])("in function parameter (%p)", ({ binding, value }) => {
++    util.testFunction`
++        let ${allBindings};
++        function test(${binding}: any) {
++            return { ${allBindings} };
++        }
++
++        return test(${value});
++    `.expectToMatchJsResult();
++});
++
+ test.each([
+-    ...testCases,
+-    { binding: "{ x, y }, z", value: "{ x: false, y: false }, true" },
+-    { binding: "{ x, y }, { z }", value: "{ x: false, y: false }, { z: true }" },
+-])("in function parameter (%p)", ({ binding, value }) => {
++    { binding: "{ x, y }: any, z: any", value: "{ x: false, y: false }, true" },
++    { binding: "{ x, y }: any, { z }: any", value: "{ x: false, y: false }, { z: true }" },
++])("in function parameter with multiple params (%p)", ({ binding, value }) => {
+     util.testFunction`
+         let ${allBindings};
+         function test(${binding}) {
+diff --git a/test/unit/enum.spec.ts b/test/unit/enum.spec.ts
+index 3ff4ce3..ae552b9 100644
+--- a/test/unit/enum.spec.ts
++++ b/test/unit/enum.spec.ts
+@@ -4,7 +4,7 @@ import * as util from "../util";
+ const serializeEnum = (identifier: string) => `(() => {
+     const mappedTestEnum: any = {};
+     for (const key in ${identifier}) {
+-        mappedTestEnum[(key as any).toString()] = ${identifier}[key];
++        mappedTestEnum[(key as any).toString()] = (${identifier} as any)[key];
+     }
+     return mappedTestEnum;
+ })()`;
+diff --git a/test/unit/error.spec.ts b/test/unit/error.spec.ts
+index 89ceb49..f62a93b 100644
+--- a/test/unit/error.spec.ts
++++ b/test/unit/error.spec.ts
+@@ -88,7 +88,7 @@ test("multi return from try", () => {
+             } catch {
+             }
+         }
+-        const [foo, bar] = foobar();
++        const [foo, bar] = foobar()!;
+         return foo + bar;
+     `.withLanguageExtensions();
+     expect(testBuilder.getMainLuaCodeChunk()).not.toMatch("unpack(foobar");
+@@ -129,7 +129,7 @@ test("multi return from catch", () => {
+         function foobar(): LuaMultiReturn<[string, string]> {
+             try {
+                 throw "foobar";
+-            } catch (e) {
++            } catch (e: any) {
+                 return $multi(e.toString(), " catch");
+             }
+         }
+@@ -243,8 +243,8 @@ test("multi return from catch->finally", () => {
+         function foobar() {
+             try {
+                 throw "foo";
+-            } catch (e) {
+-                return $multi(evaluate(e), "bar");
++            } catch (e: any) {
++                return $multi(evaluate(e as string), "bar");
+             } finally {
+                 return $multi("final", "ly");
+             }
+diff --git a/test/unit/functions/functionProperties.spec.ts b/test/unit/functions/functionProperties.spec.ts
+index 16b61ab..85b3ec1 100644
+--- a/test/unit/functions/functionProperties.spec.ts
++++ b/test/unit/functions/functionProperties.spec.ts
+@@ -160,7 +160,7 @@ test("async arrow function with property assigned to variable", () => {
+ 
+ test("call function with property using call method", () => {
+     util.testFunction`
+-        function foo(s: string) { return this + s; }
++        function foo(this: string, s: string) { return this + s; }
+         foo.baz = "baz";
+         return foo.call("foo", "bar") + foo.baz;
+     `.expectToMatchJsResult();
+@@ -168,7 +168,7 @@ test("call function with property using call method", () => {
+ 
+ test("call function with property using apply method", () => {
+     util.testFunction`
+-        function foo(s: string) { return this + s; }
++        function foo(this: string, s: string) { return this + s; }
+         foo.baz = "baz";
+         return foo.apply("foo", ["bar"]) + foo.baz;
+     `.expectToMatchJsResult();
+@@ -176,7 +176,7 @@ test("call function with property using apply method", () => {
+ 
+ test("call function with property using bind method", () => {
+     util.testFunction`
+-        function foo(s: string) { return this + s; }
++        function foo(this: string, s: string) { return this + s; }
+         foo.baz = "baz";
+         return foo.bind("foo", "bar")() + foo.baz;
+     `.expectToMatchJsResult();
+diff --git a/test/unit/functions/functions.spec.ts b/test/unit/functions/functions.spec.ts
+index 7bdf6b0..b7def22 100644
+--- a/test/unit/functions/functions.spec.ts
++++ b/test/unit/functions/functions.spec.ts
+@@ -5,7 +5,7 @@ import { unsupportedForTarget } from "../../../src/transformation/utils/diagnost
+ 
+ test("Arrow Function Expression", () => {
+     util.testFunction`
+-        const add = (a, b) => a + b;
++        const add = (a: any, b: any) => a + b;
+         return add(1, 2);
+     `.expectToMatchJsResult();
+ });
+@@ -25,17 +25,22 @@ test.each(["i++", "i--", "++i", "--i"])("Arrow function unary expression (%p)",
+     `.expectToMatchJsResult();
+ });
+ 
+-test.each(["b => a = b", "b => a += b", "b => a -= b", "b => a *= b", "b => a /= b", "b => a **= b", "b => a %= b"])(
+-    "Arrow function assignment (%p)",
+-    lambda => {
+-        util.testFunction`
++test.each([
++    "(b: any) => a = b",
++    "(b: any) => a += b",
++    "(b: any) => a -= b",
++    "(b: any) => a *= b",
++    "(b: any) => a /= b",
++    "(b: any) => a **= b",
++    "(b: any) => a %= b",
++])("Arrow function assignment (%p)", lambda => {
++    util.testFunction`
+             let a = 10;
+             let lambda = ${lambda};
+             lambda(5);
+             return a;
+         `.expectToMatchJsResult();
+-    }
+-);
++});
+ 
+ test.each([{ args: [] }, { args: [1] }, { args: [1, 2] }])("Arrow default values (%p)", ({ args }) => {
+     util.testFunction`
+@@ -46,7 +51,7 @@ test.each([{ args: [] }, { args: [1] }, { args: [1, 2] }])("Arrow default values
+ 
+ test("Function Expression", () => {
+     util.testFunction`
+-        let add = function(a, b) {return a+b};
++        let add = function(a: any, b: any) {return a+b};
+         return add(1,2);
+     `.expectToMatchJsResult();
+ });
+@@ -252,13 +257,13 @@ test.each(functionTypeDeclarations)("Function call (%s)", (_, type) => {
+ 
+ test.each([
+     "function fn() {}",
+-    "function fn(x, y, z) {}",
+-    "function fn(x, y, z, ...args) {}",
+-    "function fn(...args) {}",
++    "function fn(x: any, y: any, z: any) {}",
++    "function fn(x: any, y: any, z: any, ...args: any[]) {}",
++    "function fn(...args: any[]) {}",
+     "function fn(this: void) {}",
+-    "function fn(this: void, x, y, z) {}",
+-    "function fnReference(x, y, z) {} const fn = fnReference;",
+-    "const wrap = (fn: (...args: any[]) => any) => (...args: any[]) => fn(...args); const fn = wrap((x, y, z) => {});",
++    "function fn(this: void, x: any, y: any, z: any) {}",
++    "function fnReference(x: any, y: any, z: any) {} const fn = fnReference;",
++    "const wrap = (fn: (...args: any[]) => any) => (...args: any[]) => fn(...args); const fn = wrap((x: any, y: any, z: any) => {});",
+ ])("function.length (%p)", declaration => {
+     util.testFunction`
+         ${declaration}
+@@ -432,7 +437,7 @@ test("Complex element access call no args", () => {
+ 
+ test("Complex element access call statement", () => {
+     util.testFunction`
+-        let foo: string;
++        let foo!: string;
+         class C {
+             prop = "bar";
+             method(s: string) { foo = s + this.prop; }
+diff --git a/test/unit/functions/generators.spec.ts b/test/unit/functions/generators.spec.ts
+index aa62d71..6cf9355 100644
+--- a/test/unit/functions/generators.spec.ts
++++ b/test/unit/functions/generators.spec.ts
+@@ -27,7 +27,7 @@ test(".next()", () => {
+ 
+ test(".next() with parameters", () => {
+     util.testFunction`
+-        function* generator() {
++        function* generator(): Generator<number, number, number> {
+             return yield 0;
+         }
+ 
+diff --git a/test/unit/functions/validation/functionExpressionTypeInference.spec.ts b/test/unit/functions/validation/functionExpressionTypeInference.spec.ts
+index abac4e4..9220902 100644
+--- a/test/unit/functions/validation/functionExpressionTypeInference.spec.ts
++++ b/test/unit/functions/validation/functionExpressionTypeInference.spec.ts
+@@ -79,7 +79,7 @@ test.each([
+ 
+ test("Function expression type inference in object literal assigned to narrower type", () => {
+     util.testFunction`
+-        let foo: {} = {bar: s => s};
++        let foo: {} = {bar: (s: string) => s};
+         return (foo as {bar: (a: any) => any}).bar("foobar");
+     `.expectToMatchJsResult();
+ });
+diff --git a/test/unit/functions/validation/invalidFunctionAssignments.spec.ts b/test/unit/functions/validation/invalidFunctionAssignments.spec.ts
+index 95b26b7..2b9fd61 100644
+--- a/test/unit/functions/validation/invalidFunctionAssignments.spec.ts
++++ b/test/unit/functions/validation/invalidFunctionAssignments.spec.ts
+@@ -96,7 +96,7 @@ test.each(invalidTestFunctionAssignments)(
+     (testFunction, functionType, isSelfConversion) => {
+         util.testModule`
+             ${testFunction.definition ?? ""}
+-            declare function takesFunction(fn: ${functionType});
++            declare function takesFunction(fn: ${functionType}): void;
+             takesFunction(${testFunction.value});
+         `.expectDiagnosticsToMatchSnapshot(
+             [isSelfConversion ? unsupportedSelfFunctionConversion.code : unsupportedNoSelfFunctionConversion.code],
+@@ -110,7 +110,7 @@ test.each(invalidTestMethodAssignments)(
+     (testFunction, functionType, isSelfConversion) => {
+         util.testModule`
+             ${testFunction.definition ?? ""}
+-            declare function takesObjectWithMethod(obj: { fn: ${functionType} });
++            declare function takesObjectWithMethod(obj: { fn: ${functionType} }): void;
+             takesObjectWithMethod({fn: ${testFunction.value}});
+         `.expectDiagnosticsToMatchSnapshot(
+             [isSelfConversion ? unsupportedSelfFunctionConversion.code : unsupportedNoSelfFunctionConversion.code],
+@@ -130,7 +130,7 @@ test("Invalid lua lib function argument", () => {
+ test.each(invalidTestFunctionCasts)("Invalid function argument with cast (%p)", (testFunction, castedFunction) => {
+     util.testModule`
+         ${testFunction.definition ?? ""}
+-        declare function takesFunction(fn: typeof ${testFunction.value});
++        declare function takesFunction(fn: typeof ${testFunction.value}): void;
+         takesFunction(${castedFunction});
+     `.expectDiagnosticsToMatchSnapshot(
+         [unsupportedNoSelfFunctionConversion.code, unsupportedSelfFunctionConversion.code],
+@@ -143,7 +143,7 @@ test.each(invalidTestFunctionAssignments)(
+     (testFunction, functionType, isSelfConversion) => {
+         util.testModule`
+             ${testFunction.definition ?? ""}
+-            declare function takesFunction<T extends ${functionType}>(fn: T);
++            declare function takesFunction<T extends ${functionType}>(fn: T): void;
+             takesFunction(${testFunction.value});
+         `.expectDiagnosticsToMatchSnapshot(
+             [isSelfConversion ? unsupportedSelfFunctionConversion.code : unsupportedNoSelfFunctionConversion.code],
+diff --git a/test/unit/functions/validation/validFunctionAssignments.spec.ts b/test/unit/functions/validation/validFunctionAssignments.spec.ts
+index 525b959..e341c5b 100644
+--- a/test/unit/functions/validation/validFunctionAssignments.spec.ts
++++ b/test/unit/functions/validation/validFunctionAssignments.spec.ts
+@@ -1,6 +1,5 @@
+ import * as util from "../../../util";
+ import {
+-    anonTestFunctionExpressions,
+     anonTestFunctionType,
+     noSelfTestFunctionExpressions,
+     noSelfTestFunctions,
+@@ -133,9 +132,26 @@ test.each([
+ });
+ 
+ test.each([
+-    ...anonTestFunctionExpressions.map((f): [TestFunction, string[]] => [f, ["0", "'foobar'"]]),
+-    ...selfTestFunctionExpressions.map((f): [TestFunction, string[]] => [f, ["0", "'foobar'"]]),
+-    ...noSelfTestFunctionExpressions.map((f): [TestFunction, string[]] => [f, ["'foobar'"]]),
++    ...(
++        [
++            { value: "(s: string) => s" },
++            { value: "((s: string) => s)" },
++            { value: "function(s: string) { return s; }" },
++            { value: "(function(s: string) { return s; })" },
++        ] as TestFunction[]
++    ).map((f): [TestFunction, string[]] => [f, ["0", "'foobar'"]]),
++    ...(
++        [
++            { value: "function(this: any, s: string) { return s; }" },
++            { value: "(function(this: any, s: string) { return s; })" },
++        ] as TestFunction[]
++    ).map((f): [TestFunction, string[]] => [f, ["0", "'foobar'"]]),
++    ...(
++        [
++            { value: "function(this: void, s: string) { return s; }" },
++            { value: "(function(this: void, s: string) { return s; })" },
++        ] as TestFunction[]
++    ).map((f): [TestFunction, string[]] => [f, ["'foobar'"]]),
+ ])("Valid function expression argument with no signature (%p, %p)", (testFunction, args) => {
+     util.testFunction`
+         const takesFunction: any = (fn: (this: void, ...args: any[]) => any, ...args: any[]) => {
+diff --git a/test/unit/hoisting.spec.ts b/test/unit/hoisting.spec.ts
+index 1444600..e08a7c0 100644
+--- a/test/unit/hoisting.spec.ts
++++ b/test/unit/hoisting.spec.ts
+@@ -254,7 +254,7 @@ test("Hoisting variable without initializer", () => {
+         function foo() {
+             return x;
+         }
+-        let x: number;
++        let x: number | undefined;
+         return foo();
+     `.expectToMatchJsResult();
+ });
+diff --git a/test/unit/identifiers.spec.ts b/test/unit/identifiers.spec.ts
+index f148c3c..ddac778 100644
+--- a/test/unit/identifiers.spec.ts
++++ b/test/unit/identifiers.spec.ts
+@@ -93,9 +93,8 @@ test.each([
+     "const foo: any, bar: any, $$$: any;",
+     "class $$$ {}",
+     "namespace $$$ { export const bar: any; }",
+-    "module $$$ { export const bar: any; }",
+     "enum $$$ {}",
+-    "function $$$();",
++    "function $$$(): void;",
+ ])("ambient identifier must be a valid lua identifier (%p)", statement => {
+     util.testModule`
+         declare ${statement}
+diff --git a/test/unit/language-extensions/multi.spec.ts b/test/unit/language-extensions/multi.spec.ts
+index 72b3308..f60b316 100644
+--- a/test/unit/language-extensions/multi.spec.ts
++++ b/test/unit/language-extensions/multi.spec.ts
+@@ -41,6 +41,7 @@ test("Destructuring assignment of LuaMultiReturn returning nil", () => {
+         const [a, ...b] = multiReturn();
+         export {a, b};
+     `
++        .ignoreDiagnostics([2322, 2461])
+         .withLanguageExtensions()
+         .expectToEqual({ a: undefined, b: [] });
+ });
+@@ -58,7 +59,7 @@ test.each<[string, any]>([
+ });
+ 
+ const multiFunction = `
+-function multi(...args) {
++function multi(...args: any[]) {
+     return $multi(...args);
+ }
+ `;
+@@ -272,7 +273,7 @@ test("return $multi from try", () => {
+             } catch {
+             }
+         }
+-        const [_, a] = multiTest();
++        const [_, a] = multiTest()!;
+         return a;
+     `
+         .withLanguageExtensions()
+@@ -304,7 +305,7 @@ test("return LuaMultiReturn from try", () => {
+             } catch {
+             }
+         }
+-        const [_, a] = multiTest();
++        const [_, a] = multiTest()!;
+         return a;
+     `
+         .withLanguageExtensions()
+diff --git a/test/unit/loops.spec.ts b/test/unit/loops.spec.ts
+index b88e0db..6d26a43 100644
+--- a/test/unit/loops.spec.ts
++++ b/test/unit/loops.spec.ts
+@@ -208,7 +208,7 @@ test.each([
+     },
+ ])("forin[Object] (%p)", ({ inp }) => {
+     util.testFunctionTemplate`
+-        let objTest = ${inp};
++        let objTest: Record<string, number> = ${inp};
+         for (let key in objTest) {
+             objTest[key] = objTest[key] + 1;
+         }
+@@ -218,7 +218,7 @@ test.each([
+ 
+ test("forin[Array]", () => {
+     util.testFunction`
+-        const array = [];
++        const array: any[] = [];
+         for (const key in array) {}
+     `.expectDiagnosticsToMatchSnapshot([forbiddenForIn.code]);
+ });
+@@ -238,7 +238,7 @@ test.each(
+     )
+ )("forin with continue (%s %p)", (luaTarget, { inp }) => {
+     util.testFunctionTemplate`
+-            let obj = ${inp};
++            let obj: Record<string, number> = ${inp};
+             for (let i in obj) {
+                 if (obj[i] % 2 == 0) {
+                     continue;
+diff --git a/test/unit/modules/modules.spec.ts b/test/unit/modules/modules.spec.ts
+index d15f184..1969806 100644
+--- a/test/unit/modules/modules.spec.ts
++++ b/test/unit/modules/modules.spec.ts
+@@ -94,8 +94,7 @@ test("Default Import and Export Expression", () => {
+ 
+ test("Import and Export Assignment", () => {
+     util.testModule`
+-        // @ts-ignore
+-        import * as m from "./module";
++        import m = require("./module");
+         export const value = m;
+     `
+         .setOptions({ module: ts.ModuleKind.CommonJS })
+diff --git a/test/unit/namespaces.spec.ts b/test/unit/namespaces.spec.ts
+index 01b2e3f..8dfa0c1 100644
+--- a/test/unit/namespaces.spec.ts
++++ b/test/unit/namespaces.spec.ts
+@@ -2,7 +2,7 @@ import * as util from "../util";
+ 
+ test("legacy internal module syntax", () => {
+     util.testModule`
+-        module Foo {
++        namespace Foo {
+             export const foo = "bar";
+         }
+ 
+@@ -42,7 +42,7 @@ test("context in namespace function", () => {
+     util.testModule`
+         namespace a {
+             export const foo = "foo";
+-            export function bar() { return this.foo + "bar"; }
++            export function bar(this: typeof a) { return this.foo + "bar"; }
+         }
+ 
+         export const result = a.bar();
+diff --git a/test/unit/optionalChaining.spec.ts b/test/unit/optionalChaining.spec.ts
+index d99f18b..f9d32de 100644
+--- a/test/unit/optionalChaining.spec.ts
++++ b/test/unit/optionalChaining.spec.ts
+@@ -1,10 +1,9 @@
+ import { notAllowedOptionalAssignment } from "../../src/transformation/utils/diagnostics";
+ import * as util from "../util";
+-import { ScriptTarget } from "typescript";
+ 
+ test.each(["null", "undefined", '{ foo: "foo" }'])("optional chaining (%p)", value => {
+     util.testFunction`
+-        const obj: {foo: string} | null | undefined = ${value};
++        const obj = ${value} as {foo: string} | null | undefined;
+         return obj?.foo;
+     `
+         .expectToMatchJsResult()
+@@ -24,7 +23,7 @@ test("long optional chain", () => {
+ 
+ test.each(["undefined", "{}", "{ foo: {} }", "{ foo: {bar: 'baz'}}"])("nested optional chaining (%p)", value => {
+     util.testFunction`
+-        const obj: { foo?: { bar?: string } } | undefined = ${value};
++        const obj = ${value} as { foo?: { bar?: string } } | undefined;
+         return obj?.foo?.bar;
+     `.expectToMatchJsResult();
+ });
+@@ -33,7 +32,7 @@ test.each(["undefined", "{}", "{ foo: {} }", "{ foo: {bar: 'baz'}}"])(
+     "nested optional chaining combined with coalescing (%p)",
+     value => {
+         util.testFunction`
+-        const obj: { foo?: { bar?: string } } | undefined = ${value};
++        const obj = ${value} as { foo?: { bar?: string } } | undefined;
+         return obj?.foo?.bar ?? "not found";
+     `.expectToMatchJsResult();
+     }
+@@ -108,7 +107,7 @@ test("unused call", () => {
+     // should use if statement, as result is not used
+ });
+ 
+-test.each(["undefined", "{ foo: v=>v }"])("with preceding statements on right side", value => {
++test.each(["undefined", "{ foo: (v: any)=>v }"])("with preceding statements on right side", value => {
+     util.testFunction`
+         let i = 0
+         const obj: any = ${value};
+@@ -120,12 +119,12 @@ test.each(["undefined", "{ foo: v=>v }"])("with preceding statements on right si
+ });
+ 
+ // unused, with preceding statements on right side
+-test.each(["undefined", "{ foo(val) {return val} }"])(
++test.each(["undefined", "{ foo(val: any) {return val} }"])(
+     "unused result with preceding statements on right side",
+     value => {
+         util.testFunction`
+         let i = 0
+-        const obj = ${value};
++        const obj = ${value} as { foo(val: any): any } | undefined;
+         obj?.foo(i++);
+         return i
+     `
+@@ -135,8 +134,10 @@ test.each(["undefined", "{ foo(val) {return val} }"])(
+     }
+ );
+ 
+-test.each(["undefined", "{ foo(v) { return v} }"])("with preceding statements on right side modifying left", value => {
+-    util.testFunction`
++test.each(["undefined", "{ foo(v: any) { return v} }"])(
++    "with preceding statements on right side modifying left",
++    value => {
++        util.testFunction`
+         let i = 0
+         let obj: any = ${value};
+         function bar() {
+@@ -147,10 +148,11 @@ test.each(["undefined", "{ foo(v) { return v} }"])("with preceding statements on
+ 
+         return {result: obj?.foo(bar(), i++), obj, i}
+   `
+-        .expectToMatchJsResult()
+-        .expectLuaToMatchSnapshot();
+-    // should use if statement, as there are preceding statements
+-});
++            .expectToMatchJsResult()
++            .expectLuaToMatchSnapshot();
++        // should use if statement, as there are preceding statements
++    }
++);
+ 
+ test("does not suppress error if left side is false", () => {
+     const result = util.testFunction`
+@@ -233,7 +235,7 @@ test("does not crash when incorrectly used in assignment (#1044)", () => {
+ describe("optional chaining function calls", () => {
+     test.each(["() => 4", "undefined"])("stand-alone optional function (%p)", value => {
+         util.testFunction`
+-            const f: (() => number) | undefined = ${value};
++            const f = (${value}) as (() => number) | undefined;
+             return f?.();
+         `.expectToMatchJsResult();
+     });
+@@ -255,7 +257,7 @@ describe("optional chaining function calls", () => {
+ 
+     test("object with method can be undefined", () => {
+         util.testFunction`
+-            const objWithMethods: { foo: () => number, bar: (this: void) => number } | undefined = undefined;
++            const objWithMethods = undefined as { foo: () => number, bar: (this: void) => number } | undefined;
+             return [objWithMethods?.foo() ?? "no foo", objWithMethods?.bar() ?? "no bar"];
+         `.expectToMatchJsResult();
+     });
+@@ -326,8 +328,8 @@ describe("optional chaining function calls", () => {
+ 
+         test.each([undefined, "[1, 2, 3, 4]"])("Array: %p", expr => {
+             util.testFunction`
+-            const value: any[] | undefined = ${expr}
+-            return value?.map(x=>x+1)
++            const value = ${expr} as any[] | undefined
++            return value?.map((x: any)=>x+1)
+         `.expectToMatchJsResult();
+         });
+     });
+@@ -342,7 +344,6 @@ describe("optional chaining function calls", () => {
+         `
+             .setOptions({
+                 strict,
+-                target: ScriptTarget.ES5,
+             })
+             .expectToMatchJsResult();
+     });
+@@ -397,7 +398,7 @@ describe("Unsupported optional chains", () => {
+ describe("optional delete", () => {
+     test("successful", () => {
+         util.testFunction`
+-            const table = {
++            const table: { bar?: number } = {
+                 bar: 3
+             }
+             return [delete table?.bar, table]
+@@ -415,9 +416,9 @@ describe("optional delete", () => {
+ 
+     test("delete on undefined", () => {
+         util.testFunction`
+-            const table : {
+-                bar: number
+-            } | undefined = undefined
++            const table = undefined as {
++                bar?: number
++            } | undefined
+             return [delete table?.bar, table ?? "nil"]
+         `.expectToMatchJsResult();
+     });
+diff --git a/test/unit/overloads.spec.ts b/test/unit/overloads.spec.ts
+index d18daa0..476ec40 100644
+--- a/test/unit/overloads.spec.ts
++++ b/test/unit/overloads.spec.ts
+@@ -67,8 +67,8 @@ test("overload method2", () => {
+ test("constructor1", () => {
+     util.testFunction`
+         class myclass {
+-            num: number;
+-            str: string;
++            num!: number;
++            str!: string;
+ 
+             constructor(def: number);
+             constructor(def: string);
+@@ -88,8 +88,8 @@ test("constructor1", () => {
+ test("constructor2", () => {
+     util.testFunction`
+         class myclass {
+-            num: number;
+-            str: string;
++            num!: number;
++            str!: string;
+ 
+             constructor(def: number);
+             constructor(def: string);
+diff --git a/test/unit/precedingStatements.spec.ts b/test/unit/precedingStatements.spec.ts
+index 1ce24da..b74495f 100644
+--- a/test/unit/precedingStatements.spec.ts
++++ b/test/unit/precedingStatements.spec.ts
+@@ -101,13 +101,15 @@ describe("execution order", () => {
+         util.testFunction`
+             const o = {a: "A", b: "B", c: "C"};
+             let i = 0;
+-            const literal = ${literal};
++            const literal: Record<string, unknown> = ${literal};
+             const result: Record<string, unknown> = {};
+             (Object.keys(result) as Array<number | string>).forEach(
+-                key => { result[key.toString()] = literal[key]; }
++                (key: number | string) => { result[key.toString()] = literal[key as string]; }
+             );
+             return result;
+-        `.expectToMatchJsResult();
++        `
++            .ignoreDiagnostics([2783])
++            .expectToMatchJsResult();
+     });
+ 
+     test("object literal with computed property names", () => {
+@@ -516,8 +518,8 @@ describe("assignment execution order", () => {
+     test("function method call", () => {
+         util.testFunction`
+             let o = {val: 3};
+-            let a = function(x: number) { return this.val + x; };
+-            let b = function(x: number) { return (this.val + x) * 10; };
++            let a = function(this: {val: number}, x: number) { return this.val + x; };
++            let b = function(this: {val: number}, x: number) { return (this.val + x) * 10; };
+             function foo(x: number) { return (x > 0) ? b : a; }
+             let i = 0;
+             const result = foo(i).call(o, i++);
+diff --git a/test/unit/spread.spec.ts b/test/unit/spread.spec.ts
+index 53898aa..12393a7 100644
+--- a/test/unit/spread.spec.ts
++++ b/test/unit/spread.spec.ts
+@@ -116,7 +116,7 @@ describe("in object literal", () => {
+         "{ ...{ x: false }, x: true }",
+         "{ ...{ x: false }, x: false, ...{ x: true } }",
+     ])("of object literal (%p)", expression => {
+-        util.testExpression(expression).expectToMatchJsResult();
++        util.testExpression(expression).ignoreDiagnostics([2783]).expectToMatchJsResult();
+     });
+ 
+     test("of object reference", () => {
+diff --git a/test/unit/switch.spec.ts b/test/unit/switch.spec.ts
+index 4fb72c4..1b8410a 100644
+--- a/test/unit/switch.spec.ts
++++ b/test/unit/switch.spec.ts
+@@ -137,7 +137,7 @@ test("switch using variable re-declared in cases", () => {
+         let foo: number = 0;
+         switch (foo) {
+             case 0:
+-                let foo = true;
++                let foo: boolean | undefined = true;
+             case 1:
+                 return foo;
+         }
+diff --git a/test/unit/using.spec.ts b/test/unit/using.spec.ts
+index bfe5312..25c75e0 100644
+--- a/test/unit/using.spec.ts
++++ b/test/unit/using.spec.ts
+@@ -116,7 +116,7 @@ test("using disposes even when error happens", () => {
+ 
+ test("await using disposes object with await at end of function", () => {
+     util.testModule`
+-        let disposeAsync;
++        let disposeAsync: (() => void) | undefined;
+ 
+         function loggedAsyncDisposable(id: string): AsyncDisposable {
+             logs.push(\`Creating \${id}\`);
+@@ -145,7 +145,7 @@ test("await using disposes object with await at end of function", () => {
+ 
+         logs.push("function returned");
+ 
+-        disposeAsync();
++        disposeAsync!();
+     `
+         .setTsHeader(usingTestLib)
+         .setOptions({ luaLibImport: LuaLibImportKind.Inline })
+@@ -197,7 +197,7 @@ test("await using no extra diagnostics (#1571)", () => {
+ // https://github.com/TypeScriptToLua/TypeScriptToLua/issues/1584
+ test("works with disposable classes (#1584)", () => {
+     util.testFunction`
+-        const log = [];
++        const log: string[] = [];
+         
+         class Scoped {
+             action(): void {
+diff --git a/test/util.ts b/test/util.ts
+index 2871f6e..3488572 100644
+--- a/test/util.ts
++++ b/test/util.ts
+@@ -51,7 +51,7 @@ function getLuaBindingsForVersion(target: tstl.LuaTarget): { lauxlib: LauxLib; l
+ }
+ 
+ export function assert(value: any, message?: string | Error): asserts value {
+-    nativeAssert(value, message);
++    nativeAssert.ok(value, message);
+ }
+ 
+ export const formatCode = (...values: unknown[]) => values.map(e => stringify(e)).join(", ");
+@@ -92,17 +92,15 @@ export function expectEachVersionExceptJit<T>(
+     };
+ }
+ 
+-const memoize: MethodDecorator = (_target, _propertyKey, descriptor) => {
+-    const originalFunction = descriptor.value as any;
++const memoize = (originalFunction: any) => {
+     const memoized = new WeakMap();
+-    descriptor.value = function (this: any, ...args: any[]): any {
++    return function (this: any, ...args: any[]): any {
+         if (!memoized.has(this)) {
+             memoized.set(this, originalFunction.apply(this, args));
+         }
+ 
+         return memoized.get(this);
+-    } as any;
+-    return descriptor;
++    };
+ };
+ 
+ export class ExecutionError extends Error {
+@@ -163,7 +161,7 @@ export abstract class TestBuilder {
+         skipLibCheck: true,
+         target: ts.ScriptTarget.ES2017,
+         lib: ["lib.esnext.d.ts"],
+-        moduleResolution: ts.ModuleResolutionKind.Node10,
++        moduleResolution: ts.ModuleResolutionKind.Bundler,
+         resolveJsonModule: true,
+         sourceMap: true,
+     };
+diff --git a/tsconfig.eslint.json b/tsconfig.eslint.json
+new file mode 100644
+index 0000000..4c69f79
+--- /dev/null
++++ b/tsconfig.eslint.json
+@@ -0,0 +1,9 @@
++{
++    "extends": "./tsconfig.json",
++    "compilerOptions": {
++        "rootDir": ".",
++        "noEmit": true
++    },
++    "include": ["src"],
++    "exclude": ["src/lualib"]
++}
+diff --git a/tsconfig.json b/tsconfig.json
+index bf121bd..b337e3e 100644
+--- a/tsconfig.json
++++ b/tsconfig.json
+@@ -4,7 +4,7 @@
+         "lib": ["es2019"],
+         "types": ["node"],
+         "module": "commonjs",
+-        "experimentalDecorators": true,
++        "moduleResolution": "bundler",
+ 
+         "rootDir": "src",
+         "outDir": "dist",
+-- 
+2.50.1 (Apple Git-155)
+
