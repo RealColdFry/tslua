@@ -1034,6 +1034,21 @@ func (t *Transpiler) getFirstDeclarationInFile(sym *ast.Symbol) *ast.Node {
 	return first
 }
 
+// sortedFuncDefKeys returns FunctionDefs keys sorted by SymbolID.
+// SymbolIDs are assigned in AST visit order, so sorting preserves source order
+// and ensures deterministic iteration (Go map order is randomized).
+func sortedFuncDefKeys(scope *Scope) []SymbolID {
+	if len(scope.FunctionDefs) == 0 {
+		return nil
+	}
+	keys := make([]SymbolID, 0, len(scope.FunctionDefs))
+	for id := range scope.FunctionDefs {
+		keys = append(keys, id)
+	}
+	slices.Sort(keys)
+	return keys
+}
+
 // shouldHoistSymbol checks whether a symbol should be hoisted in the given scope.
 func (t *Transpiler) shouldHoistSymbol(symbolID SymbolID, scope *Scope) bool {
 	// Always hoist in switch scopes
@@ -1057,16 +1072,15 @@ func (t *Transpiler) shouldHoistSymbol(symbolID SymbolID, scope *Scope) bool {
 	}
 
 	// Symbol referenced from a hoisted function that is defined after the declaration
-	if scope.FunctionDefs != nil {
-		for funcSymID, funcDef := range scope.FunctionDefs {
-			if funcSymID == symbolID {
-				continue // don't recurse into self
-			}
-			if funcDef.ReferencedSymbols != nil && funcDef.ReferencedSymbols[symbolID] > 0 {
-				// Check if the function is itself hoisted (i.e., referenced before its definition)
-				if t.shouldHoistSymbol(funcSymID, scope) {
-					return true
-				}
+	for _, funcSymID := range sortedFuncDefKeys(scope) {
+		funcDef := scope.FunctionDefs[funcSymID]
+		if funcSymID == symbolID {
+			continue // don't recurse into self
+		}
+		if funcDef.ReferencedSymbols != nil && funcDef.ReferencedSymbols[symbolID] > 0 {
+			// Check if the function is itself hoisted (i.e., referenced before its definition)
+			if t.shouldHoistSymbol(funcSymID, scope) {
+				return true
 			}
 		}
 	}
@@ -1131,9 +1145,10 @@ func (t *Transpiler) separateHoistedStatements(scope *Scope, stmts []lua.Stateme
 	remaining := make([]lua.Statement, len(stmts))
 	copy(remaining, stmts)
 
-	// Hoist function definitions
+	// Hoist function definitions (sorted by SymbolID for deterministic output)
 	if scope.FunctionDefs != nil {
-		for funcSymID, funcDef := range scope.FunctionDefs {
+		for _, funcSymID := range sortedFuncDefKeys(scope) {
+			funcDef := scope.FunctionDefs[funcSymID]
 			if funcDef.Definition == nil {
 				continue
 			}

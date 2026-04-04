@@ -1,0 +1,46 @@
+tslua
+Copyright (c) 2026 tslua Contributors
+
+This product includes software developed by third parties.
+
+================================================================================
+
+TypeScriptToLua (TSTL)
+https://github.com/TypeScriptToLua/TypeScriptToLua
+
+Copyright (c) TypeScriptToLua Contributors
+Licensed under the MIT License (extern/tstl/LICENSE)
+
+tslua's Lua runtime library (internal/lualib/) is derived from TSTL's lualib
+TypeScript source code. The migration test suite (internal/tstltest/) contains
+test cases extracted and adapted from TSTL's test suite.
+
+================================================================================
+
+typescript-go
+https://github.com/microsoft/typescript-go
+
+Copyright (c) Microsoft Corporation
+Licensed under the Apache License, Version 2.0 (extern/tsgolint/typescript-go/LICENSE)
+
+tslua links against typescript-go's compiler and type checker internals for
+TypeScript parsing, type checking, and AST access. See
+extern/tsgolint/typescript-go/NOTICE.txt for typescript-go's own third-party
+notices.
+
+================================================================================
+
+tsgolint
+https://github.com/oxc-project/tsgolint
+
+Copyright (c) 2025 July-present VoidZero Inc. & Contributors
+Copyright (c) 2025 July typescript-eslint and other contributors
+Licensed under the MIT License (extern/tsgolint/LICENSE)
+
+tslua uses tsgolint's Go shim layer (extern/tsgolint/shim/) to access
+typescript-go internal APIs via go:linkname.
+
+================================================================================
+
+For complete license texts, see the LICENSE files in the respective directories
+listed above.
