@@ -20,7 +20,7 @@ function rehypeExternalLinks() {
 // https://astro.build/config
 export default defineConfig({
   site: "https://realcoldfry.github.io",
-  base: process.env.CI ? "/tslua" : "/",
+  base: "/tslua",
   markdown: {
     rehypePlugins: [rehypeExternalLinks],
   },
