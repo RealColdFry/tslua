@@ -1,9 +1,10 @@
 ---
 import AstrolightSiteTitle from "@astrojs/starlight/components/SiteTitle.astro";
 
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const menuItems = [
-  { name: "Docs", href: "/guides/installation/", match: (p: string) => p !== "/" && p !== "/playground/" },
-  { name: "Playground", href: "/playground/", match: (p: string) => p === "/playground/" },
+  { name: "Docs", href: `${base}/guides/installation/`, match: (p: string) => !p.endsWith("/playground/") },
+  { name: "Playground", href: `${base}/playground/`, match: (p: string) => p.endsWith("/playground/") },
 ];
 ---
 
