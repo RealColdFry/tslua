@@ -199,17 +199,18 @@ func (t *Transpiler) transformCompoundAssignmentStmt(be *ast.BinaryExpression) [
 
 	// For property/element access LHS: only cache when table/index have side effects or RHS has preceding statements.
 	if be.Left.Kind == ast.KindPropertyAccessExpression || be.Left.Kind == ast.KindElementAccessExpression {
-		leftExpr := t.transformExpression(be.Left)
+		leftExpr, leftPrec := t.transformExprInScope(be.Left)
 		rightExpr, rightPrec := t.transformExprInScope(be.Right)
 
 		idx, isIndex := leftExpr.(*lua.TableIndexExpression)
-		needsCache := isIndex && (len(rightPrec) > 0 || luaExprHasSideEffect(idx.Table) || luaExprHasSideEffect(idx.Index))
+		needsCache := isIndex && (len(leftPrec) > 0 || len(rightPrec) > 0 || luaExprHasSideEffect(idx.Table) || luaExprHasSideEffect(idx.Index))
 		if needsCache {
 			objTemp := t.nextTempForLuaExpression(idx.Table)
 			idxTemp := t.nextTempForLuaExpression(idx.Index)
 			cachedLeft := lua.Index(lua.Ident(objTemp), lua.Ident(idxTemp))
 			rhs := t.compoundRHS(op, cachedLeft, rightExpr, be)
 			var result []lua.Statement
+			result = append(result, leftPrec...)
 			result = append(result, lua.LocalDecl(
 				[]*lua.Identifier{lua.Ident(objTemp), lua.Ident(idxTemp)},
 				[]lua.Expression{idx.Table, idx.Index},
@@ -220,6 +221,7 @@ func (t *Transpiler) transformCompoundAssignmentStmt(be *ast.BinaryExpression) [
 		}
 
 		var result []lua.Statement
+		result = append(result, leftPrec...)
 		result = append(result, rightPrec...)
 		rhs := t.compoundRHS(op, leftExpr, rightExpr, be)
 		result = append(result, lua.Assign([]lua.Expression{leftExpr}, []lua.Expression{rhs}))

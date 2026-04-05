@@ -491,6 +491,63 @@ func formatNumericLiteral(v float64) string {
 	return strconv.FormatFloat(v, 'f', -1, 64)
 }
 
+// closureCapturesSymbol returns true if any function (arrow or expression) nested
+// inside node references the given symbol. This is used to detect when a let variable
+// in a for-loop initializer is captured by a closure, requiring per-iteration binding.
+func (t *Transpiler) closureCapturesSymbol(node *ast.Node, sym *ast.Symbol) bool {
+	if node == nil || sym == nil {
+		return false
+	}
+	found := false
+	var walk func(n *ast.Node, insideClosure bool)
+	walk = func(n *ast.Node, insideClosure bool) {
+		if found {
+			return
+		}
+		if insideClosure && n.Kind == ast.KindIdentifier {
+			if s := t.checker.GetSymbolAtLocation(n); s == sym {
+				found = true
+				return
+			}
+		}
+		isClosure := n.Kind == ast.KindFunctionExpression || n.Kind == ast.KindArrowFunction
+		n.ForEachChild(func(child *ast.Node) bool {
+			walk(child, insideClosure || isClosure)
+			return found
+		})
+	}
+	walk(node, false)
+	return found
+}
+
+// forLetVarsCapturedByClosures returns the names and symbols of let-declared variables
+// in a for-statement initializer that are captured by closures in the body.
+func (t *Transpiler) forLetVarsCapturedByClosures(fs *ast.ForStatement) []string {
+	if fs.Initializer == nil || fs.Initializer.Kind != ast.KindVariableDeclarationList {
+		return nil
+	}
+	// Only let declarations need per-iteration binding (not var)
+	if fs.Initializer.Flags&ast.NodeFlagsLet == 0 {
+		return nil
+	}
+	declList := fs.Initializer.AsVariableDeclarationList()
+	var captured []string
+	for _, decl := range declList.Declarations.Nodes {
+		d := decl.AsVariableDeclaration()
+		if d.Name().Kind != ast.KindIdentifier {
+			continue
+		}
+		sym := t.checker.GetSymbolAtLocation(d.Name())
+		if sym == nil {
+			continue
+		}
+		if t.closureCapturesSymbol(fs.Statement, sym) {
+			captured = append(captured, d.Name().Text())
+		}
+	}
+	return captured
+}
+
 // isLoopVar checks if a TS node is an identifier referring to the given symbol.
 func (t *Transpiler) isLoopVar(node *ast.Node, sym *ast.Symbol) bool {
 	if node.Kind != ast.KindIdentifier || sym == nil {
@@ -553,6 +610,19 @@ func containsAssignmentToSymbol(node *ast.Node, sym *ast.Symbol, t *Transpiler) 
 	return found
 }
 
+// prependPerIterationCopies adds `local i = i` declarations at the start of a
+// statement list for each captured let variable, creating per-iteration bindings.
+func prependPerIterationCopies(vars []string, body []lua.Statement) []lua.Statement {
+	copies := make([]lua.Statement, 0, len(vars)+len(body))
+	for _, name := range vars {
+		copies = append(copies, lua.LocalDecl(
+			[]*lua.Identifier{lua.Ident(name)},
+			[]lua.Expression{lua.Ident(name)},
+		))
+	}
+	return append(copies, body...)
+}
+
 // C-style for → do { initializer; while (cond) { body; incrementor } } end
 func (t *Transpiler) transformForStatement(node *ast.Node) []lua.Statement {
 	// Try numeric for optimization (optimized emit mode only)
@@ -606,6 +676,10 @@ func (t *Transpiler) transformForStatement(node *ast.Node) []lua.Statement {
 		cond = lua.Bool(true)
 	}
 
+	// ES6 per-iteration binding: detect let variables captured by closures.
+	// Each iteration must get its own copy so closures see the iteration's value.
+	capturedLetVars := t.forLetVarsCapturedByClosures(fs)
+
 	// Body — for-statements handle continue directly (not via transformLoopBody)
 	// because the incrementor must execute after body but before the next iteration.
 	// Push a Loop scope for the body to match TSTL's scope counting.
@@ -624,6 +698,10 @@ func (t *Transpiler) transformForStatement(node *ast.Node) []lua.Statement {
 		}
 
 		innerBody := t.transformBlockStatementsNoScope(fs.Statement)
+		// Prepend per-iteration copies inside the do block (closures capture these)
+		if len(capturedLetVars) > 0 {
+			innerBody = prependPerIterationCopies(capturedLetVars, innerBody)
+		}
 		if t.luaTarget.SupportsGoto() {
 			bodyStmts = append(bodyStmts, lua.Do(innerBody...))
 			if hasContinue {
@@ -640,7 +718,15 @@ func (t *Transpiler) transformForStatement(node *ast.Node) []lua.Statement {
 			t.continueLabels = t.continueLabels[:len(t.continueLabels)-1]
 		}
 	} else {
-		bodyStmts = t.transformBlockStatementsNoScope(fs.Statement)
+		innerBody := t.transformBlockStatementsNoScope(fs.Statement)
+		if len(capturedLetVars) > 0 {
+			// Wrap body in do...end with per-iteration copies so the
+			// incrementor (appended below) stays outside the inner scope.
+			innerBody = prependPerIterationCopies(capturedLetVars, innerBody)
+			bodyStmts = append(bodyStmts, lua.Do(innerBody...))
+		} else {
+			bodyStmts = innerBody
+		}
 	}
 	t.popScope() // body scope
 

@@ -434,6 +434,11 @@ func (t *Transpiler) transformClassMembersShared(node *ast.Node, classRef lua.Ex
 	var methods []*ast.Node
 
 	for _, member := range members.Nodes {
+		// Private identifiers (#x) are not supported
+		if isPrivateClassMember(member) {
+			t.addError(member, dw.UnsupportedProperty, "Private identifiers are not supported.")
+			continue
+		}
 		switch member.Kind {
 		case ast.KindConstructor:
 			constructor = member
@@ -1146,6 +1151,20 @@ func isLualibConstructor(name string) bool {
 	switch name {
 	case "Set", "Map", "WeakMap", "WeakSet":
 		return true
+	}
+	return false
+}
+
+func isPrivateClassMember(member *ast.Node) bool {
+	switch member.Kind {
+	case ast.KindPropertyDeclaration:
+		return member.AsPropertyDeclaration().Name().Kind == ast.KindPrivateIdentifier
+	case ast.KindMethodDeclaration:
+		return member.AsMethodDeclaration().Name().Kind == ast.KindPrivateIdentifier
+	case ast.KindGetAccessor:
+		return member.AsGetAccessorDeclaration().Name().Kind == ast.KindPrivateIdentifier
+	case ast.KindSetAccessor:
+		return member.AsSetAccessorDeclaration().Name().Kind == ast.KindPrivateIdentifier
 	}
 	return false
 }

@@ -1689,7 +1689,7 @@ func (t *Transpiler) transformAsStatement(node *ast.Node) []lua.Statement {
 			// array.length = x → __TS__ArraySetLength(array, x)
 			if be.Left.Kind == ast.KindPropertyAccessExpression {
 				pa := be.Left.AsPropertyAccessExpression()
-				if pa.Name().AsIdentifier().Text == "length" && t.isArrayType(pa.Expression) {
+				if pa.Name().Kind == ast.KindIdentifier && pa.Name().AsIdentifier().Text == "length" && t.isArrayType(pa.Expression) {
 					arrExpr, arrPrec := t.transformExprInScope(pa.Expression)
 					right, rightPrec := t.transformExprInScope(be.Right)
 					var result []lua.Statement

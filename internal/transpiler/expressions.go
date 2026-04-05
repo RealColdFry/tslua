@@ -403,6 +403,9 @@ func (t *Transpiler) wrapOptionalChainCall(objExpr lua.Expression, makeCall func
 // resolvePropertyName returns the Lua property name for a PropertyAccessExpression,
 // applying @customName if the property's symbol has one.
 func (t *Transpiler) resolvePropertyName(pa *ast.PropertyAccessExpression) string {
+	if pa.Name().Kind != ast.KindIdentifier {
+		return pa.Name().AsPrivateIdentifier().Text
+	}
 	name := pa.Name().AsIdentifier().Text
 	if t.checker != nil {
 		if sym := t.checker.GetSymbolAtLocation(pa.Name()); sym != nil {
@@ -421,6 +424,12 @@ func (t *Transpiler) transformPropertyAccessExpression(node *ast.Node) lua.Expre
 	}
 
 	pa := node.AsPropertyAccessExpression()
+
+	// Private identifiers (#x) are not supported in Lua
+	if pa.Name().Kind == ast.KindPrivateIdentifier {
+		t.addError(node, dw.UnsupportedProperty, "Private identifiers are not supported.")
+		return lua.Nil()
+	}
 
 	// @compileMembersOnly: skip the enum table in the access path
 	if t.hasTypeAnnotation(pa.Expression, AnnotCompileMembersOnly) {

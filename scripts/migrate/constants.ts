@@ -58,7 +58,8 @@ export const bakeLimitationOverrides: {
 // Skip entire test (eval + codegen). Use when the test can't pass on native Lua
 // due to runtime differences (e.g., error(nil) behavior).
 export const tstlBugSkips: Record<string, string> = {
-  "error::throw and catch undefined": "TSTL bug: error(nil) behaves differently on native Lua vs JS",
+  "error::throw and catch undefined":
+    "TSTL bug: error(nil) behaves differently on native Lua vs JS",
   // tsgo doesn't parse JSDoc inside namespace blocks, so @customName on inner members is lost
   "identifiers::customName rename namespace": "tsgo-limitation: JSDoc in namespace blocks",
   // tsgo errors on legacy `module` keyword for namespaces

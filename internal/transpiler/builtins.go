@@ -20,6 +20,9 @@ func (t *Transpiler) tryTransformBuiltinCallWithArgs(ce *ast.CallExpression, arg
 		return nil
 	}
 	pa := ce.Expression.AsPropertyAccessExpression()
+	if pa.Name().Kind != ast.KindIdentifier {
+		return nil
+	}
 	method := pa.Name().AsIdentifier().Text
 
 	// Global object methods: Math.*, Object.*, Array.*, JSON.*
@@ -54,6 +57,9 @@ func (t *Transpiler) isBuiltinCall(ce *ast.CallExpression) bool {
 		return false
 	}
 	pa := ce.Expression.AsPropertyAccessExpression()
+	if pa.Name().Kind != ast.KindIdentifier {
+		return false
+	}
 	method := pa.Name().AsIdentifier().Text
 
 	// Global object methods: Math.*, Object.*, Array.*, console.*, JSON.*, etc.
@@ -869,6 +875,9 @@ func (t *Transpiler) tryTransformFunctionCallApply(ce *ast.CallExpression) lua.E
 		return nil
 	}
 	pa := ce.Expression.AsPropertyAccessExpression()
+	if pa.Name().Kind != ast.KindIdentifier {
+		return nil
+	}
 	method := pa.Name().AsIdentifier().Text
 	if method != "call" && method != "apply" && method != "bind" {
 		return nil
