@@ -90,16 +90,7 @@ func (t *Transpiler) transformCallExpression(node *ast.Node) lua.Expression {
 		pa := calleeExpr.AsPropertyAccessExpression()
 		// Transform receiver FIRST (before args) to preserve JS evaluation order
 		obj := t.transformExpression(pa.Expression)
-		method := pa.Name().AsIdentifier().Text
-
-		// @customName on the called method
-		if t.checker != nil {
-			if sym := t.checker.GetSymbolAtLocation(pa.Name()); sym != nil {
-				if customName := t.getCustomNameFromSymbol(sym); customName != "" {
-					method = customName
-				}
-			}
-		}
+		method := t.resolvePropertyName(pa)
 
 		// Transform arguments in an isolated scope to detect preceding statements.
 		argExprs, argPrec := t.transformArgsInScope(ce.Arguments)
@@ -409,6 +400,20 @@ func (t *Transpiler) wrapOptionalChainCall(objExpr lua.Expression, makeCall func
 	return lua.Binary(bin.Left, lua.OpAnd, makeCall(bin.Right))
 }
 
+// resolvePropertyName returns the Lua property name for a PropertyAccessExpression,
+// applying @customName if the property's symbol has one.
+func (t *Transpiler) resolvePropertyName(pa *ast.PropertyAccessExpression) string {
+	name := pa.Name().AsIdentifier().Text
+	if t.checker != nil {
+		if sym := t.checker.GetSymbolAtLocation(pa.Name()); sym != nil {
+			if customName := t.getCustomNameFromSymbol(sym); customName != "" {
+				return customName
+			}
+		}
+	}
+	return name
+}
+
 func (t *Transpiler) transformPropertyAccessExpression(node *ast.Node) lua.Expression {
 	// Const enum inlining: ConstEnum.Member → literal value
 	if val, ok := t.tryGetConstEnumValue(node); ok {
@@ -445,16 +450,7 @@ func (t *Transpiler) transformPropertyAccessExpression(node *ast.Node) lua.Expre
 		return t.transformOptionalChain(node)
 	}
 
-	prop := pa.Name().AsIdentifier().Text
-
-	// @customName on the accessed property
-	if t.checker != nil {
-		if sym := t.checker.GetSymbolAtLocation(pa.Name()); sym != nil {
-			if customName := t.getCustomNameFromSymbol(sym); customName != "" {
-				prop = customName
-			}
-		}
-	}
+	prop := t.resolvePropertyName(pa)
 
 	// super.prop where prop is a get accessor
 	if pa.Expression.Kind == ast.KindSuperKeyword && t.isSuperGetAccessor(node) {
@@ -513,10 +509,14 @@ func (t *Transpiler) transformElementAccessExpression(node *ast.Node) lua.Expres
 		if ea.ArgumentExpression.Kind == ast.KindNumericLiteral && ea.ArgumentExpression.AsNumericLiteral().Text == "0" {
 			return lua.Paren(obj)
 		}
-		// foo()[n] → select(n+1, foo())
+		// foo()[n] → select(n+1, foo()) — only valid for numeric indices
 		index := t.transformExpression(ea.ArgumentExpression)
-		selectArg := lua.Binary(index, lua.OpAdd, lua.Num("1"))
-		return lua.Call(lua.Ident("select"), selectArg, obj)
+		if t.isNumericExpression(ea.ArgumentExpression) {
+			selectArg := lua.Binary(index, lua.OpAdd, lua.Num("1"))
+			return lua.Call(lua.Ident("select"), selectArg, obj)
+		}
+		// Non-numeric index on multi-return (already diagnosed above): emit select without offset
+		return lua.Call(lua.Ident("select"), index, obj)
 	}
 
 	obj := t.transformExpression(ea.Expression)

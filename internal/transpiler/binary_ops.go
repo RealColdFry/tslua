@@ -125,10 +125,10 @@ func (t *Transpiler) transformBinaryExpression(node *ast.Node) lua.Expression {
 		left := t.transformExpression(be.Left)
 		right := t.transformExpression(be.Right)
 		// Alternative class style: method-based instanceof
-		switch t.classStyle.InstanceOf {
-		case ClassInstanceOfMethod:
+		switch t.classStyle.instanceOfBehavior() {
+		case "method":
 			return lua.MethodCall(left, "isInstanceOf", right)
-		case ClassInstanceOfNone:
+		case "none":
 			t.addError(be.Left, dw.UnsupportedProperty, "instanceof is not supported with this class style")
 			return lua.Bool(false)
 		}

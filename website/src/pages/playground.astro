@@ -24,10 +24,15 @@ import { App } from '../components/playground/App';
   }
   :global(.main-pane main) {
     padding: 0;
-    height: 100%;
     overflow: hidden;
   }
   :global(.main-pane) {
     overflow: hidden;
+  }
+  :global(header.header) {
+    flex-shrink: 0;
+  }
+  .not-content {
+    height: calc(100dvh - var(--sl-nav-height));
   }
 </style>

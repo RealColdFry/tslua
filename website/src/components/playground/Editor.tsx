@@ -8,15 +8,17 @@ interface EditorProps {
   readOnly?: boolean;
   path?: string;
   onChange?: (value: string) => void;
+  onEditorMount?: (editor: editor.IStandaloneCodeEditor) => void;
   theme?: "dark" | "light";
 }
 
-export function Editor({ value, language, readOnly, path, onChange, theme = "dark" }: EditorProps) {
+export function Editor({ value, language, readOnly, path, onChange, onEditorMount, theme = "dark" }: EditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor>(null);
 
   const handleMount: OnMount = useCallback((editor) => {
     editorRef.current = editor;
-  }, []);
+    onEditorMount?.(editor);
+  }, [onEditorMount]);
 
   const handleChange = useCallback(
     (val: string | undefined) => {
@@ -37,6 +39,7 @@ export function Editor({ value, language, readOnly, path, onChange, theme = "dar
         onMount={handleMount}
         options={{
           readOnly,
+          fixedOverflowWidgets: true,
           minimap: { enabled: false },
           fontFamily: '"Iosevka", "JetBrains Mono", "Fira Code", monospace',
           fontSize: 14,

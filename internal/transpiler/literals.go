@@ -138,40 +138,7 @@ func (t *Transpiler) transformObjectPropertyValue(prop *ast.Node) lua.Expression
 	case ast.KindPropertyAssignment:
 		return t.transformExpression(prop.AsPropertyAssignment().Initializer)
 	case ast.KindShorthandPropertyAssignment:
-		spa := prop.AsShorthandPropertyAssignment()
-		name := spa.Name().AsIdentifier().Text
-		var valueSym *ast.Symbol
-		if t.inScope() && t.checker != nil {
-			valueSym = checker.Checker_GetShorthandAssignmentValueSymbol(t.checker, prop)
-			if valueSym != nil {
-				t.trackSymbolReference(valueSym, spa.Name())
-			}
-		}
-		var valExpr lua.Expression
-		if valueSym != nil && t.shouldRenameValueSymbol(name, valueSym) {
-			valExpr = lua.Ident(luaSafeName(name))
-		} else if !isValidLuaIdentifier(name, t.luaTarget.AllowsUnicodeIds()) {
-			valExpr = lua.Ident(luaSafeName(name))
-		} else {
-			valExpr = t.transformExpression(spa.Name())
-		}
-		if !isValidLuaIdentifier(name, t.luaTarget.AllowsUnicodeIds()) {
-			symbol := t.checker.GetSymbolAtLocation(spa.Name())
-			isValueDeclared := false
-			if symbol != nil {
-				for _, decl := range symbol.Declarations {
-					if decl.Kind != ast.KindShorthandPropertyAssignment {
-						isValueDeclared = true
-						break
-					}
-				}
-			}
-			if !isValueDeclared {
-				t.addError(spa.Name(), dw.InvalidAmbientIdentifierName, fmt.Sprintf(
-					"Invalid ambient identifier name '%s'. Ambient identifiers must be valid lua identifiers.", name))
-			}
-		}
-		return valExpr
+		return t.transformShorthandValue(prop)
 	case ast.KindMethodDeclaration:
 		md := prop.AsMethodDeclaration()
 		needsSelf := t.functionNeedsSelf(prop)
@@ -200,6 +167,65 @@ func (t *Transpiler) transformObjectPropertyValue(prop *ast.Node) lua.Expression
 	}
 }
 
+// transformShorthandValue handles the value side of a shorthand property assignment ({ x }).
+// It resolves the value symbol, renames if needed, and emits diagnostics for
+// invalid identifiers (language extensions like $multi, or ambient identifiers).
+func (t *Transpiler) transformShorthandValue(prop *ast.Node) lua.Expression {
+	spa := prop.AsShorthandPropertyAssignment()
+	name := spa.Name().AsIdentifier().Text
+
+	// Track the VALUE symbol for hoisting analysis.
+	// GetSymbolAtLocation returns the property symbol, not the value variable.
+	var valueSym *ast.Symbol
+	if t.inScope() && t.checker != nil {
+		valueSym = checker.Checker_GetShorthandAssignmentValueSymbol(t.checker, prop)
+		if valueSym != nil {
+			t.trackSymbolReference(valueSym, spa.Name())
+		}
+	}
+
+	// For shorthand { x }, the name is both the property key and value reference.
+	// transformExpression(spa.Name()) would use the property symbol (which is never renamed).
+	// We need to check the VALUE symbol to determine if the identifier was renamed.
+	var valExpr lua.Expression
+	if valueSym != nil && t.shouldRenameValueSymbol(name, valueSym) {
+		valExpr = lua.Ident(luaSafeName(name))
+	} else if !isValidLuaIdentifier(name, t.luaTarget.AllowsUnicodeIds()) {
+		valExpr = lua.Ident(luaSafeName(name))
+	} else {
+		valExpr = t.transformExpression(spa.Name())
+	}
+
+	// Language extension values ($multi, $range, $vararg) get their specific diagnostic.
+	extensionDiagnosed := false
+	if nameKind, ok := extensionKindByName(name); ok {
+		if t.isExtensionValueIdentifier(spa.Name(), nameKind) {
+			t.reportInvalidExtensionValue(spa.Name(), nameKind)
+			extensionDiagnosed = true
+		}
+	}
+
+	// Undeclared ambient identifiers with invalid Lua names get a generic diagnostic.
+	if !extensionDiagnosed && !isValidLuaIdentifier(name, t.luaTarget.AllowsUnicodeIds()) && t.checker != nil {
+		symbol := t.checker.GetSymbolAtLocation(spa.Name())
+		isValueDeclared := false
+		if symbol != nil {
+			for _, decl := range symbol.Declarations {
+				if decl.Kind != ast.KindShorthandPropertyAssignment {
+					isValueDeclared = true
+					break
+				}
+			}
+		}
+		if !isValueDeclared {
+			t.addError(spa.Name(), dw.InvalidAmbientIdentifierName, fmt.Sprintf(
+				"Invalid ambient identifier name '%s'. Ambient identifiers must be valid lua identifiers.", name))
+		}
+	}
+
+	return valExpr
+}
+
 func (t *Transpiler) transformObjectPropertyField(prop *ast.Node) *lua.TableFieldExpression {
 	switch prop.Kind {
 	case ast.KindPropertyAssignment:
@@ -211,50 +237,8 @@ func (t *Transpiler) transformObjectPropertyField(prop *ast.Node) *lua.TableFiel
 		}
 		return lua.KeyField(key, val)
 	case ast.KindShorthandPropertyAssignment:
-		spa := prop.AsShorthandPropertyAssignment()
-		name := spa.Name().AsIdentifier().Text
-		// Track the VALUE symbol for hoisting analysis.
-		// GetSymbolAtLocation returns the property symbol, not the value variable.
-		var valueSym *ast.Symbol
-		if t.inScope() && t.checker != nil {
-			valueSym = checker.Checker_GetShorthandAssignmentValueSymbol(t.checker, prop)
-			if valueSym != nil {
-				t.trackSymbolReference(valueSym, spa.Name())
-			}
-		}
-		// For shorthand { x }, the name is both the property key and value reference.
-		// transformExpression(spa.Name()) would use the property symbol (which is never renamed).
-		// We need to check the VALUE symbol to determine if the identifier was renamed.
-		var valExpr lua.Expression
-		if valueSym != nil && t.shouldRenameValueSymbol(name, valueSym) {
-			valExpr = lua.Ident(luaSafeName(name))
-		} else if !isValidLuaIdentifier(name, t.luaTarget.AllowsUnicodeIds()) {
-			// Ambient/undeclared identifiers with invalid Lua names must still be renamed.
-			// TSTL handles this via transformIdentifierWithSymbol which always applies luaSafeName.
-			valExpr = lua.Ident(luaSafeName(name))
-		} else {
-			valExpr = t.transformExpression(spa.Name())
-		}
-		// Check if the value reference is an undeclared ambient with invalid name — emit diagnostic.
-		if !isValidLuaIdentifier(name, t.luaTarget.AllowsUnicodeIds()) {
-			// Try to get the value symbol — for undeclared vars, GetSymbolAtLocation
-			// returns the property symbol. Check if there's a real value declaration.
-			symbol := t.checker.GetSymbolAtLocation(spa.Name())
-			isValueDeclared := false
-			if symbol != nil {
-				for _, decl := range symbol.Declarations {
-					if decl.Kind != ast.KindShorthandPropertyAssignment {
-						isValueDeclared = true
-						break
-					}
-				}
-			}
-			if !isValueDeclared {
-				t.addError(spa.Name(), dw.InvalidAmbientIdentifierName, fmt.Sprintf(
-					"Invalid ambient identifier name '%s'. Ambient identifiers must be valid lua identifiers.", name))
-			}
-		}
-		return lua.KeyField(lua.Str(name), valExpr)
+		name := prop.AsShorthandPropertyAssignment().Name().AsIdentifier().Text
+		return lua.KeyField(lua.Str(name), t.transformShorthandValue(prop))
 	case ast.KindMethodDeclaration:
 		md := prop.AsMethodDeclaration()
 		key := t.objectPropertyKeyExpr(md.Name())

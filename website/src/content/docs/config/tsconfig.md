@@ -33,7 +33,7 @@ All options go under `"tstl"` in tsconfig.json.
 | `sourceMapTraceback`        | bool   | `false`     | Apply source maps to Lua stack traces                                    |
 | `luaBundle`                 | string |             | Bundle all output into a single Lua file (requires `luaBundleEntry`)     |
 | `luaBundleEntry`            | string |             | Entry point for bundle mode (requires `luaBundle`)                       |
-| `classStyle`                | object |             | Alternative class emit pattern. See [Class Styles](/config/class-style/) |
+| `classStyle`                | string |             | Class emit preset: `"tstl"`, `"luabind"`, `"middleclass"`, `"inline"`. See [Class Styles](/config/class-style/) |
 
 ## TypeScript compiler options
 

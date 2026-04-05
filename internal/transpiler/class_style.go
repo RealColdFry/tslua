@@ -3,154 +3,138 @@ package transpiler
 import "github.com/realcoldfry/tslua/internal/lua"
 
 // ClassStyle controls how TypeScript classes are emitted to Lua.
-// The zero value produces TSTL-compatible output (prototype chains via __TS__Class).
-type ClassStyle struct {
-	// Declare controls how class declarations are emitted.
-	//   "tstl"         → __TS__Class() + __TS__ClassExtends(cls, base)  [default]
-	//   "call-chain"   → class("Name")(base)                           [luabind]
-	//   "call-extends" → class("Name", base)                           [middleclass]
-	Declare ClassDeclareStyle `json:"declare,omitempty"`
+// Use a preset name: "" or "tstl" (default), "luabind", "middleclass", "inline".
+type ClassStyle string
 
-	// ConstructorName is the method name used for constructors.
-	//   "____constructor" [default/TSTL], "__init" [luabind], "initialize" [middleclass]
-	ConstructorName string `json:"constructorName,omitempty"`
+const (
+	ClassStyleTSTL        ClassStyle = ""            // default: TSTL prototype chains
+	ClassStyleLuabind     ClassStyle = "luabind"     // luabind (C++ binding)
+	ClassStyleMiddleclass ClassStyle = "middleclass" // middleclass library
+	ClassStyleInline      ClassStyle = "inline"      // inline setmetatable (rbxts-style, no runtime library)
+)
 
-	// New controls how `new Class(args)` is emitted.
-	//   "tstl-new"     → __TS__New(Class, args)   [default]
-	//   "direct-call"  → Class(args)              [luabind]
-	//   "method-new"   → Class:new(args)          [middleclass]
-	New ClassNewStyle `json:"new,omitempty"`
-
-	// Super controls how super constructor and method calls are emitted.
-	//   "tstl"         → Base.prototype.____constructor(self, args)  [default]
-	//   "base-direct"  → Base.__init(self, args)                    [luabind]
-	//   "class-super"  → Class.super.initialize(self, args)         [middleclass]
-	Super ClassSuperStyle `json:"super,omitempty"`
-
-	// InstanceOf controls how `instanceof` checks are emitted.
-	//   "tstl"    → __TS__InstanceOf(obj, Class)  [default]
-	//   "method"  → obj:isInstanceOf(Class)       [middleclass]
-	//   "none"    → emit diagnostic error         [luabind — no runtime support]
-	InstanceOf ClassInstanceOfStyle `json:"instanceOf,omitempty"`
-
-	// Prototype controls whether methods are attached to Class.prototype or directly to Class.
-	//   true  → Class.prototype.method = fn  [default/TSTL]
-	//   false → Class.method = fn            [luabind, middleclass]
-	Prototype *bool `json:"prototype,omitempty"`
-
-	// StaticMembers controls whether static members are allowed.
-	//   "allow" → emit normally     [default/TSTL, middleclass]
-	//   "error" → emit diagnostic   [luabind — C++ binding doesn't support statics]
-	StaticMembers ClassStaticPolicy `json:"staticMembers,omitempty"`
+func (cs ClassStyle) isTSTL() bool {
+	return cs == ClassStyleTSTL || cs == "tstl"
 }
 
-// ClassDeclareStyle enumerates class declaration emit patterns.
-type ClassDeclareStyle string
+func (cs ClassStyle) isInline() bool {
+	return cs == ClassStyleInline
+}
 
-const (
-	ClassDeclareTSTL         ClassDeclareStyle = ""             // default: __TS__Class()
-	ClassDeclareTSTLExplicit ClassDeclareStyle = "tstl"         // explicit default
-	ClassDeclareCallChain    ClassDeclareStyle = "call-chain"   // class("Name")(base)
-	ClassDeclareCallExtends  ClassDeclareStyle = "call-extends" // class("Name", base)
-)
-
-// ClassNewStyle enumerates `new` expression emit patterns.
-type ClassNewStyle string
-
-const (
-	ClassNewTSTL         ClassNewStyle = ""            // default: __TS__New(Class, args)
-	ClassNewTSTLExplicit ClassNewStyle = "tstl-new"    // explicit default
-	ClassNewDirectCall   ClassNewStyle = "direct-call" // Class(args)
-	ClassNewMethodNew    ClassNewStyle = "method-new"  // Class:new(args)
-)
-
-// ClassSuperStyle enumerates super call emit patterns.
-type ClassSuperStyle string
-
-const (
-	ClassSuperTSTL         ClassSuperStyle = ""            // default: Base.prototype.____constructor(self)
-	ClassSuperTSTLExplicit ClassSuperStyle = "tstl"        // explicit default
-	ClassSuperBaseDirect   ClassSuperStyle = "base-direct" // Base.__init(self)
-	ClassSuperClassSuper   ClassSuperStyle = "class-super" // Class.super.initialize(self)
-)
-
-// ClassInstanceOfStyle enumerates instanceof emit patterns.
-type ClassInstanceOfStyle string
-
-const (
-	ClassInstanceOfTSTL         ClassInstanceOfStyle = ""       // default: __TS__InstanceOf(obj, Class)
-	ClassInstanceOfTSTLExplicit ClassInstanceOfStyle = "tstl"   // explicit default
-	ClassInstanceOfMethod       ClassInstanceOfStyle = "method" // obj:isInstanceOf(Class)
-	ClassInstanceOfNone         ClassInstanceOfStyle = "none"   // emit diagnostic error
-)
-
-// ClassStaticPolicy enumerates static member handling.
-type ClassStaticPolicy string
-
-const (
-	ClassStaticAllow         ClassStaticPolicy = ""      // default: emit normally
-	ClassStaticAllowExplicit ClassStaticPolicy = "allow" // explicit default
-	ClassStaticError         ClassStaticPolicy = "error" // emit diagnostic error
-)
-
-// constructorName returns the effective constructor method name.
-func (cs *ClassStyle) constructorName() string {
-	if cs.ConstructorName != "" {
-		return cs.ConstructorName
+func (cs ClassStyle) constructorName() string {
+	switch cs {
+	case ClassStyleLuabind:
+		return "__init"
+	case ClassStyleMiddleclass:
+		return "initialize"
+	case ClassStyleInline:
+		return "constructor"
+	default:
+		return "____constructor"
 	}
-	return "____constructor"
 }
 
-// usesPrototype returns whether methods go on .prototype (true) or directly on the class (false).
-func (cs *ClassStyle) usesPrototype() bool {
-	if cs.Prototype != nil {
-		return *cs.Prototype
-	}
-	return true // TSTL default
+func (cs ClassStyle) usesPrototype() bool {
+	return cs.isTSTL()
 }
 
-// isTSTL returns true if this class style produces TSTL-compatible output.
-func (cs *ClassStyle) isTSTL() bool {
-	return (cs.Declare == ClassDeclareTSTL || cs.Declare == ClassDeclareTSTLExplicit) &&
-		cs.ConstructorName == "" &&
-		(cs.New == ClassNewTSTL || cs.New == ClassNewTSTLExplicit) &&
-		(cs.Super == ClassSuperTSTL || cs.Super == ClassSuperTSTLExplicit) &&
-		(cs.InstanceOf == ClassInstanceOfTSTL || cs.InstanceOf == ClassInstanceOfTSTLExplicit) &&
-		(cs.Prototype == nil || *cs.Prototype) &&
-		(cs.StaticMembers == ClassStaticAllow || cs.StaticMembers == ClassStaticAllowExplicit)
-}
-
-// classInitExpr returns the expression to create a new class.
-// For TSTL: __TS__Class()
-// For call-chain: class("Name")()           [no base]
-//
-//	class("Name")(baseExpr)    [with base]
-//
-// For call-extends: class("Name")            [no base]
-//
-//	class("Name", baseExpr)  [with base]
-func (cs *ClassStyle) classInitExpr(className string, baseExpr lua.Expression) lua.Expression {
-	switch cs.Declare {
-	case ClassDeclareCallChain:
+// classInitExpr returns the expression to create a new class (for library-based styles).
+// Returns nil for TSTL and inline styles, which handle initialization differently.
+func (cs ClassStyle) classInitExpr(className string, baseExpr lua.Expression) lua.Expression {
+	switch cs {
+	case ClassStyleLuabind:
 		nameCall := lua.Call(lua.Ident("class"), lua.Str(className))
 		if baseExpr != nil {
 			return lua.Call(nameCall, baseExpr)
 		}
 		return lua.Call(nameCall)
-	case ClassDeclareCallExtends:
+	case ClassStyleMiddleclass:
 		if baseExpr != nil {
 			return lua.Call(lua.Ident("class"), lua.Str(className), baseExpr)
 		}
 		return lua.Call(lua.Ident("class"), lua.Str(className))
 	default:
-		return nil // caller handles TSTL path
+		return nil
 	}
 }
 
+// inlineInitStatements generates the inline class initialization boilerplate:
+//
+//	[local super = baseExpr]
+//	ClassName = setmetatable({}, { __tostring = function() return "Name" end [, __index = super] })
+//	ClassName.__index = ClassName
+//	function ClassName.new(...)
+//	    local self = setmetatable({}, ClassName)
+//	    return self:constructor(...) or self
+//	end
+func (cs ClassStyle) inlineInitStatements(classRef lua.Expression, origName string, baseExpr lua.Expression) []lua.Statement {
+	var stmts []lua.Statement
+
+	// local super = baseExpr (if extends)
+	if baseExpr != nil {
+		stmts = append(stmts, lua.LocalDecl(
+			[]*lua.Identifier{lua.Ident("super")},
+			[]lua.Expression{baseExpr},
+		))
+	}
+
+	// Build metatable: { __tostring = function() return "Name" end [, __index = super] }
+	tostringFn := &lua.FunctionExpression{
+		Body: &lua.Block{Statements: []lua.Statement{
+			lua.Return(lua.Str(origName)),
+		}},
+	}
+	metatableFields := []*lua.TableFieldExpression{
+		lua.KeyField(lua.Str("__tostring"), tostringFn),
+	}
+	if baseExpr != nil {
+		metatableFields = append(metatableFields,
+			lua.KeyField(lua.Str("__index"), lua.Ident("super")),
+		)
+	}
+	metatable := lua.Table(metatableFields...)
+
+	// ClassName = setmetatable({}, metatable)
+	stmts = append(stmts, lua.Assign(
+		[]lua.Expression{classRef},
+		[]lua.Expression{lua.Call(lua.Ident("setmetatable"), lua.Table(), metatable)},
+	))
+
+	// ClassName.__index = ClassName
+	stmts = append(stmts, lua.Assign(
+		[]lua.Expression{lua.Index(classRef, lua.Str("__index"))},
+		[]lua.Expression{classRef},
+	))
+
+	// function ClassName.new(...)
+	//     local self = setmetatable({}, ClassName)
+	//     return self:constructor(...) or self
+	// end
+	newFn := &lua.FunctionExpression{
+		Dots:  true,
+		Flags: lua.FlagDeclaration,
+		Body: &lua.Block{Statements: []lua.Statement{
+			lua.LocalDecl(
+				[]*lua.Identifier{lua.Ident("self")},
+				[]lua.Expression{lua.Call(lua.Ident("setmetatable"), lua.Table(), classRef)},
+			),
+			lua.Return(lua.Binary(
+				lua.MethodCall(lua.Ident("self"), cs.constructorName(), lua.Dots()),
+				lua.OpOr,
+				lua.Ident("self"),
+			)),
+		}},
+	}
+	stmts = append(stmts, lua.Assign(
+		[]lua.Expression{lua.Index(classRef, lua.Str("new"))},
+		[]lua.Expression{newFn},
+	))
+
+	return stmts
+}
+
 // methodTarget returns the expression to attach a method to.
-// For TSTL (prototype=true): classRef.prototype
-// For non-prototype: classRef directly
-func (cs *ClassStyle) methodTarget(classRef lua.Expression) lua.Expression {
+func (cs ClassStyle) methodTarget(classRef lua.Expression) lua.Expression {
 	if cs.usesPrototype() {
 		return lua.Index(classRef, lua.Str("prototype"))
 	}
@@ -158,59 +142,66 @@ func (cs *ClassStyle) methodTarget(classRef lua.Expression) lua.Expression {
 }
 
 // constructorAccess returns the expression for the constructor method.
-// e.g., classRef.prototype.____constructor or classRef.__init
-func (cs *ClassStyle) constructorAccess(classRef lua.Expression) lua.Expression {
+func (cs ClassStyle) constructorAccess(classRef lua.Expression) lua.Expression {
 	target := cs.methodTarget(classRef)
 	return lua.Index(target, lua.Str(cs.constructorName()))
 }
 
 // newExpr returns the expression for `new Class(args)`.
-// For TSTL: __TS__New(classExpr, args...)
-// For direct-call: classExpr(args...)
-// For method-new: classExpr:new(args...)
-func (cs *ClassStyle) newExpr(classExpr lua.Expression, args []lua.Expression) lua.Expression {
-	switch cs.New {
-	case ClassNewDirectCall:
+// Returns nil for TSTL style (caller handles via __TS__New).
+func (cs ClassStyle) newExpr(classExpr lua.Expression, args []lua.Expression) lua.Expression {
+	switch cs {
+	case ClassStyleLuabind:
 		return lua.Call(classExpr, args...)
-	case ClassNewMethodNew:
+	case ClassStyleMiddleclass:
 		return lua.MethodCall(classExpr, "new", args...)
+	case ClassStyleInline:
+		return lua.Call(lua.Index(classExpr, lua.Str("new")), args...)
 	default:
-		return nil // caller handles TSTL path
+		return nil
 	}
 }
 
 // superConstructorCall returns the expression for super(args).
-// For TSTL: Base.prototype.____constructor(self, args...)
-// For base-direct: Base.__init(self, args...)
-// For class-super: classRef.super.initialize(self, args...)
-func (cs *ClassStyle) superConstructorCall(baseExpr lua.Expression, classRef lua.Expression, args []lua.Expression) lua.Expression {
+// Returns nil for TSTL style (caller handles via Base.prototype.____constructor).
+func (cs ClassStyle) superConstructorCall(baseExpr lua.Expression, classRef lua.Expression, args []lua.Expression) lua.Expression {
 	selfArgs := append([]lua.Expression{lua.Ident("self")}, args...)
-	switch cs.Super {
-	case ClassSuperBaseDirect:
+	switch cs {
+	case ClassStyleLuabind, ClassStyleInline:
 		fn := lua.Index(baseExpr, lua.Str(cs.constructorName()))
 		return lua.Call(fn, selfArgs...)
-	case ClassSuperClassSuper:
+	case ClassStyleMiddleclass:
 		fn := memberAccess(classRef, "super", cs.constructorName())
 		return lua.Call(fn, selfArgs...)
 	default:
-		return nil // caller handles TSTL path
+		return nil
 	}
 }
 
 // superMethodCall returns the expression for super.method(args).
-// For TSTL: Base.prototype.method(self, args...)
-// For base-direct: Base.method(self, args...)
-// For class-super: classRef.super.method(self, args...)
-func (cs *ClassStyle) superMethodCall(baseExpr lua.Expression, classRef lua.Expression, method string, isStatic bool, args []lua.Expression) lua.Expression {
+// Returns nil for TSTL style (caller handles via Base.prototype.method).
+func (cs ClassStyle) superMethodCall(baseExpr lua.Expression, classRef lua.Expression, method string, isStatic bool, args []lua.Expression) lua.Expression {
 	selfArgs := append([]lua.Expression{lua.Ident("self")}, args...)
-	switch cs.Super {
-	case ClassSuperBaseDirect:
+	switch cs {
+	case ClassStyleLuabind, ClassStyleInline:
 		fn := lua.Index(baseExpr, lua.Str(method))
 		return lua.Call(fn, selfArgs...)
-	case ClassSuperClassSuper:
+	case ClassStyleMiddleclass:
 		fn := memberAccess(classRef, "super", method)
 		return lua.Call(fn, selfArgs...)
 	default:
-		return nil // caller handles TSTL path
+		return nil
+	}
+}
+
+// instanceOfBehavior returns how instanceof checks should be emitted.
+func (cs ClassStyle) instanceOfBehavior() string {
+	switch cs {
+	case ClassStyleMiddleclass:
+		return "method"
+	case ClassStyleLuabind, ClassStyleInline:
+		return "none"
+	default:
+		return "tstl"
 	}
 }

@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { loader } from "@monaco-editor/react";
+import type { editor as monacoEditor } from "monaco-editor";
 import { Editor } from "./Editor";
 import { OutputPanel } from "./OutputPanel";
-import { loadWasm, transpile } from "./wasm";
+import { loadWasm, transpile, type WasmDiagnostic } from "./wasm";
 import { execJs, type ExecResult } from "./exec-js";
 import { execLua, type DualExecResult } from "./exec-lua";
 import { compileTs } from "./compile-ts";
 import { luaLanguage } from "./lua-language";
-import { useHashState } from "./url-state";
+import { useHashState, type PlaygroundState, type PlaygroundTsconfig } from "./url-state";
 import "./playground.css";
 
 function useStarlightTheme(): "dark" | "light" {
@@ -39,6 +40,18 @@ const LUA_TARGETS = [
   { value: "universal", label: "Universal" },
 ] as const;
 
+const EMIT_MODES = [
+  { value: "", label: "TSTL (default)" },
+  { value: "optimized", label: "Optimized" },
+] as const;
+
+const CLASS_STYLES = [
+  { value: "", label: "TSTL (default)" },
+  { value: "luabind", label: "Luabind" },
+  { value: "middleclass", label: "Middleclass" },
+  { value: "inline", label: "Inline" },
+] as const;
+
 const DEFAULT_CODE = `// Try some TypeScript!
 const greet = (name: string): string => {
   return \`Hello, \${name}!\`;
@@ -60,11 +73,65 @@ if (typeof window !== "undefined") {
 
 type MobileTab = "ts" | "lua" | "ts-eval" | "lua-eval";
 
+function getTarget(tsconfig: PlaygroundTsconfig): string {
+  return tsconfig.tstl?.luaTarget || "JIT";
+}
+
+function ConfigSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: readonly { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="pg-config-field">
+      <span className="pg-config-label">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="pg-select pg-config-select"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function ConfigToggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="pg-config-field pg-config-toggle">
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <span className="pg-config-label">{label}</span>
+    </label>
+  );
+}
+
 export function App() {
   const theme = useStarlightTheme();
-  const [pgState, setPgState, hashReady] = useHashState({ code: DEFAULT_CODE, target: "JIT" });
+  const [pgState, setPgState, hashReady] = useHashState({
+    code: DEFAULT_CODE,
+    tsconfig: {},
+  });
   const tsCode = pgState.code;
-  const target = pgState.target;
+  const tsconfig = pgState.tsconfig;
+  const target = getTarget(tsconfig);
   const [luaCode, setLuaCode] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,6 +145,7 @@ export function App() {
   const [luaPretty, setLuaPretty] = useState(true);
   const [jsEvalMs, setJsEvalMs] = useState<number | null>(null);
   const [luaEvalMs, setLuaEvalMs] = useState<number | null>(null);
+  const tsEditorRef = useRef<monacoEditor.IStandaloneCodeEditor>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
   const execDebounceRef = useRef<ReturnType<typeof setTimeout>>(null);
   const [colPct, setColPct] = useState(50);
@@ -151,40 +219,120 @@ export function App() {
     }
   }, []);
 
+  const monacoRef = useRef<typeof import("monaco-editor") | null>(null);
+
+  useEffect(() => {
+    loader.init().then((m) => { monacoRef.current = m; });
+  }, []);
+
+  const setTsluaMarkers = useCallback((diagnostics: WasmDiagnostic[]) => {
+    const editor = tsEditorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco) return;
+    const model = editor.getModel();
+    if (!model) return;
+    const markers = diagnostics.map((d) => ({
+      startLineNumber: d.startLine,
+      startColumn: d.startCol,
+      endLineNumber: d.endLine,
+      endColumn: d.endCol,
+      message: d.message,
+      severity: d.severity,
+      source: "tslua",
+      code: d.code ? String(d.code) : undefined,
+    }));
+    monaco.editor.setModelMarkers(model, "tslua", markers);
+  }, []);
+
   const doTranspile = useCallback(
-    (code: string, tgt: string) => {
+    (code: string, cfg: PlaygroundTsconfig) => {
       if (loading) return;
+      const tgt = cfg.tstl?.luaTarget || "JIT";
       const t0 = performance.now();
-      const result = transpile(code, tgt);
+      const result = transpile(code, {
+        compilerOptions: cfg.compilerOptions,
+        tstl: cfg.tstl,
+      });
       setTranspileMs(performance.now() - t0);
       setLuaCode(result.lua);
       setErrors(result.errors);
+      setTsluaMarkers(result.diagnostics);
       if (execDebounceRef.current) clearTimeout(execDebounceRef.current);
       execDebounceRef.current = setTimeout(() => runExecution(code, result.lua, tgt), 500);
     },
-    [loading, runExecution],
+    [loading, runExecution, setTsluaMarkers],
   );
 
   useEffect(() => {
-    if (!loading && hashReady) doTranspile(tsCode, target);
+    if (!loading && hashReady) doTranspile(tsCode, tsconfig);
   }, [loading, hashReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleTsChange = useCallback(
     (value: string) => {
       setPgState((prev) => ({ ...prev, code: value }));
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => doTranspile(value, target), 300);
+      debounceRef.current = setTimeout(() => doTranspile(value, tsconfig), 300);
     },
-    [target, doTranspile, setPgState],
+    [tsconfig, doTranspile, setPgState],
   );
 
-  const handleTargetChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const tgt = e.target.value;
-      setPgState((prev) => ({ ...prev, target: tgt }));
-      doTranspile(tsCode, tgt);
+  const updateTstl = useCallback(
+    (key: string, value: string | boolean) => {
+      setPgState((prev) => {
+        const tstl = { ...prev.tsconfig.tstl, [key]: value };
+        // Clean up default/falsy values
+        if (value === "" || value === false) delete (tstl as Record<string, unknown>)[key];
+        const next: PlaygroundState = {
+          ...prev,
+          tsconfig: { ...prev.tsconfig, tstl },
+        };
+        doTranspile(prev.code, next.tsconfig);
+        return next;
+      });
     },
-    [tsCode, doTranspile, setPgState],
+    [doTranspile, setPgState],
+  );
+
+  const sidebar = (
+    <div className="pg-sidebar">
+      <div className="pg-sidebar-header">Config</div>
+      <div className="pg-sidebar-section">
+        <div className="pg-sidebar-section-title">tslua</div>
+        <ConfigSelect
+          label="Lua Target"
+          value={target}
+          options={LUA_TARGETS}
+          onChange={(v) => updateTstl("luaTarget", v === "JIT" ? "" : v)}
+        />
+        <ConfigSelect
+          label="Emit Mode"
+          value={tsconfig.tstl?.emitMode || ""}
+          options={EMIT_MODES}
+          onChange={(v) => updateTstl("emitMode", v)}
+        />
+        <ConfigSelect
+          label="Class Style"
+          value={tsconfig.tstl?.classStyle || ""}
+          options={CLASS_STYLES}
+          onChange={(v) => updateTstl("classStyle", v)}
+        />
+        <ConfigToggle
+          label="noImplicitSelf"
+          checked={!!tsconfig.tstl?.noImplicitSelf}
+          onChange={(v) => updateTstl("noImplicitSelf", v)}
+        />
+        <ConfigToggle
+          label="noImplicitGlobalVariables"
+          checked={!!tsconfig.tstl?.noImplicitGlobalVariables}
+          onChange={(v) => updateTstl("noImplicitGlobalVariables", v)}
+        />
+        <ConfigToggle
+          label="trace"
+          checked={!!tsconfig.tstl?.trace}
+          onChange={(v) => updateTstl("trace", v)}
+        />
+      </div>
+    </div>
   );
 
   return (
@@ -202,7 +350,11 @@ export function App() {
             {{ ts: "TS", lua: "Lua", "ts-eval": "JS Out", "lua-eval": "Lua Out" }[tab]}
           </button>
         ))}
-        <select value={target} onChange={handleTargetChange} className="pg-select pg-select-sm">
+        <select
+          value={target}
+          onChange={(e) => updateTstl("luaTarget", e.target.value === "JIT" ? "" : e.target.value)}
+          className="pg-select pg-select-sm"
+        >
           {LUA_TARGETS.map((t) => (
             <option key={t.value} value={t.value}>
               {t.label}
@@ -220,6 +372,7 @@ export function App() {
               language="typescript"
               path="file:///main.ts"
               onChange={handleTsChange}
+              onEditorMount={(e) => { tsEditorRef.current = e; }}
               theme={theme}
             />
           </div>
@@ -250,76 +403,74 @@ export function App() {
         )}
       </div>
 
-      {/* Desktop grid */}
-      <div
-        ref={gridRef}
-        className="pg-grid"
-        style={{
-          gridTemplateColumns: `${colPct}% 6px 1fr`,
-          gridTemplateRows: `${rowPct}% 6px 1fr`,
-        }}
-      >
-        {/* Top-left: TypeScript editor */}
-        <div className="pg-cell">
-          <div className="pg-panel-header">TypeScript</div>
-          <div className="pg-cell-content">
-            <Editor
-              value={tsCode}
-              language="typescript"
-              path="file:///main.ts"
-              onChange={handleTsChange}
-              theme={theme}
+      {/* Desktop layout: sidebar + grid */}
+      <div className="pg-desktop">
+        {sidebar}
+        <div
+          ref={gridRef}
+          className="pg-grid"
+          style={{
+            gridTemplateColumns: `${colPct}% 6px 1fr`,
+            gridTemplateRows: `${rowPct}% 6px 1fr`,
+          }}
+        >
+          {/* Top-left: TypeScript editor */}
+          <div className="pg-cell">
+            <div className="pg-panel-header">TypeScript</div>
+            <div className="pg-cell-content">
+              <Editor
+                value={tsCode}
+                language="typescript"
+                path="file:///main.ts"
+                onChange={handleTsChange}
+                theme={theme}
+              />
+            </div>
+          </div>
+
+          <div className="pg-divider pg-divider-col" onMouseDown={onColDrag} />
+
+          {/* Top-right: Lua output */}
+          <div className="pg-cell">
+            <div className="pg-panel-header">
+              <span>Lua</span>
+              {transpileMs !== null && (
+                <span className="pg-timing">{transpileMs.toFixed(1)}ms</span>
+              )}
+            </div>
+            <div className="pg-cell-content">
+              <Editor value={luaCode} language="lua" readOnly theme={theme} />
+            </div>
+          </div>
+
+          <div className="pg-divider pg-divider-row" onMouseDown={onRowDrag} />
+          <div className="pg-divider-center" />
+          <div className="pg-divider pg-divider-row" onMouseDown={onRowDrag} />
+
+          {/* Bottom-left: JS eval */}
+          <div className="pg-cell-overflow">
+            <OutputPanel
+              label="JS Output"
+              output={jsResult.output}
+              error={jsResult.error}
+              timeMs={jsEvalMs}
             />
           </div>
-        </div>
 
-        <div className="pg-divider pg-divider-col" onMouseDown={onColDrag} />
+          <div className="pg-divider pg-divider-col" onMouseDown={onColDrag} />
 
-        {/* Top-right: Lua output */}
-        <div className="pg-cell">
-          <div className="pg-panel-header">
-            <span>Lua</span>
-            <select value={target} onChange={handleTargetChange} className="pg-select pg-select-sm">
-              {LUA_TARGETS.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-            {transpileMs !== null && <span className="pg-timing">{transpileMs.toFixed(1)}ms</span>}
+          {/* Bottom-right: Lua eval */}
+          <div className="pg-cell-overflow">
+            <OutputPanel
+              label="Lua Output"
+              output={luaPretty ? luaDualResult.pretty.output : luaDualResult.raw.output}
+              error={luaPretty ? luaDualResult.pretty.error : luaDualResult.raw.error}
+              timeMs={luaEvalMs}
+              toggle={luaPretty}
+              onToggle={() => setLuaPretty((v) => !v)}
+              toggleLabel={luaPretty ? "Pretty" : "Raw"}
+            />
           </div>
-          <div className="pg-cell-content">
-            <Editor value={luaCode} language="lua" readOnly theme={theme} />
-          </div>
-        </div>
-
-        <div className="pg-divider pg-divider-row" onMouseDown={onRowDrag} />
-        <div className="pg-divider-center" />
-        <div className="pg-divider pg-divider-row" onMouseDown={onRowDrag} />
-
-        {/* Bottom-left: JS eval */}
-        <div className="pg-cell-overflow">
-          <OutputPanel
-            label="JS Output"
-            output={jsResult.output}
-            error={jsResult.error}
-            timeMs={jsEvalMs}
-          />
-        </div>
-
-        <div className="pg-divider pg-divider-col" onMouseDown={onColDrag} />
-
-        {/* Bottom-right: Lua eval */}
-        <div className="pg-cell-overflow">
-          <OutputPanel
-            label="Lua Output"
-            output={luaPretty ? luaDualResult.pretty.output : luaDualResult.raw.output}
-            error={luaPretty ? luaDualResult.pretty.error : luaDualResult.raw.error}
-            timeMs={luaEvalMs}
-            toggle={luaPretty}
-            onToggle={() => setLuaPretty((v) => !v)}
-            toggleLabel={luaPretty ? "Pretty" : "Raw"}
-          />
         </div>
       </div>
 

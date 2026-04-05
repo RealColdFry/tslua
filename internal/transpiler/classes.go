@@ -50,8 +50,36 @@ func (t *Transpiler) transformClassExpression(node *ast.Node) lua.Expression {
 		}
 	}
 
-	cs := &t.classStyle
-	if initExpr := cs.classInitExpr(origName, baseExpr); initExpr != nil {
+	cs := t.classStyle
+	if cs.isInline() {
+		// Inline style: wrap in do block with setmetatable boilerplate
+		stmts = append(stmts, lua.LocalDecl(
+			[]*lua.Identifier{lua.Ident(name)},
+			nil,
+		))
+		var doBody []lua.Statement
+		doBody = append(doBody, cs.inlineInitStatements(lua.Ident(name), origName, baseExpr)...)
+
+		prevBaseClassName := t.currentBaseClassName
+		prevClassRef := t.currentClassRef
+		t.currentClassRef = lua.Ident(name)
+		t.currentBaseClassName = t.getBaseClassName(ce.HeritageClauses)
+
+		doBody = append(doBody, t.transformClassMembersShared(node, lua.Ident(name))...)
+
+		t.currentBaseClassName = prevBaseClassName
+		t.currentClassRef = prevClassRef
+
+		if ast.HasDecorators(node) {
+			decoratingExpr := t.createClassDecoratingExpression(node, lua.Ident(name), origName)
+			doBody = append(doBody, lua.Assign(
+				[]lua.Expression{lua.Ident(name)},
+				[]lua.Expression{decoratingExpr},
+			))
+		}
+
+		stmts = append(stmts, lua.Do(doBody...))
+	} else if initExpr := cs.classInitExpr(origName, baseExpr); initExpr != nil {
 		// Alternative class style: class("Name")(base) or class("Name", base)
 		stmts = append(stmts, lua.LocalDecl(
 			[]*lua.Identifier{lua.Ident(name)},
@@ -61,6 +89,24 @@ func (t *Transpiler) transformClassExpression(node *ast.Node) lua.Expression {
 			[]lua.Expression{lua.Index(lua.Ident(name), lua.Str("__name"))},
 			[]lua.Expression{lua.Str(origName)},
 		))
+
+		prevBaseClassName := t.currentBaseClassName
+		prevClassRef := t.currentClassRef
+		t.currentClassRef = lua.Ident(name)
+		t.currentBaseClassName = t.getBaseClassName(ce.HeritageClauses)
+
+		stmts = append(stmts, t.transformClassMembersShared(node, lua.Ident(name))...)
+
+		t.currentBaseClassName = prevBaseClassName
+		t.currentClassRef = prevClassRef
+
+		if ast.HasDecorators(node) {
+			decoratingExpr := t.createClassDecoratingExpression(node, lua.Ident(name), origName)
+			stmts = append(stmts, lua.Assign(
+				[]lua.Expression{lua.Ident(name)},
+				[]lua.Expression{decoratingExpr},
+			))
+		}
 	} else {
 		// TSTL default: __TS__Class() + name + __TS__ClassExtends
 		stmts = append(stmts, lua.LocalDecl(
@@ -87,26 +133,25 @@ func (t *Transpiler) transformClassExpression(node *ast.Node) lua.Expression {
 			classExtends := t.requireLualib("__TS__ClassExtends")
 			stmts = append(stmts, lua.ExprStmt(lua.Call(lua.Ident(classExtends), lua.Ident(name), baseExpr)))
 		}
-	}
 
-	// Set current class context for super calls
-	prevBaseClassName := t.currentBaseClassName
-	prevClassRef := t.currentClassRef
-	t.currentClassRef = lua.Ident(name)
-	t.currentBaseClassName = t.getBaseClassName(ce.HeritageClauses)
+		prevBaseClassName := t.currentBaseClassName
+		prevClassRef := t.currentClassRef
+		t.currentClassRef = lua.Ident(name)
+		t.currentBaseClassName = t.getBaseClassName(ce.HeritageClauses)
 
-	stmts = append(stmts, t.transformClassMembersShared(node, lua.Ident(name))...)
+		stmts = append(stmts, t.transformClassMembersShared(node, lua.Ident(name))...)
 
-	t.currentBaseClassName = prevBaseClassName
-	t.currentClassRef = prevClassRef
+		t.currentBaseClassName = prevBaseClassName
+		t.currentClassRef = prevClassRef
 
-	// Class decorators on class expressions
-	if ast.HasDecorators(node) {
-		decoratingExpr := t.createClassDecoratingExpression(node, lua.Ident(name), origName)
-		stmts = append(stmts, lua.Assign(
-			[]lua.Expression{lua.Ident(name)},
-			[]lua.Expression{decoratingExpr},
-		))
+		// Class decorators on class expressions
+		if ast.HasDecorators(node) {
+			decoratingExpr := t.createClassDecoratingExpression(node, lua.Ident(name), origName)
+			stmts = append(stmts, lua.Assign(
+				[]lua.Expression{lua.Ident(name)},
+				[]lua.Expression{decoratingExpr},
+			))
+		}
 	}
 
 	t.addPrecedingStatements(stmts...)
@@ -159,17 +204,8 @@ func (t *Transpiler) transformClassDeclaration(node *ast.Node) []lua.Statement {
 		result = append(result, basePrec...)
 	}
 
-	cs := &t.classStyle
-	// Compute the class initializer expression: either __TS__Class() or class("Name")(base)
-	var classInitExpr lua.Expression
-	if initExpr := cs.classInitExpr(origName, baseExpr); initExpr != nil {
-		classInitExpr = initExpr
-	} else {
-		classNew := t.requireLualib("__TS__Class")
-		classInitExpr = lua.Call(lua.Ident(classNew))
-	}
+	cs := t.classStyle
 
-	// ClassName = <classInitExpr>
 	exportTarget := "____exports"
 	if t.currentNamespace != "" {
 		exportTarget = t.currentNamespace
@@ -178,103 +214,159 @@ func (t *Transpiler) transformClassDeclaration(node *ast.Node) []lua.Statement {
 	if isDefault {
 		exportKey = "default"
 	}
-	if isExported && t.isExportAsGlobalTopLevel() {
-		result = append(result, lua.Assign(
-			[]lua.Expression{lua.Ident(name)},
-			[]lua.Expression{classInitExpr},
-		))
-	} else if isExported {
-		result = append(result, lua.Assign(
-			[]lua.Expression{lua.Index(lua.Ident(exportTarget), lua.Str(exportKey))},
-			[]lua.Expression{classInitExpr},
-		))
-	} else if t.shouldUseLocalDeclaration() {
-		decl := lua.LocalDecl(
-			[]*lua.Identifier{lua.Ident(name)},
-			[]lua.Expression{classInitExpr},
-		)
-		// Register for hoisting consideration with SymbolID
-		if t.inScope() {
-			var symID SymbolID
-			if t.checker != nil && cd.Name() != nil {
-				if sym := t.checker.GetSymbolAtLocation(cd.Name()); sym != nil {
-					symID = t.getOrCreateSymbolID(sym)
+
+	if cs.isInline() {
+		// Inline style: emit local declaration, then do block with setmetatable boilerplate
+		if isExported && t.isExportAsGlobalTopLevel() {
+			// global scope — no local, assign handled inside do block
+		} else if isExported {
+			// exported — assign to exports, then local alias
+		} else if t.shouldUseLocalDeclaration() {
+			decl := lua.LocalDecl([]*lua.Identifier{lua.Ident(name)}, nil)
+			if t.inScope() {
+				var symID SymbolID
+				if t.checker != nil && cd.Name() != nil {
+					if sym := t.checker.GetSymbolAtLocation(cd.Name()); sym != nil {
+						symID = t.getOrCreateSymbolID(sym)
+					}
 				}
+				t.addScopeVariableDeclaration(decl, symID)
 			}
-			t.addScopeVariableDeclaration(decl, symID)
+			result = append(result, decl)
 		}
-		result = append(result, decl)
-	} else {
-		result = append(result, lua.Assign(
-			[]lua.Expression{lua.Ident(name)},
-			[]lua.Expression{classInitExpr},
-		))
-	}
 
-	var classRef lua.Expression = lua.Ident(name)
-	if isExported && !t.isExportAsGlobalTopLevel() {
-		exportRef := lua.Index(lua.Ident(exportTarget), lua.Str(exportKey))
-		// Local alias so internal references can use the short name
-		result = append(result, lua.LocalDecl(
-			[]*lua.Identifier{lua.Ident(name)},
-			[]lua.Expression{exportRef},
-		))
-		// Use local alias for subsequent class setup
-		classRef = lua.Ident(name)
-	}
+		var classRef lua.Expression = lua.Ident(name)
+		var doBody []lua.Statement
+		doBody = append(doBody, cs.inlineInitStatements(classRef, origName, baseExpr)...)
 
-	if !cs.isTSTL() {
-		// Alternative styles: set __name
-		result = append(result, lua.Assign(
-			[]lua.Expression{lua.Index(classRef, lua.Str("__name"))},
-			[]lua.Expression{lua.Str(origName)},
-		))
-	} else {
-		// TSTL: set .name
-		result = append(result, lua.Assign(
-			[]lua.Expression{memberAccess(classRef, "name")},
-			[]lua.Expression{lua.Str(origName)},
-		))
-		// TSTL inheritance
-		if baseExpr != nil {
-			classExtends := t.requireLualib("__TS__ClassExtends")
-			result = append(result, lua.ExprStmt(lua.Call(lua.Ident(classExtends), classRef, baseExpr)))
+		if isExported && !t.isExportAsGlobalTopLevel() {
+			// Assign to exports after setmetatable init
+			doBody = append(doBody, lua.Assign(
+				[]lua.Expression{lua.Index(lua.Ident(exportTarget), lua.Str(exportKey))},
+				[]lua.Expression{classRef},
+			))
 		}
-	}
 
-	// Set current class context for super calls
-	prevBaseClassName := t.currentBaseClassName
-	prevClassRef := t.currentClassRef
-	t.currentClassRef = classRef
-	t.currentBaseClassName = t.getBaseClassName(cd.HeritageClauses)
+		prevBaseClassName := t.currentBaseClassName
+		prevClassRef := t.currentClassRef
+		t.currentClassRef = classRef
+		t.currentBaseClassName = t.getBaseClassName(cd.HeritageClauses)
 
-	result = append(result, t.transformClassMembersShared(node, classRef)...)
+		doBody = append(doBody, t.transformClassMembersShared(node, classRef)...)
 
-	t.currentBaseClassName = prevBaseClassName
-	t.currentClassRef = prevClassRef
+		t.currentBaseClassName = prevBaseClassName
+		t.currentClassRef = prevClassRef
 
-	// Class decorators
-	if ast.HasDecorators(node) {
-		decoratingExpr := t.createClassDecoratingExpression(node, classRef, origName)
-		result = append(result, lua.Assign(
-			[]lua.Expression{classRef},
-			[]lua.Expression{decoratingExpr},
-		))
-		// Re-export the decorated class if exported
-		if isExported {
-			exportTarget := "____exports"
-			if t.currentNamespace != "" {
-				exportTarget = t.currentNamespace
-			}
-			exportKey := name
-			if isDefault {
-				exportKey = "default"
-			}
-			if !t.isExportAsGlobalTopLevel() {
-				result = append(result, lua.Assign(
+		if ast.HasDecorators(node) {
+			decoratingExpr := t.createClassDecoratingExpression(node, classRef, origName)
+			doBody = append(doBody, lua.Assign(
+				[]lua.Expression{classRef},
+				[]lua.Expression{decoratingExpr},
+			))
+			if isExported && !t.isExportAsGlobalTopLevel() {
+				doBody = append(doBody, lua.Assign(
 					[]lua.Expression{lua.Index(lua.Ident(exportTarget), lua.Str(exportKey))},
 					[]lua.Expression{classRef},
 				))
+			}
+		}
+
+		result = append(result, lua.Do(doBody...))
+	} else {
+		// Library-based styles (TSTL, luabind, middleclass)
+		var classInitExpr lua.Expression
+		if initExpr := cs.classInitExpr(origName, baseExpr); initExpr != nil {
+			classInitExpr = initExpr
+		} else {
+			classNew := t.requireLualib("__TS__Class")
+			classInitExpr = lua.Call(lua.Ident(classNew))
+		}
+
+		if isExported && t.isExportAsGlobalTopLevel() {
+			result = append(result, lua.Assign(
+				[]lua.Expression{lua.Ident(name)},
+				[]lua.Expression{classInitExpr},
+			))
+		} else if isExported {
+			result = append(result, lua.Assign(
+				[]lua.Expression{lua.Index(lua.Ident(exportTarget), lua.Str(exportKey))},
+				[]lua.Expression{classInitExpr},
+			))
+		} else if t.shouldUseLocalDeclaration() {
+			decl := lua.LocalDecl(
+				[]*lua.Identifier{lua.Ident(name)},
+				[]lua.Expression{classInitExpr},
+			)
+			if t.inScope() {
+				var symID SymbolID
+				if t.checker != nil && cd.Name() != nil {
+					if sym := t.checker.GetSymbolAtLocation(cd.Name()); sym != nil {
+						symID = t.getOrCreateSymbolID(sym)
+					}
+				}
+				t.addScopeVariableDeclaration(decl, symID)
+			}
+			result = append(result, decl)
+		} else {
+			result = append(result, lua.Assign(
+				[]lua.Expression{lua.Ident(name)},
+				[]lua.Expression{classInitExpr},
+			))
+		}
+
+		var classRef lua.Expression = lua.Ident(name)
+		if isExported && !t.isExportAsGlobalTopLevel() {
+			exportRef := lua.Index(lua.Ident(exportTarget), lua.Str(exportKey))
+			result = append(result, lua.LocalDecl(
+				[]*lua.Identifier{lua.Ident(name)},
+				[]lua.Expression{exportRef},
+			))
+			classRef = lua.Ident(name)
+		}
+
+		if !cs.isTSTL() {
+			result = append(result, lua.Assign(
+				[]lua.Expression{lua.Index(classRef, lua.Str("__name"))},
+				[]lua.Expression{lua.Str(origName)},
+			))
+		} else {
+			result = append(result, lua.Assign(
+				[]lua.Expression{memberAccess(classRef, "name")},
+				[]lua.Expression{lua.Str(origName)},
+			))
+			if baseExpr != nil {
+				classExtends := t.requireLualib("__TS__ClassExtends")
+				result = append(result, lua.ExprStmt(lua.Call(lua.Ident(classExtends), classRef, baseExpr)))
+			}
+		}
+
+		prevBaseClassName := t.currentBaseClassName
+		prevClassRef := t.currentClassRef
+		t.currentClassRef = classRef
+		t.currentBaseClassName = t.getBaseClassName(cd.HeritageClauses)
+
+		result = append(result, t.transformClassMembersShared(node, classRef)...)
+
+		t.currentBaseClassName = prevBaseClassName
+		t.currentClassRef = prevClassRef
+
+		if ast.HasDecorators(node) {
+			decoratingExpr := t.createClassDecoratingExpression(node, classRef, origName)
+			result = append(result, lua.Assign(
+				[]lua.Expression{classRef},
+				[]lua.Expression{decoratingExpr},
+			))
+			if isExported {
+				eKey := name
+				if isDefault {
+					eKey = "default"
+				}
+				if !t.isExportAsGlobalTopLevel() {
+					result = append(result, lua.Assign(
+						[]lua.Expression{lua.Index(lua.Ident(exportTarget), lua.Str(eKey))},
+						[]lua.Expression{classRef},
+					))
+				}
 			}
 		}
 	}

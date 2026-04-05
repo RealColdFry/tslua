@@ -41,7 +41,7 @@
 .pg-root {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   max-width: 100%;
   overflow: hidden;
   background: var(--pg-bg);
@@ -157,16 +157,80 @@
   overflow: hidden;
 }
 
-/* ---- Desktop grid ---- */
-.pg-grid {
+/* ---- Desktop layout: sidebar + grid ---- */
+.pg-desktop {
   display: none;
 }
 @media (min-width: 768px) {
-  .pg-grid {
-    display: grid;
-    min-height: 0;
+  .pg-desktop {
+    display: flex;
     flex: 1 1 0%;
+    min-height: 0;
   }
+}
+
+/* ---- Sidebar ---- */
+.pg-sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  background: var(--pg-bg-header);
+  border-right: 1px solid var(--pg-border);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.pg-sidebar-header {
+  padding: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--pg-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--pg-border);
+}
+.pg-sidebar-section {
+  padding: 0.5rem 0.75rem;
+}
+.pg-sidebar-section-title {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--pg-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
+}
+.pg-config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.5rem;
+}
+.pg-config-label {
+  font-size: 0.6875rem;
+  color: var(--pg-text-muted);
+}
+.pg-config-select {
+  width: 100%;
+  font-size: 0.6875rem;
+  padding: 0.2rem 0.375rem;
+}
+.pg-config-toggle {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.375rem;
+  cursor: pointer;
+}
+.pg-config-toggle input[type="checkbox"] {
+  accent-color: var(--pg-accent);
+  cursor: pointer;
+  margin: 0;
+}
+
+/* ---- Desktop grid ---- */
+.pg-grid {
+  display: grid;
+  min-height: 0;
+  flex: 1 1 0%;
 }
 
 /* ---- Grid cells ---- */
