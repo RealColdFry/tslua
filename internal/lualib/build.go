@@ -209,7 +209,7 @@ func BuildBundleFromSource(lualibSrcDir, langExtPath, luaTypesPath string, luaTa
 	allExports := map[string]bool{}
 
 	for _, r := range ordered {
-		body := stripHeaderComment(r.Lua)
+		body := stripLuaComments(r.Lua)
 		if body != "" {
 			sb.WriteString(body)
 			sb.WriteString("\n")
@@ -277,7 +277,7 @@ func BuildFeatureDataFromSource(lualibSrcDir, langExtPath, luaTypesPath string, 
 		}
 		moduleInfo[feature] = info
 
-		body := stripHeaderComment(r.Lua)
+		body := stripLuaComments(r.Lua)
 		featureCode[feature] = body
 	}
 
@@ -378,12 +378,24 @@ func topoSortResults(results []transpiler.TranspileResult, exportToFile map[stri
 	return order
 }
 
-// stripHeaderComment removes the "--[[ Generated with ... ]]" header line.
-func stripHeaderComment(lua string) string {
-	if strings.HasPrefix(lua, "--[[ Generated with") {
-		if idx := strings.Index(lua, "\n"); idx >= 0 {
-			lua = lua[idx+1:]
+// stripLuaComments removes all Lua comments (line and block) and collapses
+// resulting blank lines. This keeps the lualib output small.
+func stripLuaComments(lua string) string {
+	var out strings.Builder
+	prevBlank := false
+	for _, line := range strings.Split(lua, "\n") {
+		trimmed := strings.TrimSpace(line)
+		// Skip pure comment lines (-- and --[[ block ]])
+		if strings.HasPrefix(trimmed, "--") {
+			continue
 		}
+		blank := trimmed == ""
+		if blank && prevBlank {
+			continue
+		}
+		prevBlank = blank
+		out.WriteString(line)
+		out.WriteByte('\n')
 	}
-	return strings.TrimSpace(lua)
+	return strings.TrimSpace(out.String())
 }

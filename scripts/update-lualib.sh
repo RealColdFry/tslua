@@ -20,6 +20,13 @@ patch_exports() {
 }
 
 # Apply patches to a bundle: insert functions before "return {" and add exports
+strip_lua_comments() {
+    local file="$1"
+    # Remove pure comment lines (-- ...) and collapse resulting blank lines
+    sed -i '/^[[:space:]]*--/d' "$file"
+    sed -i '/^$/N;/^\n$/d' "$file"
+}
+
 apply_patches() {
     local bundle="$1"
     local tmp
@@ -88,11 +95,13 @@ if [ ! -f "$TSTL_LUALIB/universal/lualib_bundle.lua" ]; then
 fi
 cp "$TSTL_LUALIB/universal/lualib_bundle.lua" "$TARGET/lualib_bundle.lua"
 apply_patches "$TARGET/lualib_bundle.lua"
+strip_lua_comments "$TARGET/lualib_bundle.lua"
 echo "  updated $TARGET/lualib_bundle.lua"
 
 if [ -f "$TSTL_LUALIB/5.0/lualib_bundle.lua" ]; then
     cp "$TSTL_LUALIB/5.0/lualib_bundle.lua" "$TARGET/lualib_bundle_50.lua"
     apply_patches "$TARGET/lualib_bundle_50.lua"
+    strip_lua_comments "$TARGET/lualib_bundle_50.lua"
     echo "  updated $TARGET/lualib_bundle_50.lua"
 fi
 

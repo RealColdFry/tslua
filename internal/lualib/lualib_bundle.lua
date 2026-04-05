@@ -2650,14 +2650,6 @@ local function __TS__UsingAsync(self, cb, ...)
     end)
 end
 
--- tslua-specific lualib additions.
--- These are pure Lua functions with no TypeScript equivalent in TSTL.
--- Injected into lualib_bundle.lua by the update-lualib script.
-
--- Optimized Map/Set iterators using Lua's generic for protocol.
--- These avoid creating closure-based iterators and work directly
--- with the Map/Set internal linked-list structure.
-
 local function __TS__MapForOfStep(map, prev)
     local key
     if prev == nil then
