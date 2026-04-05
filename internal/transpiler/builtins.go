@@ -239,7 +239,7 @@ func (t *Transpiler) transformMathCall(method string, argExprs []lua.Expression)
 		return memberAccess(lua.Ident("math"), "pi")
 	case "atan2":
 		// Universal: lualib polyfill; others: target-appropriate math.atan or math.atan2.
-		// See notes/tstl-bugs/math-atan2-lua54.md
+		// TSTL bug: math.atan2 handling is wrong on Lua 5.4+
 		if t.luaTarget == LuaTargetUniversal {
 			fn := t.requireLualib("__TS__MathAtan2")
 			return lualibCall(fn, argExprs...)

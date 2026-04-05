@@ -116,6 +116,7 @@ type Transpiler struct {
 	validationStack           map[typePair]bool       // per-call-stack guard against infinite recursion in assignment validation
 	sourceMapEnabled          bool                    // when true, Lua AST nodes get source positions for source map generation
 	traceEnabled              bool                    // when true, emit --[[trace: ...]] comments on statements
+	removeComments            bool                    // when true, strip all comments from output (removeComments tsconfig option)
 	classStyle                ClassStyle              // alternative class emit style (default: TSTL prototype chains)
 	crossFileEnums            map[string]bool         // enum names declared in 2+ source files (need global scope for merging)
 
@@ -417,6 +418,7 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 			isStrict:                  isModule, // ES modules are always strict; matches TSTL context.isStrict
 			sourceMapEnabled:          opts.SourceMap,
 			traceEnabled:              opts.Trace,
+			removeComments:            program.Options() != nil && program.Options().RemoveComments.IsTrue(),
 		}
 		tTransform := time.Now()
 		luaAST := t.transformSourceFileAST(sf)
@@ -1643,38 +1645,75 @@ func (t *Transpiler) collectExportedNames(sf *ast.SourceFile) {
 // JSDoc comment helpers
 // ==========================================================================
 
-// getJSDocComments returns LDoc-style comment strings for a declaration node.
-// First line gets "---", subsequent lines get "--".
-func (t *Transpiler) getJSDocComments(node *ast.Node) []string {
-	jsdocs := node.JSDoc(t.sourceFile)
-	if len(jsdocs) == 0 {
+// getLeadingComments returns Lua comment strings for a declaration node's leading comments.
+// Respects the removeComments tsconfig option. When comments are preserved:
+//   - Single-line comments (// ...) become "-- ..."
+//   - Block comments (/* ... */) become "--[[ ... ]]"
+//   - JSDoc comments (/** ... */) become LDoc: "--- ..." / "-- ..."
+//
+// TSTL/tslua annotations (@noSelf, etc.) are filtered from JSDoc output.
+func (t *Transpiler) getLeadingComments(node *ast.Node) []string {
+	if t.removeComments {
 		return nil
 	}
 
-	// Use the last JSDoc block (like TSTL does)
-	lastDoc := jsdocs[len(jsdocs)-1]
 	sourceText := t.sourceFile.Text()
-	start := lastDoc.Pos()
-	end := lastDoc.End()
-	if start < 0 || end < 0 || start >= len(sourceText) || end > len(sourceText) || start >= end {
+	f := &ast.NodeFactory{}
+	var comments []string
+
+	for cr := range scanner.GetLeadingCommentRanges(f, sourceText, node.Pos()) {
+		raw := sourceText[cr.Pos():cr.End()]
+		switch cr.Kind {
+		case ast.KindSingleLineCommentTrivia:
+			// "// text" → "-- text"
+			text := strings.TrimPrefix(raw, "//")
+			if len(text) > 0 && text[0] == ' ' {
+				text = text[1:]
+			}
+			comments = append(comments, "-- "+text)
+
+		case ast.KindMultiLineCommentTrivia:
+			if strings.HasPrefix(raw, "/**") {
+				// JSDoc: parse and format as LDoc
+				lines := parseJSDocText(raw)
+				lines = filterAnnotations(lines)
+				if len(lines) == 0 {
+					continue
+				}
+				for i, line := range lines {
+					if i == 0 {
+						if strings.HasPrefix(line, "@") {
+							comments = append(comments, "---")
+							comments = append(comments, "-- "+line)
+						} else {
+							comments = append(comments, "--- "+line)
+						}
+					} else {
+						comments = append(comments, "-- "+line)
+					}
+				}
+			} else {
+				// Regular block comment: "/* text */" → "--[[ text ]]"
+				inner := strings.TrimPrefix(raw, "/*")
+				inner = strings.TrimSuffix(inner, "*/")
+				inner = strings.TrimSpace(inner)
+				if strings.Contains(inner, "\n") {
+					comments = append(comments, "--[[ "+inner+" ]]")
+				} else {
+					comments = append(comments, "-- "+inner)
+				}
+			}
+		}
+	}
+
+	if len(comments) == 0 {
 		return nil
 	}
-	docRegion := sourceText[start:end]
+	return comments
+}
 
-	// Find the actual /** block, skipping any leading trivia (// comments, whitespace)
-	if idx := strings.Index(docRegion, "/**"); idx >= 0 {
-		docRegion = docRegion[idx:]
-	} else {
-		docRegion = "/** " + docRegion + " */"
-	}
-
-	// Parse the raw JSDoc text: strip /** ... */ and leading * on each line
-	lines := parseJSDocText(docRegion)
-	if len(lines) == 0 {
-		return nil
-	}
-
-	// Filter out internal TSTL/tslua annotations that shouldn't appear in Lua output
+// filterAnnotations removes TSTL/tslua annotation lines from JSDoc content.
+func filterAnnotations(lines []string) []string {
 	filtered := lines[:0]
 	for _, line := range lines {
 		tag := strings.TrimSpace(line)
@@ -1691,26 +1730,7 @@ func (t *Transpiler) getJSDocComments(node *ast.Node) []string {
 			filtered = append(filtered, line)
 		}
 	}
-	lines = filtered
-	if len(lines) == 0 {
-		return nil
-	}
-
-	// Format as LDoc: first line "--- text", subsequent "-- text"
-	var comments []string
-	for i, line := range lines {
-		if i == 0 {
-			if strings.HasPrefix(line, "@") {
-				comments = append(comments, "---")
-				comments = append(comments, "-- "+line)
-			} else {
-				comments = append(comments, "--- "+line)
-			}
-		} else {
-			comments = append(comments, "-- "+line)
-		}
-	}
-	return comments
+	return filtered
 }
 
 // parseJSDocText extracts clean text lines from a raw JSDoc comment block.

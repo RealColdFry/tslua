@@ -23,6 +23,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// version and gitCommit are set at build time via ldflags.
+var (
+	version   = "0.0.0-dev"
+	gitCommit = ""
+)
+
 var (
 	projectFlag        string
 	outdirFlag         string
@@ -48,10 +54,12 @@ func main() {
 	rootCmd := &cobra.Command{
 		Use:           "tslua",
 		Short:         "TypeScript-to-Lua transpiler",
+		Version:       versionString(),
 		RunE:          run,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+	rootCmd.SetVersionTemplate("{{.Version}}\n")
 
 	// Persistent flags: shared across root and subcommands.
 	rootCmd.PersistentFlags().StringVar(&luaTargetFlag, "luaTarget", "JIT", "Lua target version (JIT, 5.0, 5.1, 5.2, 5.3, 5.4, 5.5, universal)")
@@ -375,6 +383,15 @@ func runOnce(cfg *buildConfig, host compiler.CompilerHost) error {
 		os.Exit(1)
 	}
 	return nil
+}
+
+func versionString() string {
+	s := "tslua " + version
+	if gitCommit != "" {
+		s += " (" + gitCommit + ")"
+	}
+	s += " (TypeScript " + core.Version() + ")"
+	return s
 }
 
 func msf(d time.Duration) float64 {

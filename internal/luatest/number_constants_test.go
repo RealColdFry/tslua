@@ -9,7 +9,7 @@ import (
 // TestNumberConstants_Eval verifies that Number constants produce correct values
 // across all Lua targets. This catches TSTL bugs where constants like
 // MAX_SAFE_INTEGER, MIN_VALUE, etc. emit wrong Lua expressions.
-// See notes/tstl-bugs/number-constants.md for details.
+// TSTL bug: some number constants emit wrong Lua expressions.
 func TestNumberConstants_Eval(t *testing.T) {
 	t.Parallel()
 

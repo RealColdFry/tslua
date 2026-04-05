@@ -29,7 +29,7 @@ All options go under `"tstl"` in tsconfig.json.
 | `luaLibImport`              | string | `"require"` | How polyfills are included: `require`, `inline`, `none`                                                         |
 | `noImplicitSelf`            | bool   | `false`     | Default all functions to no-self calling convention                                                             |
 | `noImplicitGlobalVariables` | bool   | `false`     | Root-level declarations are `local` in non-module files                                                         |
-| `exportAsGlobal`            | bool   | `false`     | Strip module wrapper, emit exports as globals                                                                   |
+| `exportAsGlobal`            | bool \| string | `false` | Strip module wrapper, emit exports as globals. `true` applies to all files; a string is a regex matching file paths. |
 | `sourceMapTraceback`        | bool   | `false`     | Apply source maps to Lua stack traces                                                                           |
 | `luaBundle`                 | string |             | Bundle all output into a single Lua file (requires `luaBundleEntry`)                                            |
 | `luaBundleEntry`            | string |             | Entry point for bundle mode (requires `luaBundle`)                                                              |

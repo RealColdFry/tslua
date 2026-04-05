@@ -417,30 +417,7 @@ func (t *Transpiler) getTemplateRawLiteral(node *ast.Node) string {
 	text = text[1 : len(text)-endTrim]
 	text = strings.ReplaceAll(text, "\r\n", "\n")
 	text = strings.ReplaceAll(text, "\r", "\n")
-	// Convert JS unicode escapes (\uXXXX) to Lua decimal escapes (\XXX)
-	text = convertUnicodeEscapes(text)
 	return text
-}
-
-// convertUnicodeEscapes converts \uXXXX patterns in raw template text to Lua \XXX decimal escapes.
-func convertUnicodeEscapes(s string) string {
-	var result strings.Builder
-	i := 0
-	for i < len(s) {
-		if i+5 < len(s) && s[i] == '\\' && s[i+1] == 'u' {
-			// Try to parse 4 hex digits
-			hex := s[i+2 : i+6]
-			var code int
-			if _, err := fmt.Sscanf(hex, "%04x", &code); err == nil {
-				fmt.Fprintf(&result, "\\%d", code)
-				i += 6
-				continue
-			}
-		}
-		result.WriteByte(s[i])
-		i++
-	}
-	return result.String()
 }
 
 // func`hello ${expr}` → func({[1]="hello ", [2]="", raw={"hello ", ""}}, expr)

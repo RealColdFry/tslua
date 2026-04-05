@@ -14,7 +14,7 @@ export function isStringContaining(v: unknown): v is { value: string } {
 
 // serializeString matches Lua's string.format("%q") escaping for control chars.
 export function serializeString(s: string): string {
-  return JSON.stringify(s).replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => {
+  return JSON.stringify(s).replace(/(?<!\\)\\u([0-9a-fA-F]{4})/g, (_, hex) => {
     const code = parseInt(hex, 16);
     if (code < 256) return "\\" + code.toString().padStart(3, "0");
     return "\\u" + hex;

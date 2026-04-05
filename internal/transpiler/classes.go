@@ -185,7 +185,7 @@ func (t *Transpiler) transformClassDeclaration(node *ast.Node) []lua.Statement {
 	isExported := hasExportModifier(node)
 	isDefault := hasDefaultModifier(node)
 
-	comments := t.getJSDocComments(node)
+	comments := t.getLeadingComments(node)
 
 	// Determine base class expression if any
 	var baseExpr lua.Expression

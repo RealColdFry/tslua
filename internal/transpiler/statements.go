@@ -25,7 +25,7 @@ func (t *Transpiler) transformVariableStatement(node *ast.Node) []lua.Statement 
 	t.checkVariableDeclarationList(vs.DeclarationList)
 	isExported := hasExportModifier(node)
 
-	comments := t.getJSDocComments(node)
+	comments := t.getLeadingComments(node)
 
 	var result []lua.Statement
 

@@ -18,7 +18,7 @@ func (t *Transpiler) transformEnumDeclaration(node *ast.Node) []lua.Statement {
 		return nil
 	}
 
-	comments := t.getJSDocComments(node)
+	comments := t.getLeadingComments(node)
 
 	isExported := hasExportModifier(node)
 	origName := ed.Name().AsIdentifier().Text

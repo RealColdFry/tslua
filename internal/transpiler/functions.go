@@ -78,7 +78,7 @@ func (t *Transpiler) transformFunctionDeclaration(node *ast.Node) []lua.Statemen
 		}
 	}
 
-	comments := t.getJSDocComments(node)
+	comments := t.getLeadingComments(node)
 
 	isExported := hasExportModifier(node)
 	needsSelf := t.functionNeedsSelf(node)

@@ -185,7 +185,7 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"tagged template literal (\"func`hello \\\\u00A9`\")", "function func(strings: TemplateStringsArray, ...expressions: any[]) {\n            return { strings: [...strings], raw: strings.raw, expressions };\n        }\n\n        const obj = { func };\n        return func`hello \\u00A9`;", `{expressions = {}, raw = {"hello \\169"}, strings = {"hello ©"}}`, `local ____exports = {}
+		{"tagged template literal (\"func`hello \\\\u00A9`\")", "function func(strings: TemplateStringsArray, ...expressions: any[]) {\n            return { strings: [...strings], raw: strings.raw, expressions };\n        }\n\n        const obj = { func };\n        return func`hello \\u00A9`;", `{expressions = {}, raw = {"hello \\u00A9"}, strings = {"hello ©"}}`, `local ____exports = {}
 function ____exports.__main(self)
     local function func(self, strings, ...)
         local expressions = {...}
