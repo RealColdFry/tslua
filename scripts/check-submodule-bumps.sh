@@ -30,6 +30,9 @@ check_tsgolint() {
         local latest_desc=$(git -C "$dir" describe --tags "$latest" 2>/dev/null || echo "$latest_short")
         printf "  latest:  %s\n" "$latest_desc"
         printf "  ${yellow}%d commit(s) behind${reset}\n" "$behind"
+        printf "  new upstream commits:\n"
+        git -C "$dir" log --oneline --no-decorate "$current".."$latest" | sed 's/^/    /'
+        printf "  ${cyan}run:${reset} git -C extern/tsgolint diff %s..%s\n" "$current_short" "$latest_short"
     fi
 
     # Check inner typescript-go submodule
@@ -65,8 +68,11 @@ check_tsgo() {
     if [ -n "$tsgo_in_latest" ] && [ "$tsgo_current" != "$tsgo_in_latest" ]; then
         local behind_tsgolint=$(git -C "$tsgo_dir" rev-list --count "$tsgo_current".."$tsgo_in_latest" 2>/dev/null || echo "?")
         local tsgo_in_latest_desc=$(git -C "$tsgo_dir" describe --tags "$tsgo_in_latest" 2>/dev/null || git -C "$tsgo_dir" rev-parse --short "$tsgo_in_latest")
+        local tsgo_in_latest_short=$(git -C "$tsgo_dir" rev-parse --short "$tsgo_in_latest")
         printf "    in latest tsgolint: %s\n" "$tsgo_in_latest_desc"
         printf "    ${yellow}%s commit(s) behind latest tsgolint${reset}\n" "$behind_tsgolint"
+        git -C "$tsgo_dir" log --oneline --no-decorate "$tsgo_current".."$tsgo_in_latest" 2>/dev/null | sed 's/^/      /'
+        printf "    ${cyan}run:${reset} git -C extern/tsgolint/typescript-go diff %s..%s\n" "$tsgo_current_short" "$tsgo_in_latest_short"
     elif [ -n "$tsgo_in_latest" ]; then
         printf "    ${green}up to date with latest tsgolint${reset}\n"
     fi
@@ -74,7 +80,9 @@ check_tsgo() {
     # Behind upstream main
     if [ -n "$tsgo_upstream" ] && [ "$tsgo_current" != "$tsgo_upstream" ]; then
         local behind_upstream=$(git -C "$tsgo_dir" rev-list --count "$tsgo_current".."$tsgo_upstream" 2>/dev/null || echo "?")
+        local tsgo_upstream_short=$(git -C "$tsgo_dir" rev-parse --short "$tsgo_upstream")
         printf "    ${yellow}%s commit(s) behind upstream main${reset}\n" "$behind_upstream"
+        printf "    ${cyan}run:${reset} git -C extern/tsgolint/typescript-go log --oneline %s..%s\n" "$tsgo_current_short" "$tsgo_upstream_short"
     elif [ -n "$tsgo_upstream" ]; then
         printf "    ${green}up to date with upstream main${reset}\n"
     fi

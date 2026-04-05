@@ -5,15 +5,9 @@ permissions:
   pages: write
   id-token: write
 
+# TODO: re-enable push trigger when repo is public again
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "website/**"
-      - "cmd/wasm/**"
-      - "internal/**"
-      - ".github/workflows/pages.yml"
 
 concurrency:
   group: pages
