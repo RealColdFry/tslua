@@ -4,6 +4,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    minimum-age: 7
     groups:
       go-dependencies:
         patterns:
@@ -13,6 +14,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    minimum-age: 7
     groups:
       npm-dev-tools:
         patterns:
@@ -22,6 +24,7 @@ updates:
     directory: /website
     schedule:
       interval: weekly
+    minimum-age: 7
     groups:
       website-dependencies:
         patterns:
@@ -31,6 +34,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    minimum-age: 7
     groups:
       github-actions:
         patterns:
