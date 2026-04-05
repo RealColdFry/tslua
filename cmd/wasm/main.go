@@ -120,9 +120,9 @@ type wasmDiagnostic struct {
 
 // transpileResult is the JSON structure returned to JS.
 type transpileResult struct {
-	Lua         string            `json:"lua"`
-	Errors      []string          `json:"errors"`
-	Diagnostics []wasmDiagnostic  `json:"diagnostics"`
+	Lua         string           `json:"lua"`
+	Errors      []string         `json:"errors"`
+	Diagnostics []wasmDiagnostic `json:"diagnostics"`
 }
 
 // wasmOptions holds the JSON structure passed from the JS side.
@@ -232,7 +232,7 @@ func transpile(tsCode string, wopts wasmOptions) transpileResult {
 		startLine, startChar := scanner.GetECMALineAndUTF16CharacterOfPosition(d.File(), d.Pos())
 		endLine, endChar := scanner.GetECMALineAndUTF16CharacterOfPosition(d.File(), d.End())
 		diags = append(diags, wasmDiagnostic{
-			StartLine: startLine + 1,            // ECMA is 0-based, Monaco is 1-based
+			StartLine: startLine + 1, // ECMA is 0-based, Monaco is 1-based
 			StartCol:  int(startChar) + 1,
 			EndLine:   endLine + 1,
 			EndCol:    int(endChar) + 1,

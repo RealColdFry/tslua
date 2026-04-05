@@ -12,13 +12,24 @@ interface EditorProps {
   theme?: "dark" | "light";
 }
 
-export function Editor({ value, language, readOnly, path, onChange, onEditorMount, theme = "dark" }: EditorProps) {
+export function Editor({
+  value,
+  language,
+  readOnly,
+  path,
+  onChange,
+  onEditorMount,
+  theme = "dark",
+}: EditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor>(null);
 
-  const handleMount: OnMount = useCallback((editor) => {
-    editorRef.current = editor;
-    onEditorMount?.(editor);
-  }, [onEditorMount]);
+  const handleMount: OnMount = useCallback(
+    (editor) => {
+      editorRef.current = editor;
+      onEditorMount?.(editor);
+    },
+    [onEditorMount],
+  );
 
   const handleChange = useCallback(
     (val: string | undefined) => {

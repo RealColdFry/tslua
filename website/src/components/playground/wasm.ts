@@ -16,13 +16,13 @@ declare function tslua_transpile(
 };
 
 export interface WasmDiagnostic {
-  startLine: number;  // 1-based
-  startCol: number;   // 1-based, UTF-16
+  startLine: number; // 1-based
+  startCol: number; // 1-based, UTF-16
   endLine: number;
   endCol: number;
   message: string;
-  severity: number;   // Monaco MarkerSeverity: 1=Hint, 2=Info, 4=Warning, 8=Error
-  code: number;       // diagnostic code (e.g. 100037)
+  severity: number; // Monaco MarkerSeverity: 1=Hint, 2=Info, 4=Warning, 8=Error
+  code: number; // diagnostic code (e.g. 100037)
 }
 
 export interface TsluaOptions {

@@ -222,7 +222,9 @@ export function App() {
   const monacoRef = useRef<typeof import("monaco-editor") | null>(null);
 
   useEffect(() => {
-    loader.init().then((m) => { monacoRef.current = m; });
+    loader.init().then((m) => {
+      monacoRef.current = m;
+    });
   }, []);
 
   const setTsluaMarkers = useCallback((diagnostics: WasmDiagnostic[]) => {
@@ -372,7 +374,9 @@ export function App() {
               language="typescript"
               path="file:///main.ts"
               onChange={handleTsChange}
-              onEditorMount={(e) => { tsEditorRef.current = e; }}
+              onEditorMount={(e) => {
+                tsEditorRef.current = e;
+              }}
               theme={theme}
             />
           </div>

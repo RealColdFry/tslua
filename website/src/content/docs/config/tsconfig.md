@@ -22,17 +22,17 @@ tslua reads standard `tsconfig.json` files. tslua-specific options go under the 
 
 All options go under `"tstl"` in tsconfig.json.
 
-| Option                      | Type   | Default     | Description                                                              |
-| --------------------------- | ------ | ----------- | ------------------------------------------------------------------------ |
-| `luaTarget`                 | string | `"JIT"`     | Lua version: `JIT`, `5.0`-`5.5`, `universal`                             |
-| `emitMode`                  | string | `"tstl"`    | `"tstl"` (match TSTL output) or `"optimized"` (cleaner Lua)              |
-| `luaLibImport`              | string | `"require"` | How polyfills are included: `require`, `inline`, `none`                  |
-| `noImplicitSelf`            | bool   | `false`     | Default all functions to no-self calling convention                      |
-| `noImplicitGlobalVariables` | bool   | `false`     | Root-level declarations are `local` in non-module files                  |
-| `exportAsGlobal`            | bool   | `false`     | Strip module wrapper, emit exports as globals                            |
-| `sourceMapTraceback`        | bool   | `false`     | Apply source maps to Lua stack traces                                    |
-| `luaBundle`                 | string |             | Bundle all output into a single Lua file (requires `luaBundleEntry`)     |
-| `luaBundleEntry`            | string |             | Entry point for bundle mode (requires `luaBundle`)                       |
+| Option                      | Type   | Default     | Description                                                                                                     |
+| --------------------------- | ------ | ----------- | --------------------------------------------------------------------------------------------------------------- |
+| `luaTarget`                 | string | `"JIT"`     | Lua version: `JIT`, `5.0`-`5.5`, `universal`                                                                    |
+| `emitMode`                  | string | `"tstl"`    | `"tstl"` (match TSTL output) or `"optimized"` (cleaner Lua)                                                     |
+| `luaLibImport`              | string | `"require"` | How polyfills are included: `require`, `inline`, `none`                                                         |
+| `noImplicitSelf`            | bool   | `false`     | Default all functions to no-self calling convention                                                             |
+| `noImplicitGlobalVariables` | bool   | `false`     | Root-level declarations are `local` in non-module files                                                         |
+| `exportAsGlobal`            | bool   | `false`     | Strip module wrapper, emit exports as globals                                                                   |
+| `sourceMapTraceback`        | bool   | `false`     | Apply source maps to Lua stack traces                                                                           |
+| `luaBundle`                 | string |             | Bundle all output into a single Lua file (requires `luaBundleEntry`)                                            |
+| `luaBundleEntry`            | string |             | Entry point for bundle mode (requires `luaBundle`)                                                              |
 | `classStyle`                | string |             | Class emit preset: `"tstl"`, `"luabind"`, `"middleclass"`, `"inline"`. See [Class Styles](/config/class-style/) |
 
 ## TypeScript compiler options
