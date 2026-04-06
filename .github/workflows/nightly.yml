@@ -150,10 +150,13 @@ jobs:
           cd artifacts
           for bin in tslua-*; do
             chmod +x "$bin" 2>/dev/null || true
+            ARCHIVE_NAME="${bin%.exe}"
             if [[ "$bin" == *.exe ]]; then
-              zip "../release/${bin%.exe}.zip" "$bin"
+              cp "$bin" tslua.exe
+              zip "../release/${ARCHIVE_NAME}.zip" tslua.exe
+              rm tslua.exe
             else
-              tar czf "../release/${bin}.tar.gz" "$bin"
+              tar czf "../release/${bin}.tar.gz" --transform 's|'"$bin"'|tslua|' "$bin"
             fi
           done
           ls -lh ../release/
