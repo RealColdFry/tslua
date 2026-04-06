@@ -654,11 +654,6 @@ func insertAtLine(luaCode string, insertIdx int, insertion string) string {
 	return strings.Join(result, "\n")
 }
 
-// insertAfterLualibImports inserts text after the lualib import block in Lua code.
-func insertAfterLualibImports(luaCode string, insertion string) string {
-	return insertAtLine(luaCode, lualibInsertIndex(luaCode), insertion)
-}
-
 // lualibFeatureExports maps each multi-export lualib feature to its full export list.
 // When any export in the group is requested, all exports are imported together (matching TSTL).
 // Single-export features don't need entries here.
