@@ -27,7 +27,7 @@ index 2871f6e..219208c 100644
          const program = this.getProgram();
          const preEmitDiagnostics = ts.getPreEmitDiagnostics(program);
          const collector = createEmitOutputCollector(this.options.extension);
-@@ -256,6 +267,222 @@ export abstract class TestBuilder {
+@@ -256,6 +267,228 @@ export abstract class TestBuilder {
          return { diagnostics: [...diagnostics], transpiledFiles: collector.files };
      }
  
@@ -105,7 +105,12 @@ index 2871f6e..219208c 100644
 +                module: typeof this.options.module === "number" ? moduleMap[this.options.module] : undefined,
 +                moduleResolution,
 +                resolveJsonModule: this.options.resolveJsonModule,
++                outDir: this.options.outDir,
++                rootDir: this.options.rootDir,
 +                sourceMap: this.options.sourceMap,
++                sourceRoot: this.options.sourceRoot,
++                sourceMapTraceback: (this.options as any).sourceMapTraceback,
++                inlineSourceMap: (this.options as any).inlineSourceMap,
 +                experimentalDecorators: this.options.experimentalDecorators,
 +                jsx: typeof this.options.jsx === "number" ? jsxMap[this.options.jsx as ts.JsxEmit] : undefined,
 +                jsxFactory: this.options.jsxFactory,
@@ -125,16 +130,17 @@ index 2871f6e..219208c 100644
 +            throw new Error(`tslua server error: ${resp.error}`);
 +        }
 +
-+        const mainLuaName = this.mainFileName.replace(/\.tsx?$/, ".lua");
++        const mainBaseName = path.basename(this.mainFileName).replace(/\.tsx?$/, "");
 +        const transpiledFiles: tstl.TranspiledFile[] = [];
 +        for (const [fileName, lua] of Object.entries(resp.files ?? {})) {
++            const fileBaseName = path.basename(fileName).replace(/\.lua$/, "");
 +            const srcName = fileName === "lualib_bundle.lua" ? fileName
-+                : fileName === mainLuaName ? this.mainFileName
++                : fileBaseName === mainBaseName ? this.mainFileName
 +                : fileName.replace(/\.lua$/, ".ts");
 +            transpiledFiles.push({
 +                outPath: fileName,
 +                lua: lua as string,
-+                luaSourceMap: "",
++                luaSourceMap: (resp.sourceMaps ?? {})[fileName] ?? "",
 +                sourceFiles: [{ fileName: srcName } as any],
 +                declaration: undefined,
 +                declarationMap: undefined,

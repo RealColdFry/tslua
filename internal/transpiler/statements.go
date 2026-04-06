@@ -66,17 +66,11 @@ func (t *Transpiler) transformVariableStatement(node *ast.Node) []lua.Statement 
 			setVarPos := func(luaNode lua.Positioned) {
 				t.setNodePos(luaNode, decl)
 				if wasRenamed {
-					if s, ok := luaNode.(interface{ SourcePosition() lua.SourcePos }); ok {
-						pos := s.SourcePosition()
-						pos.SourceName = name
-						luaNode.SetSourcePos(pos.Line, pos.Column)
-						// Set SourceName directly on the underlying struct
-						switch n := luaNode.(type) {
-						case *lua.VariableDeclarationStatement:
-							n.Pos.SourceName = name
-						case *lua.AssignmentStatement:
-							n.Pos.SourceName = name
-						}
+					switch n := luaNode.(type) {
+					case *lua.VariableDeclarationStatement:
+						n.Pos.SourceName = name
+					case *lua.AssignmentStatement:
+						n.Pos.SourceName = name
 					}
 				}
 			}

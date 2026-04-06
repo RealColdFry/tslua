@@ -282,14 +282,15 @@ func (t *Transpiler) transformClassDeclaration(node *ast.Node) []lua.Statement {
 			classInitExpr = lua.Call(lua.Ident(classNew))
 		}
 
-		// Create class name identifier with source position for source maps.
-		// When the class name was renamed (e.g. $$$ → ____24__24__24_), the
-		// identifier carries the original name for name mapping.
+		// Create class name identifier. Only set position when the name was
+		// renamed (e.g. $$$ → ____24__24__24_) so the source map carries the
+		// original name. Otherwise, the statement-level mapping (set from the
+		// ClassDeclaration node) provides the correct position at the "class"
+		// keyword — setting the identifier position would overwrite it with the
+		// name position (column 6 in "class Bar").
 		classNameIdent := lua.Ident(name)
 		if cd.Name() != nil && name != origName {
 			t.setNodePosNamed(classNameIdent, cd.Name(), origName)
-		} else if cd.Name() != nil {
-			t.setNodePos(classNameIdent, cd.Name())
 		}
 
 		if isExported && t.isExportAsGlobalTopLevel() {

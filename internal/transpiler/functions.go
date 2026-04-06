@@ -168,6 +168,7 @@ func (t *Transpiler) transformFunctionDeclaration(node *ast.Node) []lua.Statemen
 		Body:   &lua.Block{Statements: bodyStmts},
 		Flags:  lua.FlagDeclaration,
 	}
+	t.setNodePos(fn, node)
 
 	// Wrap generator functions in __TS__Generator
 	var valueExpr lua.Expression = fn
@@ -489,12 +490,16 @@ func (t *Transpiler) transformFunctionExpression(node *ast.Node) lua.Expression 
 			bodyStmts = t.wrapInAsyncAwaiter(bodyStmts)
 			t.asyncDepth--
 		}
-		result = &lua.FunctionExpression{Params: paramIdents, Dots: hasRest, Body: &lua.Block{Statements: bodyStmts}}
+		fe := &lua.FunctionExpression{Params: paramIdents, Dots: hasRest, Body: &lua.Block{Statements: bodyStmts}}
+		t.setNodePos(fe, node)
+		result = fe
 	} else {
 		if isAsync {
 			t.asyncDepth--
 		}
-		result = &lua.FunctionExpression{Params: paramIdents, Dots: hasRest}
+		fe := &lua.FunctionExpression{Params: paramIdents, Dots: hasRest}
+		t.setNodePos(fe, node)
+		result = fe
 	}
 
 	if isGenerator {
