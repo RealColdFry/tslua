@@ -63,11 +63,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           SHA="${{ needs.check.outputs.sha }}"
-          STATUS=$(gh api "repos/${{ github.repository }}/commits/$SHA/status" --jq '.state')
-          if [ "$STATUS" != "success" ]; then
-            echo "::error::CI not passing for $SHA (status: $STATUS)"
-            exit 1
-          fi
+          for check in build-and-test lint; do
+            CONCLUSION=$(gh api "repos/${{ github.repository }}/commits/$SHA/check-runs" \
+              --jq "[.check_runs[] | select(.name == \"$check\")] | last | .conclusion // empty")
+            if [ "$CONCLUSION" != "success" ]; then
+              echo "::error::Check '$check' not passing for $SHA (conclusion: ${CONCLUSION:-not found})"
+              exit 1
+            fi
+            echo "✓ $check passed"
+          done
 
   build:
     needs: [check, ci]
