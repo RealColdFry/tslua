@@ -663,15 +663,19 @@ func (t *Transpiler) transformForStatement(node *ast.Node) []lua.Statement {
 				if d.Initializer != nil {
 					init, prec := t.transformExprInScope(d.Initializer)
 					outerStmts = append(outerStmts, prec...)
-					outerStmts = append(outerStmts, lua.LocalDecl(
+					initDecl := lua.LocalDecl(
 						[]*lua.Identifier{lua.Ident(name)},
 						[]lua.Expression{init},
-					))
+					)
+					t.setNodePos(initDecl, decl)
+					outerStmts = append(outerStmts, initDecl)
 				} else {
-					outerStmts = append(outerStmts, lua.LocalDecl(
+					initDecl := lua.LocalDecl(
 						[]*lua.Identifier{lua.Ident(name)},
 						nil,
-					))
+					)
+					t.setNodePos(initDecl, decl)
+					outerStmts = append(outerStmts, initDecl)
 				}
 			}
 		} else {
@@ -755,7 +759,17 @@ func (t *Transpiler) transformForStatement(node *ast.Node) []lua.Statement {
 
 	// Incrementor (e.g. j++) — must run even on continue
 	if fs.Incrementor != nil {
-		bodyStmts = append(bodyStmts, t.transformAsStatement(fs.Incrementor)...)
+		incrStmts := t.transformAsStatement(fs.Incrementor)
+		// Set source position on incrementor statements
+		for _, s := range incrStmts {
+			if p, ok := s.(lua.Positioned); ok {
+				if n, ok := s.(lua.Node); ok && !n.SourcePosition().HasPos {
+					_ = p
+					t.setNodePos(p, fs.Incrementor)
+				}
+			}
+		}
+		bodyStmts = append(bodyStmts, incrStmts...)
 	}
 
 	// If condition has preceding statements, they must re-execute every iteration
@@ -823,12 +837,19 @@ func (t *Transpiler) transformForOfStatement(node *ast.Node) []lua.Statement {
 	result := make([]lua.Statement, 0, len(varPrec)+len(precIter)+1)
 	result = append(result, varPrec...)
 	result = append(result, precIter...)
-	result = append(result, lua.ForIn(
+	forInStmt := lua.ForIn(
 		[]*lua.Identifier{lua.Ident("____"), lua.Ident(varName)},
 		[]lua.Expression{iterCall},
 		&lua.Block{Statements: bodyStmts},
-	))
-	return result
+	)
+	t.setNodePos(forInStmt, node)
+	// Position the iteration variable identifier at the initializer declaration
+	if len(forInStmt.Names) > 1 {
+		t.setNodePos(forInStmt.Names[1], t.forOfInitializerNameNode(fs.Initializer))
+	}
+	// Position the iterator expression at the iterable expression
+	t.setNodePos(iterCall.(*lua.CallExpression), fs.Expression)
+	return append(result, forInStmt)
 }
 
 // tryOptimizedMapSetForOf attempts to emit zero-garbage for-of loops over Map/Set.
@@ -1263,6 +1284,18 @@ func (t *Transpiler) transformForInStatement(node *ast.Node) []lua.Statement {
 // - `const [a,b] of ...` → varName=____value, preamble=destructuring
 // - `x of ...` (existing var) → varName=____value, preamble=x=____value
 // - `[a,b] of ...` (existing destructuring) → varName=____value, preamble=unpack
+// forOfInitializerNameNode returns the TS AST node for the iteration variable name.
+// Used for source map positioning.
+func (t *Transpiler) forOfInitializerNameNode(init *ast.Node) *ast.Node {
+	if init.Kind == ast.KindVariableDeclarationList {
+		declList := init.AsVariableDeclarationList()
+		if len(declList.Declarations.Nodes) > 0 {
+			return declList.Declarations.Nodes[0].AsVariableDeclaration().Name()
+		}
+	}
+	return init
+}
+
 func (t *Transpiler) extractForOfInitializer(init *ast.Node) (string, []lua.Statement, []lua.Statement) {
 	if init.Kind == ast.KindVariableDeclarationList {
 		t.checkVariableDeclarationList(init)

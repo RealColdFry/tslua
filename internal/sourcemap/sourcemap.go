@@ -4,6 +4,7 @@ package sourcemap
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 )
 
@@ -230,4 +231,185 @@ func (g *Generator) String() string {
 		panic(err)
 	}
 	return string(b)
+}
+
+// ============================================================================
+// Decoder
+// ============================================================================
+
+// DecodedMapping is a single resolved source map mapping.
+type DecodedMapping struct {
+	GenLine   int // 0-based generated line
+	GenCol    int // 0-based generated column
+	SrcIdx    int // source index into Sources array
+	SrcLine   int // 0-based original line
+	SrcCol    int // 0-based original column
+	NameIdx   int // name index into Names array (-1 if none)
+	HasSource bool
+	HasName   bool
+}
+
+// Decode parses a RawSourceMap into a slice of DecodedMappings.
+func Decode(raw *RawSourceMap) ([]DecodedMapping, error) {
+	var result []DecodedMapping
+	if raw.Mappings == "" {
+		return result, nil
+	}
+
+	var (
+		genLine int
+		genCol  int
+		srcIdx  int
+		srcLine int
+		srcCol  int
+		nameIdx int
+	)
+
+	mappings := raw.Mappings
+	for genLine <= strings.Count(mappings, ";") || len(mappings) > 0 {
+		// Find next line (semicolon) or end
+		lineEnd := strings.IndexByte(mappings, ';')
+		var lineStr string
+		if lineEnd < 0 {
+			lineStr = mappings
+			mappings = ""
+		} else {
+			lineStr = mappings[:lineEnd]
+			mappings = mappings[lineEnd+1:]
+		}
+
+		genCol = 0 // reset column at each new generated line
+
+		if lineStr != "" {
+			segments := strings.Split(lineStr, ",")
+			for _, seg := range segments {
+				if seg == "" {
+					continue
+				}
+				values, err := decodeVLQSegment(seg)
+				if err != nil {
+					return nil, err
+				}
+				if len(values) < 1 {
+					continue
+				}
+
+				m := DecodedMapping{GenLine: genLine}
+				genCol += values[0]
+				m.GenCol = genCol
+
+				if len(values) >= 4 {
+					srcIdx += values[1]
+					srcLine += values[2]
+					srcCol += values[3]
+					m.SrcIdx = srcIdx
+					m.SrcLine = srcLine
+					m.SrcCol = srcCol
+					m.HasSource = true
+				}
+				if len(values) >= 5 {
+					nameIdx += values[4]
+					m.NameIdx = nameIdx
+					m.HasName = true
+				}
+
+				result = append(result, m)
+			}
+		}
+
+		if lineEnd < 0 {
+			break
+		}
+		genLine++
+	}
+	return result, nil
+}
+
+// DecodeJSON parses a JSON source map string into DecodedMappings.
+func DecodeJSON(jsonStr string) (*RawSourceMap, []DecodedMapping, error) {
+	var raw RawSourceMap
+	if err := json.Unmarshal([]byte(jsonStr), &raw); err != nil {
+		return nil, nil, err
+	}
+	mappings, err := Decode(&raw)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &raw, mappings, nil
+}
+
+// OriginalPositionFor finds the mapping at or just before the given generated position.
+// Returns a zero DecodedMapping with HasSource==false if no mapping found.
+func OriginalPositionFor(mappings []DecodedMapping, genLine, genCol int) DecodedMapping {
+	var best DecodedMapping
+	found := false
+	for _, m := range mappings {
+		if !m.HasSource {
+			continue
+		}
+		if m.GenLine == genLine && m.GenCol <= genCol {
+			if !found || m.GenCol > best.GenCol {
+				best = m
+				found = true
+			}
+		}
+	}
+	return best
+}
+
+// MappingForName finds a mapping that has the given name in the Names array.
+// Returns a zero DecodedMapping with HasName==false if not found.
+func MappingForName(raw *RawSourceMap, mappings []DecodedMapping, name string) DecodedMapping {
+	for _, m := range mappings {
+		if m.HasName && m.NameIdx < len(raw.Names) && raw.Names[m.NameIdx] == name {
+			return m
+		}
+	}
+	return DecodedMapping{}
+}
+
+// decodeVLQSegment decodes a base64-VLQ segment into a slice of signed integers.
+func decodeVLQSegment(seg string) ([]int, error) {
+	var values []int
+	i := 0
+	for i < len(seg) {
+		var value int
+		var shift uint
+		for {
+			if i >= len(seg) {
+				return nil, fmt.Errorf("sourcemap: unexpected end of VLQ at %q", seg)
+			}
+			c := seg[i]
+			i++
+			digit := base64Decode[c]
+			if digit < 0 {
+				return nil, fmt.Errorf("sourcemap: invalid base64 char %q in VLQ", c)
+			}
+			value |= (digit & 0x1f) << shift
+			shift += 5
+			if digit&0x20 == 0 {
+				break
+			}
+		}
+		// Sign bit is in the LSB
+		if value&1 != 0 {
+			value = -(value >> 1)
+		} else {
+			value = value >> 1
+		}
+		values = append(values, value)
+	}
+	return values, nil
+}
+
+// base64Decode maps base64 characters to their 6-bit values. -1 = invalid.
+var base64Decode [256]int
+
+func init() {
+	for i := range base64Decode {
+		base64Decode[i] = -1
+	}
+	for i, c := range base64Chars {
+		base64Decode[c] = i
+	}
 }

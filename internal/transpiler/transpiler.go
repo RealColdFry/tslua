@@ -3,6 +3,7 @@ package transpiler
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"math"
 	"path/filepath"
@@ -160,6 +161,18 @@ func (t *Transpiler) setNodePos(luaNode lua.Positioned, tsNode *ast.Node) {
 	pos := scanner.SkipTrivia(t.sourceFile.Text(), tsNode.Pos())
 	line, col := scanner.GetECMALineAndUTF16CharacterOfPosition(t.sourceFile, pos)
 	luaNode.SetSourcePos(line, int(col))
+}
+
+// setNodePosNamed sets source position and original name on a Lua node.
+// Used when an identifier is renamed (e.g. reserved word "type" → "____type").
+func (t *Transpiler) setNodePosNamed(luaNode lua.Positioned, tsNode *ast.Node, originalName string) {
+	t.setNodePos(luaNode, tsNode)
+	if !t.sourceMapEnabled || tsNode == nil {
+		return
+	}
+	if id, ok := luaNode.(*lua.Identifier); ok {
+		id.Pos.SourceName = originalName
+	}
 }
 
 // nextTemp generates a unique temporary variable name.
@@ -342,6 +355,8 @@ type TranspileOptions struct {
 	LualibInlineContent       string                  // lualib bundle content for inline mode (full bundle fallback)
 	LualibFeatureData         *lualibinfo.FeatureData // per-feature data for selective inline mode
 	SourceMap                 bool                    // generate source maps
+	SourceMapTraceback        bool                    // register source maps at runtime for debug.traceback rewriting
+	InlineSourceMap           bool                    // embed source map as base64 data: URL in Lua output
 	Trace                     bool                    // emit --[[trace: ...]] comments showing which TS node produced each Lua statement
 	ClassStyle                ClassStyle              // alternative class emit style (default: TSTL prototype chains)
 }
@@ -421,6 +436,12 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 			traceEnabled:              opts.Trace,
 			removeComments:            program.Options() != nil && program.Options().RemoveComments.IsTrue(),
 		}
+		// sourceMapTraceback requires the lualib feature — must be registered
+		// before transformation so the import gets included in the AST output.
+		if opts.SourceMapTraceback {
+			t.requireLualib("__TS__SourceMapTraceBack")
+		}
+
 		tTransform := time.Now()
 		luaAST := t.transformSourceFileAST(sf)
 		transformDur := time.Since(tTransform)
@@ -435,6 +456,17 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 			printResult := lua.PrintStatementsWithSourceMap(luaAST, t.luaTarget.AllowsUnicodeIds())
 			luaCode = printResult.Code
 			sourceMapJSON = t.buildSourceMap(fileName, sf, printResult.Mappings)
+
+			if opts.SourceMapTraceback {
+				tracebackCall := buildSourceMapTracebackCall(printResult.Mappings)
+				luaCode = insertAfterLualibImports(luaCode, tracebackCall)
+			}
+
+			if opts.InlineSourceMap {
+				inlineComment := "--# sourceMappingURL=data:application/json;base64," +
+					base64.StdEncoding.EncodeToString([]byte(sourceMapJSON)) + "\n"
+				luaCode += "\n" + inlineComment
+			}
 		} else {
 			luaCode = lua.PrintStatements(luaAST, t.luaTarget.AllowsUnicodeIds())
 		}
@@ -472,17 +504,138 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 // buildSourceMap converts printer mappings into a V3 source map JSON string.
 func (t *Transpiler) buildSourceMap(fileName string, sf *ast.SourceFile, mappings []lua.Mapping) string {
 	luaFile := strings.TrimSuffix(filepath.Base(fileName), filepath.Ext(fileName)) + ".lua"
-	gen := sourcemap.NewGenerator(luaFile, "")
 
-	// Compute relative path from output to source
-	srcPath := filepath.Base(fileName)
+	// Normalize sourceRoot: strip trailing slashes, append "/"
+	var sourceRoot string
+	if t.compilerOptions != nil && t.compilerOptions.SourceRoot != "" {
+		sr := t.compilerOptions.SourceRoot
+		sr = strings.TrimRight(sr, "/\\")
+		sourceRoot = sr + "/"
+	}
+	gen := sourcemap.NewGenerator(luaFile, sourceRoot)
+
+	// Compute relative path from output directory to source file.
+	// With outDir, the .lua file lands in outDir (preserving directory structure
+	// relative to rootDir), so we need the path from there back to the source.
+	srcPath := t.sourceMapRelativePath(fileName)
 	srcIdx := gen.AddSource(srcPath)
 	gen.SetSourceContent(srcIdx, sf.Text())
 
 	for _, m := range mappings {
-		gen.AddMapping(m.GenLine, m.GenCol, srcIdx, m.SrcLine, m.SrcCol)
+		if m.Name != "" {
+			gen.AddNamedMapping(m.GenLine, m.GenCol, srcIdx, m.SrcLine, m.SrcCol, m.Name)
+		} else {
+			gen.AddMapping(m.GenLine, m.GenCol, srcIdx, m.SrcLine, m.SrcCol)
+		}
 	}
 	return gen.String()
+}
+
+// sourceMapRelativePath computes the relative path from the output .lua file's
+// directory back to the source .ts file. This matches TSTL's behavior:
+//
+//	path.relative(path.dirname(luaOutputPath), tsSourcePath)
+//
+// With outDir/rootDir, the .lua file's directory changes, so the relative path
+// adjusts accordingly (e.g. "../src/foo.ts" when outDir="dst" and source is in "src/").
+func (t *Transpiler) sourceMapRelativePath(fileName string) string {
+	// Determine the output directory for this file.
+	// Without outDir, source and output are in the same directory → just basename.
+	outDir := ""
+	rootDir := ""
+	if t.compilerOptions != nil {
+		outDir = t.compilerOptions.OutDir
+		rootDir = t.compilerOptions.RootDir
+	}
+
+	if outDir == "" {
+		return filepath.Base(fileName)
+	}
+
+	// Resolve outDir relative to sourceRoot (project root)
+	if !filepath.IsAbs(outDir) {
+		outDir = filepath.Join(t.sourceRoot, outDir)
+	}
+
+	// Compute the subdirectory structure: strip rootDir (or sourceRoot) prefix from fileName.
+	// e.g. fileName="/proj/src/sub/foo.ts", rootDir="/proj/src" → subPath="sub/foo.ts"
+	baseDir := t.sourceRoot
+	if rootDir != "" {
+		if !filepath.IsAbs(rootDir) {
+			baseDir = filepath.Join(t.sourceRoot, rootDir)
+		} else {
+			baseDir = rootDir
+		}
+	}
+	subPath, err := filepath.Rel(baseDir, fileName)
+	if err != nil {
+		return filepath.Base(fileName)
+	}
+
+	// The output file would be at: outDir/subPath (with .lua extension).
+	// We want: relative(dirname(outDir/subPath), fileName)
+	outputFile := filepath.Join(outDir, subPath)
+	rel, err := filepath.Rel(filepath.Dir(outputFile), fileName)
+	if err != nil {
+		return filepath.Base(fileName)
+	}
+	return filepath.ToSlash(rel)
+}
+
+// buildSourceMapTracebackCall builds the Lua statement that registers line→line
+// source map data at runtime for debug.traceback rewriting.
+// Produces: __TS__SourceMapTraceBack(debug.getinfo(1).short_src, {["1"] = 3, ["5"] = 7, ...});
+func buildSourceMapTracebackCall(mappings []lua.Mapping) string {
+	// Build genLine → min(srcLine) map. Source map lines are 0-based;
+	// the Lua runtime traceback table uses 1-based lines.
+	lineMap := make(map[int]int)
+	for _, m := range mappings {
+		genLine1 := m.GenLine + 1
+		srcLine1 := m.SrcLine + 1
+		if existing, ok := lineMap[genLine1]; !ok || srcLine1 < existing {
+			lineMap[genLine1] = srcLine1
+		}
+	}
+
+	// Sort keys for deterministic output
+	keys := make([]int, 0, len(lineMap))
+	for k := range lineMap {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+
+	var b strings.Builder
+	b.WriteString("__TS__SourceMapTraceBack(debug.getinfo(1).short_src, {")
+	for i, k := range keys {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		fmt.Fprintf(&b, "[%q] = %d", strconv.Itoa(k), lineMap[k])
+	}
+	b.WriteString("});\n")
+	return b.String()
+}
+
+// insertAfterLualibImports inserts text after the lualib import block in Lua code.
+// Looks for the last line starting with "local __" (lualib destructured imports)
+// or "local ____lualib" and inserts after it. Falls back to prepending.
+func insertAfterLualibImports(luaCode string, insertion string) string {
+	lines := strings.Split(luaCode, "\n")
+	insertIdx := 0
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "local ____lualib") ||
+			strings.HasPrefix(trimmed, "local __TS__") ||
+			strings.HasPrefix(trimmed, "local __") && strings.Contains(trimmed, "____lualib.") {
+			insertIdx = i + 1
+		}
+	}
+	// Insert after the identified line
+	result := make([]string, 0, len(lines)+1)
+	result = append(result, lines[:insertIdx]...)
+	result = append(result, insertion)
+	result = append(result, lines[insertIdx:]...)
+	return strings.Join(result, "\n")
 }
 
 // lualibFeatureExports maps each multi-export lualib feature to its full export list.
@@ -705,11 +858,14 @@ func (t *Transpiler) transformJSONSourceFile(sf *ast.SourceFile) []lua.Statement
 // transformStatement dispatches a statement node to the appropriate handler.
 func (t *Transpiler) transformStatement(node *ast.Node) (result []lua.Statement) {
 	// Set source position on the first result statement for source map generation.
+	// Only sets position if the transform function didn't already set one (fallback).
 	if t.sourceMapEnabled {
 		defer func() {
 			if len(result) > 0 {
-				if p, ok := result[0].(lua.Positioned); ok {
-					t.setNodePos(p, node)
+				if n, ok := result[0].(lua.Node); ok && !n.SourcePosition().HasPos {
+					if p, ok := result[0].(lua.Positioned); ok {
+						t.setNodePos(p, node)
+					}
 				}
 			}
 		}()
@@ -1355,11 +1511,14 @@ func identExprs(idents []*lua.Identifier) []lua.Expression {
 
 func (t *Transpiler) transformExpression(node *ast.Node) (result lua.Expression) {
 	// Set source position on the result expression for source map generation.
+	// Only sets position if the transform function didn't already set one (fallback).
 	if t.sourceMapEnabled {
 		defer func() {
 			if result != nil {
-				if p, ok := result.(lua.Positioned); ok {
-					t.setNodePos(p, node)
+				if n, ok := result.(lua.Node); ok && !n.SourcePosition().HasPos {
+					if p, ok := result.(lua.Positioned); ok {
+						t.setNodePos(p, node)
+					}
 				}
 			}
 		}()
@@ -1434,6 +1593,7 @@ func (t *Transpiler) transformExpression(node *ast.Node) (result lua.Expression)
 		if result := t.checkExtensionIdentifier(node, text); result != nil {
 			return result
 		}
+		originalText := text
 		text = t.resolveIdentifierName(node, text)
 		// Check @customName annotation on the symbol's declaration
 		if t.checker != nil {
@@ -1456,7 +1616,11 @@ func (t *Transpiler) transformExpression(node *ast.Node) (result lua.Expression)
 				return lua.Index(lua.Ident("____exports"), lua.Str(node.AsIdentifier().Text))
 			}
 		}
-		return lua.Ident(text)
+		ident := lua.Ident(text)
+		if text != originalText {
+			t.setNodePosNamed(ident, node, originalText)
+		}
+		return ident
 	case ast.KindBinaryExpression:
 		return t.transformBinaryExpression(node)
 	case ast.KindCallExpression:
@@ -1494,7 +1658,9 @@ func (t *Transpiler) transformExpression(node *ast.Node) (result lua.Expression)
 	case ast.KindSpreadElement:
 		return t.transformSpreadElement(node)
 	case ast.KindThisKeyword:
-		return lua.Ident("self")
+		selfIdent := lua.Ident("self")
+		t.setNodePosNamed(selfIdent, node, "this")
+		return selfIdent
 	case ast.KindNewExpression:
 		return t.transformNewExpression(node)
 	case ast.KindArrowFunction:

@@ -99,9 +99,10 @@ const (
 // SourcePos records the original TypeScript source position for source map generation.
 // Zero value (HasPos == false) means "no position".
 type SourcePos struct {
-	Line   int  // 0-based line in TS source
-	Column int  // 0-based UTF-16 column offset
-	HasPos bool // true if this position was set
+	Line       int    // 0-based line in TS source
+	Column     int    // 0-based UTF-16 column offset
+	HasPos     bool   // true if this position was set
+	SourceName string // original TS name when the identifier was renamed (e.g. "type" → "____type")
 }
 
 // Positioned is implemented by all expression and statement nodes.
