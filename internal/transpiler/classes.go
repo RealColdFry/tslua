@@ -282,21 +282,36 @@ func (t *Transpiler) transformClassDeclaration(node *ast.Node) []lua.Statement {
 			classInitExpr = lua.Call(lua.Ident(classNew))
 		}
 
+		// Create class name identifier with source position for source maps.
+		// When the class name was renamed (e.g. $$$ → ____24__24__24_), the
+		// identifier carries the original name for name mapping.
+		classNameIdent := lua.Ident(name)
+		if cd.Name() != nil && name != origName {
+			t.setNodePosNamed(classNameIdent, cd.Name(), origName)
+		} else if cd.Name() != nil {
+			t.setNodePos(classNameIdent, cd.Name())
+		}
+
 		if isExported && t.isExportAsGlobalTopLevel() {
-			result = append(result, lua.Assign(
-				[]lua.Expression{lua.Ident(name)},
-				[]lua.Expression{classInitExpr},
-			))
-		} else if isExported {
-			result = append(result, lua.Assign(
-				[]lua.Expression{lua.Index(lua.Ident(exportTarget), lua.Str(exportKey))},
-				[]lua.Expression{classInitExpr},
-			))
-		} else if t.shouldUseLocalDeclaration() {
-			decl := lua.LocalDecl(
-				[]*lua.Identifier{lua.Ident(name)},
+			initStmt := lua.Assign(
+				[]lua.Expression{classNameIdent},
 				[]lua.Expression{classInitExpr},
 			)
+			t.setNodePos(initStmt, node)
+			result = append(result, initStmt)
+		} else if isExported {
+			initStmt := lua.Assign(
+				[]lua.Expression{lua.Index(lua.Ident(exportTarget), lua.Str(exportKey))},
+				[]lua.Expression{classInitExpr},
+			)
+			t.setNodePos(initStmt, node)
+			result = append(result, initStmt)
+		} else if t.shouldUseLocalDeclaration() {
+			decl := lua.LocalDecl(
+				[]*lua.Identifier{classNameIdent},
+				[]lua.Expression{classInitExpr},
+			)
+			t.setNodePos(decl, node)
 			if t.inScope() {
 				var symID SymbolID
 				if t.checker != nil && cd.Name() != nil {
@@ -308,10 +323,12 @@ func (t *Transpiler) transformClassDeclaration(node *ast.Node) []lua.Statement {
 			}
 			result = append(result, decl)
 		} else {
-			result = append(result, lua.Assign(
-				[]lua.Expression{lua.Ident(name)},
+			initStmt := lua.Assign(
+				[]lua.Expression{classNameIdent},
 				[]lua.Expression{classInitExpr},
-			))
+			)
+			t.setNodePos(initStmt, node)
+			result = append(result, initStmt)
 		}
 
 		var classRef lua.Expression = lua.Ident(name)
@@ -325,18 +342,32 @@ func (t *Transpiler) transformClassDeclaration(node *ast.Node) []lua.Statement {
 		}
 
 		if !cs.isTSTL() {
-			result = append(result, lua.Assign(
+			nameStmt := lua.Assign(
 				[]lua.Expression{lua.Index(classRef, lua.Str("__name"))},
 				[]lua.Expression{lua.Str(origName)},
-			))
+			)
+			t.setNodePos(nameStmt, node)
+			result = append(result, nameStmt)
 		} else {
-			result = append(result, lua.Assign(
+			nameStmt := lua.Assign(
 				[]lua.Expression{memberAccess(classRef, "name")},
 				[]lua.Expression{lua.Str(origName)},
-			))
+			)
+			t.setNodePos(nameStmt, node)
+			result = append(result, nameStmt)
 			if baseExpr != nil {
 				classExtends := t.requireLualib("__TS__ClassExtends")
-				result = append(result, lua.ExprStmt(lua.Call(lua.Ident(classExtends), classRef, baseExpr)))
+				extendsStmt := lua.ExprStmt(lua.Call(lua.Ident(classExtends), classRef, baseExpr))
+				// Position extends call at the "extends" keyword in the heritage clause
+				if cd.HeritageClauses != nil {
+					for _, hclause := range cd.HeritageClauses.Nodes {
+						if hclause.AsHeritageClause().Token == ast.KindExtendsKeyword {
+							t.setNodePos(extendsStmt, hclause)
+							break
+						}
+					}
+				}
+				result = append(result, extendsStmt)
 			}
 		}
 
@@ -490,7 +521,17 @@ func (t *Transpiler) transformClassMembersShared(node *ast.Node, classRef lua.Ex
 		}
 	}
 	if constructor != nil || hasInstanceFieldInits || !hasBase {
-		result = append(result, t.transformClassConstructor(classRef, constructor, instanceFields, hasBase)...)
+		ctorStmts := t.transformClassConstructor(classRef, constructor, instanceFields, hasBase)
+		// Set source position: explicit constructor maps to the constructor node,
+		// implicit (generated) constructor maps to the class declaration node.
+		if len(ctorStmts) > 0 {
+			posNode := node // class declaration
+			if constructor != nil {
+				posNode = constructor
+			}
+			t.setNodePos(ctorStmts[0].(lua.Positioned), posNode)
+		}
+		result = append(result, ctorStmts...)
 	}
 
 	// Legacy constructor parameter decorators

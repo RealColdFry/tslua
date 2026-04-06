@@ -16,12 +16,12 @@ lua-setup:
 
 # Build the tslua binary
 build:
-    go build -o tslua ./cmd/tslua/
+    go build -ldflags="-s -w" -o tslua ./cmd/tslua/
 
 # Build WASM and copy to website/src/assets/wasm (Vite fingerprints these)
 wasm:
     mkdir -p website/src/assets/wasm
-    GOOS=js GOARCH=wasm go build -o website/src/assets/wasm/tslua.wasm ./cmd/wasm/
+    GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o website/src/assets/wasm/tslua.wasm ./cmd/wasm/
     cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" website/src/assets/wasm/
 
 # Run tslua on a project (pass args after --)
@@ -172,6 +172,28 @@ tstl-reset:
 # Apply TSTL patches (unmerged PRs) on top of submodule
 tstl-patches:
     ./scripts/apply-tstl-patches.sh
+
+# Apply GitHub ruleset from .github/rulesets/protect-main.json
+ruleset action="sync":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    repo="RealColdFry/tslua"
+    file=".github/rulesets/protect-main.json"
+    if [[ "{{ action }}" == "sync" ]]; then
+        id=$(gh api "repos/$repo/rulesets" --jq '.[0].id // empty' 2>/dev/null || true)
+        if [[ -n "$id" ]]; then
+            echo "Updating ruleset $id..."
+            gh api "repos/$repo/rulesets/$id" -X PUT --input "$file"
+        else
+            echo "Creating ruleset..."
+            gh api "repos/$repo/rulesets" -X POST --input "$file"
+        fi
+    elif [[ "{{ action }}" == "list" ]]; then
+        gh api "repos/$repo/rulesets"
+    else
+        echo "Usage: just ruleset [sync|list]"
+        exit 1
+    fi
 
 # Show unmigrated TSTL unit test specs
 unmigrated:

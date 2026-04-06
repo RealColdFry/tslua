@@ -1,0 +1,202 @@
+name: Nightly
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 06:00 UTC daily
+    - cron: "0 6 * * *"
+
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      sha_short: ${{ steps.check.outputs.sha_short }}
+      sha: ${{ steps.check.outputs.sha }}
+      version: ${{ steps.check.outputs.version }}
+      tag: ${{ steps.check.outputs.tag }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Check for new commits and compute version
+        id: check
+        run: |
+          SHA=$(git rev-parse HEAD)
+          SHA_SHORT=$(git rev-parse --short=8 HEAD)
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "sha_short=$SHA_SHORT" >> "$GITHUB_OUTPUT"
+
+          # Version: 0.0.1-dev.N+sha
+          VERSION="0.0.1-dev.${COMMIT_COUNT}+${SHA_SHORT}"
+          TAG="0.0.1-dev.${COMMIT_COUNT}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          # Skip if this commit already has a dev tag
+          EXISTING=$(git tag --points-at HEAD | grep '^0\.0\.1-dev\.' || true)
+          if [ -n "$EXISTING" ]; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "Dev release already exists for HEAD ($SHA_SHORT): $EXISTING"
+          else
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "Will release $VERSION"
+          fi
+
+  ci:
+    needs: check
+    if: needs.check.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify CI passed for commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHA="${{ needs.check.outputs.sha }}"
+          STATUS=$(gh api "repos/${{ github.repository }}/commits/$SHA/status" --jq '.state')
+          if [ "$STATUS" != "success" ]; then
+            echo "::error::CI not passing for $SHA (status: $STATUS)"
+            exit 1
+          fi
+
+  build:
+    needs: [check, ci]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+
+      - name: Init submodules
+        run: |
+          git submodule update --init --depth 1 extern/tsgolint
+          git -C extern/tsgolint submodule update --init --depth 1 typescript-go
+
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: "1.26"
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        shell: bash
+        run: |
+          VERSION="${{ needs.check.outputs.version }}"
+          COMMIT="${{ needs.check.outputs.sha_short }}"
+          EXT=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
+          go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.gitCommit=${COMMIT}" \
+            -o "tslua-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" ./cmd/tslua/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: tslua-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: tslua-*
+
+  release:
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Prepare archives
+        run: |
+          mkdir -p release
+          cd artifacts
+          for bin in tslua-*; do
+            chmod +x "$bin" 2>/dev/null || true
+            if [[ "$bin" == *.exe ]]; then
+              zip "../release/${bin%.exe}.zip" "$bin"
+            else
+              tar czf "../release/${bin}.tar.gz" "$bin"
+            fi
+          done
+          ls -lh ../release/
+
+      - name: Delete previous dev releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release list --json tagName --jq '.[].tagName' | grep '^0\.0\.1-dev\.' | while read -r tag; do
+            echo "Deleting release $tag"
+            gh release delete "$tag" --yes --cleanup-tag || true
+          done
+
+      - name: Create dev release (draft)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ needs.check.outputs.tag }}"
+          VERSION="${{ needs.check.outputs.version }}"
+          SHA_SHORT="${{ needs.check.outputs.sha_short }}"
+          SHA="${{ needs.check.outputs.sha }}"
+          REPO="${{ github.repository }}"
+          RUN_ID="${{ github.run_id }}"
+
+          gh release create "$TAG" release/* \
+            --target main \
+            --title "tslua ${VERSION}" \
+            --prerelease \
+            --draft \
+            --notes "Development build from [\`${SHA_SHORT}\`](https://github.com/${REPO}/commit/${SHA}) · [CI run](https://github.com/${REPO}/actions/runs/${RUN_ID})
+
+          > [!WARNING]
+          > Dev builds are automated snapshots. Use at your own risk.
+
+          ### Install
+
+          \`\`\`bash
+          # macOS (Apple Silicon)
+          curl -fsSL https://github.com/${REPO}/releases/download/${TAG}/tslua-darwin-arm64.tar.gz | tar xz
+
+          # Linux (x86_64)
+          curl -fsSL https://github.com/${REPO}/releases/download/${TAG}/tslua-linux-amd64.tar.gz | tar xz
+          \`\`\`"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sleep 3
+          gh release edit "${{ needs.check.outputs.tag }}" --draft=false

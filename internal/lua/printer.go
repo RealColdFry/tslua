@@ -143,10 +143,11 @@ func isRightAssociative(op Operator) bool {
 
 // Mapping records a single source map mapping entry.
 type Mapping struct {
-	GenLine int // 0-based generated line
-	GenCol  int // 0-based generated column (bytes)
-	SrcLine int // 0-based source line
-	SrcCol  int // 0-based source column (UTF-16)
+	GenLine int    // 0-based generated line
+	GenCol  int    // 0-based generated column (bytes)
+	SrcLine int    // 0-based source line
+	SrcCol  int    // 0-based source column (UTF-16)
+	Name    string // original TS name (empty if no rename)
 }
 
 // Printer converts Lua AST nodes to formatted source code.
@@ -264,6 +265,7 @@ func (p *Printer) emitMapping(node Node) {
 		GenCol:  p.genCol,
 		SrcLine: pos.Line,
 		SrcCol:  pos.Column,
+		Name:    pos.SourceName,
 	})
 }
 
@@ -361,6 +363,7 @@ func (p *Printer) printVariableDeclaration(s *VariableDeclarationStatement) {
 		if i > 0 {
 			p.write(", ")
 		}
+		p.emitMapping(id)
 		p.write(id.Text)
 	}
 	if len(s.Right) > 0 {
@@ -474,6 +477,7 @@ func (p *Printer) printForInStatement(s *ForInStatement) {
 		if i > 0 {
 			p.write(", ")
 		}
+		p.emitMapping(name)
 		p.write(name.Text)
 	}
 	p.write(" in ")
@@ -704,6 +708,7 @@ func (p *Printer) printFunctionExpression(e *FunctionExpression) {
 		if i > 0 {
 			p.write(", ")
 		}
+		p.emitMapping(param)
 		p.write(param.Text)
 	}
 	if e.Dots {
@@ -751,6 +756,7 @@ func (p *Printer) printFunctionDefinition(prefix, name string, fe *FunctionExpre
 		if i > 0 {
 			p.write(", ")
 		}
+		p.emitMapping(param)
 		p.write(param.Text)
 	}
 	if fe.Dots {

@@ -94,6 +94,7 @@ func (t *Transpiler) transformImportDeclaration(node *ast.Node) []lua.Statement 
 	specText := importDecl.ModuleSpecifier.AsStringLiteral().Text
 	modulePath := t.resolveModulePath(importDecl.ModuleSpecifier)
 	requireCall := lua.Call(lua.Ident("require"), lua.Str(modulePath))
+	t.setNodePos(requireCall, importDecl.ModuleSpecifier)
 
 	var result []lua.Statement
 
@@ -136,7 +137,9 @@ func (t *Transpiler) transformImportDeclaration(node *ast.Node) []lua.Statement 
 					name = luaSafeName(name)
 				}
 				// Namespace import uses require directly as the variable
-				result = append(result, lua.LocalDecl([]*lua.Identifier{lua.Ident(name)}, []lua.Expression{requireCall}))
+				nsDecl := lua.LocalDecl([]*lua.Identifier{lua.Ident(name)}, []lua.Expression{requireCall})
+				t.setNodePos(nsDecl, ns.Name())
+				result = append(result, nsDecl)
 				usingRequire = true
 			}
 
@@ -214,10 +217,12 @@ func (t *Transpiler) transformNamedBindings(bindings *ast.Node, requireVar strin
 				}
 			}
 		}
-		result = append(result, lua.LocalDecl(
+		bindingDecl := lua.LocalDecl(
 			[]*lua.Identifier{lua.Ident(safeLocalName)},
 			[]lua.Expression{lua.Index(lua.Ident(requireVar), lua.Str(remoteName))},
-		))
+		)
+		t.setNodePos(bindingDecl, spec)
+		result = append(result, bindingDecl)
 	}
 	return result
 }
@@ -531,7 +536,17 @@ func (t *Transpiler) transformModuleDeclaration(node *ast.Node) []lua.Statement 
 		return nil
 	}
 	name := t.createModuleLocalNameIdentifier(node)
+	origNsName := md.Name().AsIdentifier().Text
 	isExported := hasExportModifier(node)
+
+	// nsIdent creates a namespace name identifier with source map position and name.
+	nsIdent := func() *lua.Identifier {
+		id := lua.Ident(name)
+		if name != origNsName {
+			t.setNodePosNamed(id, md.Name(), origNsName)
+		}
+		return id
+	}
 
 	// Check if this is the first declaration of this namespace (supports merging)
 	isFirst := t.isFirstDeclaration(node, md.Name())
@@ -574,7 +589,7 @@ func (t *Transpiler) transformModuleDeclaration(node *ast.Node) []lua.Statement 
 			result = append(result, decl)
 		} else if t.shouldUseLocalDeclaration() {
 			decl := lua.LocalDecl(
-				[]*lua.Identifier{lua.Ident(name)},
+				[]*lua.Identifier{nsIdent()},
 				[]lua.Expression{lua.Binary(lua.Ident(name), lua.OpOr, lua.Table())},
 			)
 			// Register for hoisting consideration
@@ -588,22 +603,22 @@ func (t *Transpiler) transformModuleDeclaration(node *ast.Node) []lua.Statement 
 		} else {
 			// Global namespace: use mergeable pattern A = A or ({})
 			result = append(result, lua.Assign(
-				[]lua.Expression{lua.Ident(name)},
+				[]lua.Expression{nsIdent()},
 				[]lua.Expression{lua.Binary(lua.Ident(name), lua.OpOr, lua.Table())},
 			))
 		}
 	} else if isFirst {
 		// Module context: only emit on first declaration
 		if hasExportTarget {
-			origName := md.Name().AsIdentifier().Text
+			origNameStr := md.Name().AsIdentifier().Text
 			result = append(result, lua.Assign(
-				[]lua.Expression{lua.Index(exportTarget, lua.Str(origName))},
+				[]lua.Expression{lua.Index(exportTarget, lua.Str(origNameStr))},
 				[]lua.Expression{lua.Table()},
 			))
 			// Local alias — register for hoisting
 			decl := lua.LocalDecl(
-				[]*lua.Identifier{lua.Ident(name)},
-				[]lua.Expression{lua.Index(exportTarget, lua.Str(origName))},
+				[]*lua.Identifier{nsIdent()},
+				[]lua.Expression{lua.Index(exportTarget, lua.Str(origNameStr))},
 			)
 			if t.inScope() && t.checker != nil {
 				if sym := t.checker.GetSymbolAtLocation(md.Name()); sym != nil {
@@ -614,7 +629,7 @@ func (t *Transpiler) transformModuleDeclaration(node *ast.Node) []lua.Statement 
 			result = append(result, decl)
 		} else {
 			decl := lua.LocalDecl(
-				[]*lua.Identifier{lua.Ident(name)},
+				[]*lua.Identifier{nsIdent()},
 				[]lua.Expression{lua.Table()},
 			)
 			if t.inScope() && t.checker != nil {

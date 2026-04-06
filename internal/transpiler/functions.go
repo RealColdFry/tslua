@@ -925,7 +925,8 @@ func (t *Transpiler) transformParamIdentsWithContextName(params *ast.NodeList, c
 	if params != nil {
 		for _, p := range params.Nodes {
 			param := p.AsParameterDeclaration()
-			name := t.paramName(param.Name())
+			nameNode := param.Name()
+			name := t.paramName(nameNode)
 			if name == "this" {
 				continue
 			}
@@ -933,7 +934,15 @@ func (t *Transpiler) transformParamIdentsWithContextName(params *ast.NodeList, c
 				hasRest = true
 				continue // don't add to param list — will be `...`
 			}
-			idents = append(idents, lua.Ident(name))
+			ident := lua.Ident(name)
+			// Track renamed parameters for source maps
+			if nameNode.Kind == ast.KindIdentifier {
+				origName := nameNode.AsIdentifier().Text
+				if name != origName {
+					t.setNodePosNamed(ident, nameNode, origName)
+				}
+			}
+			idents = append(idents, ident)
 		}
 	}
 	return

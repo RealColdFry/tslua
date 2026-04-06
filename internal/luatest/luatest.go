@@ -177,6 +177,9 @@ type Opts struct {
 	ExportAsGlobal            bool
 	NoImplicitGlobalVariables bool
 	ClassStyle                transpiler.ClassStyle // alternative class emit style
+	SourceMap                 bool                  // enable source map generation
+	SourceMapTraceback        bool                  // register source maps at runtime for debug.traceback
+	InlineSourceMap           bool                  // embed source map as base64 in Lua output
 	LuaPreamble               string                // Lua code prepended before main module (e.g. mock runtime)
 	MainFileName              string                // override main file name (default "main.ts", use "main.tsx" for JSX)
 	CompilerOptions           map[string]any        // extra tsconfig compilerOptions
@@ -191,6 +194,7 @@ type Opts struct {
 type TranspileResult struct {
 	FileName   string
 	Lua        string
+	SourceMap  string // V3 source map JSON (empty if source maps disabled)
 	UsesLualib bool
 }
 
@@ -248,6 +252,9 @@ func TranspileTS(t *testing.T, tsCode string, opts Opts) []TranspileResult {
 		ExportAsGlobal:            opts.ExportAsGlobal,
 		NoImplicitGlobalVariables: opts.NoImplicitGlobalVariables,
 		ClassStyle:                opts.ClassStyle,
+		SourceMap:                 opts.SourceMap || opts.SourceMapTraceback || opts.InlineSourceMap,
+		SourceMapTraceback:        opts.SourceMapTraceback,
+		InlineSourceMap:           opts.InlineSourceMap,
 	})
 	_ = tsDiags
 
@@ -257,6 +264,7 @@ func TranspileTS(t *testing.T, tsCode string, opts Opts) []TranspileResult {
 		results = append(results, TranspileResult{
 			FileName:   rel,
 			Lua:        r.Lua,
+			SourceMap:  r.SourceMap,
 			UsesLualib: r.UsesLualib,
 		})
 	}

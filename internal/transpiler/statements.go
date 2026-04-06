@@ -52,13 +52,35 @@ func (t *Transpiler) transformVariableStatement(node *ast.Node) []lua.Statement 
 		default:
 			name := nameNode.AsIdentifier().Text
 			safeName := name
+			wasRenamed := false
 			if customName != "" {
 				name = customName
 				safeName = customName
 			}
 			if t.hasUnsafeIdentifierName(nameNode) {
 				safeName = luaSafeName(name)
+				wasRenamed = true
 			}
+
+			// setVarPos sets source position (and original name if renamed) on a variable declaration.
+			setVarPos := func(luaNode lua.Positioned) {
+				t.setNodePos(luaNode, decl)
+				if wasRenamed {
+					if s, ok := luaNode.(interface{ SourcePosition() lua.SourcePos }); ok {
+						pos := s.SourcePosition()
+						pos.SourceName = name
+						luaNode.SetSourcePos(pos.Line, pos.Column)
+						// Set SourceName directly on the underlying struct
+						switch n := luaNode.(type) {
+						case *lua.VariableDeclarationStatement:
+							n.Pos.SourceName = name
+						case *lua.AssignmentStatement:
+							n.Pos.SourceName = name
+						}
+					}
+				}
+			}
+			_ = setVarPos // used in branches below
 
 			// Register the LHS symbol BEFORE transforming the initializer.
 			// This is the first "reference" for hasMultipleReferences counting;
@@ -93,10 +115,12 @@ func (t *Transpiler) transformVariableStatement(node *ast.Node) []lua.Statement 
 					if rhs == nil {
 						rhs = lua.Nil()
 					}
-					result = append(result, lua.LocalDecl(
+					stmt := lua.LocalDecl(
 						[]*lua.Identifier{lua.Ident(safeName)},
 						[]lua.Expression{rhs},
-					))
+					)
+					setVarPos(stmt)
+					result = append(result, stmt)
 				} else {
 					exportTarget := "____exports"
 					if t.currentNamespace != "" {
@@ -106,10 +130,12 @@ func (t *Transpiler) transformVariableStatement(node *ast.Node) []lua.Statement 
 					if rhs == nil {
 						rhs = lua.Nil()
 					}
-					result = append(result, lua.Assign(
+					stmt := lua.Assign(
 						[]lua.Expression{lua.Index(lua.Ident(exportTarget), lua.Str(name))},
 						[]lua.Expression{rhs},
-					))
+					)
+					setVarPos(stmt)
+					result = append(result, stmt)
 				}
 			} else if t.shouldUseLocalDeclaration() {
 				// Centralized declaration splitting via hasMultipleReferences.
@@ -129,24 +155,27 @@ func (t *Transpiler) transformVariableStatement(node *ast.Node) []lua.Statement 
 						insertIdx = 0
 					}
 					result = append(result[:insertIdx], append([]lua.Statement{precedingDecl}, result[insertIdx:]...)...)
-					result = append(result, lua.Assign(
+					assignStmt := lua.Assign(
 						[]lua.Expression{lua.Ident(safeName)},
 						[]lua.Expression{initExpr},
-					))
+					)
+					setVarPos(assignStmt)
+					result = append(result, assignStmt)
 					t.addScopeVariableDeclaration(precedingDecl, symID)
 				} else {
 					var vals []lua.Expression
 					if initExpr != nil {
 						vals = []lua.Expression{initExpr}
 					}
-					decl := lua.LocalDecl(
+					stmt := lua.LocalDecl(
 						[]*lua.Identifier{lua.Ident(safeName)},
 						vals,
 					)
+					setVarPos(stmt)
 					if t.inScope() {
-						t.addScopeVariableDeclaration(decl, symID)
+						t.addScopeVariableDeclaration(stmt, symID)
 					}
-					result = append(result, decl)
+					result = append(result, stmt)
 				}
 			} else {
 				// Script top-level: global
@@ -154,10 +183,12 @@ func (t *Transpiler) transformVariableStatement(node *ast.Node) []lua.Statement 
 				if rhs == nil {
 					rhs = lua.Nil()
 				}
-				result = append(result, lua.Assign(
+				stmt := lua.Assign(
 					[]lua.Expression{lua.Ident(safeName)},
 					[]lua.Expression{rhs},
-				))
+				)
+				setVarPos(stmt)
+				result = append(result, stmt)
 			}
 		}
 	}
@@ -1594,6 +1625,13 @@ func asIncrementDecrement(node *ast.Node) (operand *ast.Node, op ast.Kind, ok bo
 // For property/element access, caches obj/index to avoid double evaluation.
 func (t *Transpiler) transformIncrementDecrementStmt(operandNode *ast.Node, op ast.Kind) []lua.Statement {
 	operand, prec := t.transformExprInScope(operandNode)
+	// Clear source position on the operand — the surrounding statement
+	// carries the full increment/decrement expression position. Without this,
+	// the operand's position (e.g., "i" in "++i") would shadow the statement
+	// position in source map lookups.
+	if id, ok := operand.(*lua.Identifier); ok {
+		id.Pos = lua.SourcePos{}
+	}
 	var binOp lua.Operator
 	if op == ast.KindPlusPlusToken {
 		binOp = lua.OpAdd
