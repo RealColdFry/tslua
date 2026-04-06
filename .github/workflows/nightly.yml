@@ -37,8 +37,8 @@ jobs:
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "sha_short=$SHA_SHORT" >> "$GITHUB_OUTPUT"
 
-          # Version: 0.0.1-dev.N+sha
-          VERSION="0.0.1-dev.${COMMIT_COUNT}+${SHA_SHORT}"
+          # Version: 0.0.1-dev.N (sha shown separately in CLI output)
+          VERSION="0.0.1-dev.${COMMIT_COUNT}"
           TAG="0.0.1-dev.${COMMIT_COUNT}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
