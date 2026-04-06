@@ -16,12 +16,12 @@ lua-setup:
 
 # Build the tslua binary
 build:
-    go build -o tslua ./cmd/tslua/
+    go build -ldflags="-s -w" -o tslua ./cmd/tslua/
 
 # Build WASM and copy to website/src/assets/wasm (Vite fingerprints these)
 wasm:
     mkdir -p website/src/assets/wasm
-    GOOS=js GOARCH=wasm go build -o website/src/assets/wasm/tslua.wasm ./cmd/wasm/
+    GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o website/src/assets/wasm/tslua.wasm ./cmd/wasm/
     cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" website/src/assets/wasm/
 
 # Run tslua on a project (pass args after --)
