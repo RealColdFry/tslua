@@ -1,0 +1,24 @@
+From ad43a8106aa8eadb74c08a68f8dd1dd86b4c9683 Mon Sep 17 00:00:00 2001
+From: Cold Fry <coldfry.business@gmail.com>
+Date: Thu, 2 Apr 2026 23:20:42 +0100
+Subject: [PATCH 8/9] add comment explaining preload.d.ts addition
+
+---
+ test/transpile/module-resolution.spec.ts | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/test/transpile/module-resolution.spec.ts b/test/transpile/module-resolution.spec.ts
+index 618eea5..58f8df1 100644
+--- a/test/transpile/module-resolution.spec.ts
++++ b/test/transpile/module-resolution.spec.ts
+@@ -470,6 +470,7 @@ describe("module resolution should not try to resolve modules in noResolvePaths"
+                     export function foo(): void;
+                 }`
+             )
++            // TS 6.0 noUncheckedSideEffectImports requires declaration for "preload" module
+             .addExtraFile("preload.d.ts", `declare module "preload" {}`)
+             .setOptions({ noResolvePaths: ["ignore*"] })
+             .expectToHaveNoDiagnostics()
+-- 
+2.50.1 (Apple Git-155)
+

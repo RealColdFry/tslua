@@ -1,0 +1,535 @@
+package main
+
+import (
+	"bufio"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/bundled"
+	"github.com/microsoft/typescript-go/shim/compiler"
+	"github.com/microsoft/typescript-go/shim/core"
+	dw "github.com/microsoft/typescript-go/shim/diagnosticwriter"
+	"github.com/microsoft/typescript-go/shim/tsoptions"
+	"github.com/microsoft/typescript-go/shim/tspath"
+	"github.com/microsoft/typescript-go/shim/vfs"
+	"github.com/microsoft/typescript-go/shim/vfs/cachedvfs"
+	"github.com/microsoft/typescript-go/shim/vfs/osvfs"
+	"github.com/realcoldfry/tslua/internal/lualib"
+	"github.com/realcoldfry/tslua/internal/transpiler"
+)
+
+type serverRequest struct {
+	// File-based mode: point to a tsconfig on disk
+	Project string `json:"project,omitempty"`
+	Outdir  string `json:"outdir,omitempty"`
+	// Inline mode: send source directly, get Lua back in response
+	Source          string            `json:"source,omitempty"`
+	MainFileName    string            `json:"mainFileName,omitempty"` // override main file name (e.g. "main.tsx" for JSX)
+	ExtraFiles      map[string]string `json:"extraFiles,omitempty"`
+	LuaTarget       string            `json:"luaTarget"`
+	Types           []string          `json:"types,omitempty"`
+	CompilerOptions map[string]any    `json:"compilerOptions,omitempty"`
+}
+
+type serverResponse struct {
+	OK          bool               `json:"ok"`
+	Error       string             `json:"error,omitempty"`
+	Files       map[string]string  `json:"files,omitempty"`
+	Diagnostics []serverDiagnostic `json:"diagnostics,omitempty"`
+}
+
+type serverDiagnostic struct {
+	Code      int32  `json:"code"`
+	Message   string `json:"message"`
+	File      string `json:"file,omitempty"`
+	Line      int    `json:"line,omitempty"`
+	Character int    `json:"character,omitempty"`
+}
+
+func convertDiagnostics(diags []*ast.Diagnostic, baseDir string) []serverDiagnostic {
+	if len(diags) == 0 {
+		return nil
+	}
+	out := make([]serverDiagnostic, len(diags))
+	for i, d := range diags {
+		code, msg := dw.DiagnosticInfo(d)
+		sd := serverDiagnostic{Code: code, Message: msg}
+		if file, line, character, ok := dw.DiagnosticLocation(d); ok {
+			if rel, err := filepath.Rel(baseDir, file); err == nil {
+				file = rel
+			}
+			sd.File = file
+			sd.Line = line
+			sd.Character = character
+		}
+		out[i] = sd
+	}
+	return out
+}
+
+// requestCh serializes requests through a single worker goroutine.
+// If the worker hangs, subsequent requests time out but the server stays alive.
+type serverJob struct {
+	req    serverRequest
+	respCh chan serverResponse
+}
+
+var requestCh chan serverJob
+
+func initRequestWorker() {
+	requestCh = make(chan serverJob, 100)
+	go func() {
+		for job := range requestCh {
+			resp := func() (r serverResponse) {
+				defer func() {
+					if p := recover(); p != nil {
+						fmt.Fprintf(os.Stderr, "tslua server panic: %v\n", p)
+						// Clear cached program but keep projectDir — the directory still exists
+						inlineOldProgram = nil
+						inlineCachedConfig = ""
+						r = serverResponse{Error: fmt.Sprintf("server panic: %v", p)}
+					}
+				}()
+				return handleServerRequest(job.req)
+			}()
+			job.respCh <- resp
+		}
+	}()
+}
+
+func runServer() error {
+	serverDebugTiming = os.Getenv("TSLUA_TIMING") != ""
+	initRequestWorker()
+
+	if socketFlag != "" {
+		return runSocketServer(socketFlag)
+	}
+
+	enc := json.NewEncoder(os.Stdout)
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
+
+	_, _ = fmt.Fprintln(os.Stdout, `{"ready":true}`)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+
+		var req serverRequest
+		if err := json.Unmarshal([]byte(line), &req); err != nil {
+			_ = enc.Encode(serverResponse{Error: fmt.Sprintf("invalid request: %v", err)})
+			continue
+		}
+
+		job := serverJob{req: req, respCh: make(chan serverResponse, 1)}
+		requestCh <- job
+		resp := <-job.respCh
+		_ = enc.Encode(resp)
+	}
+	return scanner.Err()
+}
+
+func runSocketServer(socketPath string) error {
+	// Clean up stale socket
+	_ = os.Remove(socketPath)
+
+	ln, err := net.Listen("unix", socketPath)
+	if err != nil {
+		return fmt.Errorf("listen: %w", err)
+	}
+	defer ln.Close()            //nolint:errcheck
+	defer os.Remove(socketPath) //nolint:errcheck
+
+	// Clean up on signal
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		_ = ln.Close()
+		_ = os.Remove(socketPath)
+		os.Exit(0)
+	}()
+
+	// Do a cold-start transpile to warm the cache before signaling ready.
+	// Don't cache the warmup program — the first real request will set the right compilerOptions.
+	warmupReq := serverRequest{Source: "const __warmup = 0;", LuaTarget: "5.4"}
+	handleServerRequest(warmupReq)
+	inlineOldProgram = nil
+
+	// Signal ready by writing to stdout
+	_, _ = fmt.Fprintln(os.Stdout, `{"ready":true}`)
+
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			return nil // listener closed
+		}
+		go handleSocketConn(conn)
+	}
+}
+
+func handleSocketConn(conn net.Conn) {
+	defer conn.Close() //nolint:errcheck
+	// Set a read/write deadline so a stuck request doesn't block forever
+	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
+
+	body, err := io.ReadAll(conn)
+	if err != nil {
+		_ = json.NewEncoder(conn).Encode(serverResponse{Error: fmt.Sprintf("read: %v", err)})
+		return
+	}
+
+	var req serverRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		_ = json.NewEncoder(conn).Encode(serverResponse{Error: fmt.Sprintf("invalid request: %v", err)})
+		return
+	}
+
+	job := serverJob{req: req, respCh: make(chan serverResponse, 1)}
+	requestCh <- job
+
+	select {
+	case resp := <-job.respCh:
+		_ = json.NewEncoder(conn).Encode(resp)
+	case <-time.After(9 * time.Second):
+		_ = json.NewEncoder(conn).Encode(serverResponse{Error: "request timeout (9s)"})
+	}
+}
+
+func handleServerRequest(req serverRequest) serverResponse {
+	luaTarget := transpiler.LuaTarget(req.LuaTarget)
+	if !transpiler.ValidTarget(req.LuaTarget) {
+		return serverResponse{Error: fmt.Sprintf("unsupported luaTarget: %s", req.LuaTarget)}
+	}
+
+	if req.Project != "" {
+		return handleProjectRequest(req, luaTarget)
+	}
+	return handleInlineRequest(req, luaTarget)
+}
+
+// Cached state for inline requests — reuses Program across requests via UpdateProgram.
+var (
+	inlineProjectDir   string
+	inlineOldProgram   *compiler.Program
+	inlineSourceRoot   string
+	inlineMainPath     tspath.Path // tspath.Path for main.ts
+	inlineCachedConfig string      // serialized compilerOptions+types used to create cached program
+)
+
+func getInlineProjectDir() (string, error) {
+	if inlineProjectDir != "" {
+		return inlineProjectDir, nil
+	}
+	dir, err := os.MkdirTemp("", "tslua-srv-")
+	if err != nil {
+		return "", err
+	}
+	inlineProjectDir = dir
+	return dir, nil
+}
+
+func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serverResponse {
+	t0 := time.Now()
+
+	projectDir, err := getInlineProjectDir()
+	if err != nil {
+		return serverResponse{Error: fmt.Sprintf("project dir: %v", err)}
+	}
+
+	// Only supports single-file mode for UpdateProgram optimization.
+	// Multi-file requests (extraFiles) fall back to full program creation.
+	hasExtraFiles := len(req.ExtraFiles) > 0
+
+	mainFile := "main.ts"
+	if req.MainFileName != "" {
+		mainFile = req.MainFileName
+	}
+	mainPath := filepath.Join(projectDir, mainFile)
+	if !isInsideDir(mainPath, projectDir) {
+		return serverResponse{Error: fmt.Sprintf("mainFileName escapes project directory: %s", req.MainFileName)}
+	}
+	if err := os.MkdirAll(filepath.Dir(mainPath), 0o755); err != nil {
+		return serverResponse{Error: fmt.Sprintf("mkdir source: %v", err)}
+	}
+	if err := os.WriteFile(mainPath, []byte(req.Source), 0o644); err != nil {
+		return serverResponse{Error: fmt.Sprintf("write source: %v", err)}
+	}
+
+	for name, content := range req.ExtraFiles {
+		fpath := filepath.Join(projectDir, name)
+		if !isInsideDir(fpath, projectDir) {
+			return serverResponse{Error: fmt.Sprintf("extraFiles path escapes project directory: %s", name)}
+		}
+		if err := os.MkdirAll(filepath.Dir(fpath), 0o755); err != nil {
+			return serverResponse{Error: fmt.Sprintf("mkdir: %v", err)}
+		}
+		if err := os.WriteFile(fpath, []byte(content), 0o644); err != nil {
+			return serverResponse{Error: fmt.Sprintf("write extra: %v", err)}
+		}
+	}
+
+	var program *compiler.Program
+	sourceRoot := projectDir
+
+	configKey, _ := json.Marshal([]any{req.CompilerOptions, req.Types, mainFile})
+	configChanged := string(configKey) != inlineCachedConfig
+	if inlineOldProgram != nil && !hasExtraFiles && !configChanged {
+		// Fast path: reuse old program, only re-parse main.ts
+		t1 := time.Now()
+
+		fs := bundled.WrapFS(cachedvfs.From(osvfs.FS()))
+		configDir := tspath.GetDirectoryPath(tspath.ResolvePath("", filepath.Join(projectDir, "tsconfig.json")))
+		newHost := compiler.NewCompilerHost(configDir, fs, bundled.LibPath(), nil, nil)
+
+		updatedProgram, reused := compiler.Program_UpdateProgram(inlineOldProgram, inlineMainPath, newHost)
+
+		t2 := time.Now()
+
+		updatedProgram.BindSourceFiles()
+
+		t3 := time.Now()
+
+		if serverDebugTiming {
+			fmt.Fprintf(os.Stderr, "  [update] reused=%v update=%.1fms bind=%.1fms total=%.1fms\n",
+				reused, ms(t2.Sub(t1)), ms(t3.Sub(t2)), ms(t3.Sub(t0)))
+		}
+
+		program = updatedProgram
+		sourceRoot = inlineSourceRoot
+	} else {
+		// Cold path: create full program (first request or multi-file)
+		files := []string{mainFile}
+		for name := range req.ExtraFiles {
+			files = append(files, name)
+		}
+		compilerOpts := map[string]any{}
+		for k, v := range req.CompilerOptions {
+			compilerOpts[k] = v
+		}
+		if len(req.Types) > 0 {
+			compilerOpts["types"] = req.Types
+		}
+		tsconfigObj := map[string]any{
+			"compilerOptions": compilerOpts,
+			"files":           files,
+		}
+		tsconfigBytes, _ := json.Marshal(tsconfigObj)
+		tsconfig := string(tsconfigBytes)
+		if err := os.WriteFile(filepath.Join(projectDir, "tsconfig.json"), []byte(tsconfig), 0o644); err != nil {
+			return serverResponse{Error: fmt.Sprintf("write tsconfig: %v", err)}
+		}
+
+		coldTranspileOpts := transpiler.TranspileOptions{}
+		if v, ok := req.CompilerOptions["noImplicitSelf"].(bool); ok && v {
+			coldTranspileOpts.NoImplicitSelf = true
+		}
+		coldProgram, results, coldDiags, err := transpileProjectReturnProgram(filepath.Join(projectDir, "tsconfig.json"), luaTarget, coldTranspileOpts)
+		if err != nil {
+			return serverResponse{Error: err.Error()}
+		}
+
+		// Cache for subsequent UpdateProgram calls (only for single-file requests)
+		if !hasExtraFiles {
+			inlineOldProgram = coldProgram
+			inlineSourceRoot = projectDir
+			inlineCachedConfig = string(configKey)
+			// Compute the tspath.Path for main.ts
+			mainAbsPath := filepath.Join(projectDir, mainFile)
+			inlineMainPath = tspath.Path(tspath.ToPath(mainAbsPath, "", false))
+		}
+
+		luaFiles := make(map[string]string, len(results))
+		for _, r := range results {
+			rel, _ := filepath.Rel(projectDir, r.FileName)
+			rel = strings.TrimSuffix(rel, ".ts")
+			rel = strings.TrimSuffix(rel, ".tsx")
+			luaFiles[rel+".lua"] = r.Lua
+		}
+		return serverResponse{OK: true, Files: luaFiles, Diagnostics: convertDiagnostics(coldDiags, projectDir)}
+	}
+
+	// Pre-emit diagnostics (syntactic + semantic), matching ts.getPreEmitDiagnostics
+	syntacticDiags := compiler.Program_GetSyntacticDiagnostics(program, context.Background(), nil)
+	semanticDiags := compiler.Program_GetSemanticDiagnostics(program, context.Background(), nil)
+	preEmitDiags := compiler.SortAndDeduplicateDiagnostics(append(syntacticDiags, semanticDiags...))
+
+	// Transpile using the updated program
+	transpileOpts := transpiler.TranspileOptions{}
+	if v, ok := req.CompilerOptions["noImplicitSelf"].(bool); ok && v {
+		transpileOpts.NoImplicitSelf = true
+	}
+	results, diags := transpiler.TranspileProgramWithOptions(program, sourceRoot, luaTarget, nil, transpileOpts)
+
+	// Cache program for next request
+	inlineOldProgram = program
+	inlineSourceRoot = sourceRoot
+
+	allDiags := compiler.SortAndDeduplicateDiagnostics(append(preEmitDiags, diags...))
+	luaFiles := make(map[string]string, len(results))
+	for _, r := range results {
+		rel, _ := filepath.Rel(projectDir, r.FileName)
+		rel = strings.TrimSuffix(rel, ".ts")
+		rel = strings.TrimSuffix(rel, ".tsx")
+		luaFiles[rel+".lua"] = r.Lua
+	}
+	return serverResponse{OK: true, Files: luaFiles, Diagnostics: convertDiagnostics(allDiags, projectDir)}
+}
+
+func handleProjectRequest(req serverRequest, luaTarget transpiler.LuaTarget) serverResponse {
+	results, err := transpileProject(req.Project, luaTarget, false)
+	if err != nil {
+		return serverResponse{Error: err.Error()}
+	}
+
+	configPath := tspath.ResolvePath("", req.Project)
+	configDir := string(tspath.GetDirectoryPath(configPath))
+
+	outdir := req.Outdir
+	needsLualib := false
+	for _, r := range results {
+		outPath := serverLuaOutputPath(r.FileName, outdir, configDir)
+		if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+			return serverResponse{Error: fmt.Sprintf("mkdir: %v", err)}
+		}
+		if err := os.WriteFile(outPath, []byte(r.Lua), 0o644); err != nil {
+			return serverResponse{Error: fmt.Sprintf("write: %v", err)}
+		}
+		if r.UsesLualib {
+			needsLualib = true
+		}
+	}
+	if needsLualib {
+		bundlePath := filepath.Join(outdir, "lualib_bundle.lua")
+		if err := os.WriteFile(bundlePath, lualib.BundleForTarget(string(luaTarget)), 0o644); err != nil {
+			return serverResponse{Error: fmt.Sprintf("write lualib: %v", err)}
+		}
+	}
+
+	return serverResponse{OK: true}
+}
+
+var serverDebugTiming bool
+
+// cachedLibFS is reused across inline requests so TypeScript lib .d.ts files
+// don't get re-read from disk on every request. For project-based requests
+// we create a fresh FS since the project files may be in different locations.
+var cachedLibFS vfs.FS
+
+func getCachedFS() vfs.FS {
+	if cachedLibFS == nil {
+		cachedLibFS = bundled.WrapFS(cachedvfs.From(osvfs.FS()))
+	}
+	return cachedLibFS
+}
+
+func transpileProjectReturnProgram(tsconfigPath string, luaTarget transpiler.LuaTarget, opts ...transpiler.TranspileOptions) (*compiler.Program, []transpiler.TranspileResult, []*ast.Diagnostic, error) {
+	program, results, diags, err := transpileProjectInner(tsconfigPath, luaTarget, false, opts...)
+	return program, results, diags, err
+}
+
+func transpileProject(tsconfigPath string, luaTarget transpiler.LuaTarget, useCache bool) ([]transpiler.TranspileResult, error) {
+	_, results, _, err := transpileProjectInner(tsconfigPath, luaTarget, useCache)
+	return results, err
+}
+
+func transpileProjectInner(tsconfigPath string, luaTarget transpiler.LuaTarget, useCache bool, extraOpts ...transpiler.TranspileOptions) (*compiler.Program, []transpiler.TranspileResult, []*ast.Diagnostic, error) {
+	t0 := time.Now()
+
+	var fs vfs.FS
+	if useCache {
+		fs = getCachedFS()
+	} else {
+		fs = bundled.WrapFS(cachedvfs.From(osvfs.FS()))
+	}
+
+	t1 := time.Now()
+
+	configPath := tspath.ResolvePath("", tsconfigPath)
+	if !fs.FileExists(configPath) {
+		return nil, nil, nil, fmt.Errorf("tsconfig not found: %s", configPath)
+	}
+
+	configDir := tspath.GetDirectoryPath(configPath)
+	host := compiler.NewCompilerHost(configDir, fs, bundled.LibPath(), nil, nil)
+
+	t2 := time.Now()
+
+	configResult, diags := tsoptions.GetParsedCommandLineOfConfigFile(configPath, &core.CompilerOptions{}, nil, host, nil)
+	if len(diags) > 0 {
+		return nil, nil, nil, fmt.Errorf("tsconfig parse error: %d diagnostic(s)", len(diags))
+	}
+
+	t3 := time.Now()
+
+	sourceRoot := string(configDir)
+	if configResult.CompilerOptions().RootDir != "" {
+		sourceRoot = tspath.ResolvePath(string(configDir), string(configResult.CompilerOptions().RootDir))
+	}
+
+	program := compiler.NewProgram(compiler.ProgramOptions{
+		Config:         configResult,
+		SingleThreaded: core.TSTrue,
+		Host:           host,
+	})
+
+	t4 := time.Now()
+
+	program.BindSourceFiles()
+
+	t5 := time.Now()
+
+	syntacticDiags := compiler.Program_GetSyntacticDiagnostics(program, context.Background(), nil)
+	semanticDiags := compiler.Program_GetSemanticDiagnostics(program, context.Background(), nil)
+	preEmitDiags := compiler.SortAndDeduplicateDiagnostics(append(syntacticDiags, semanticDiags...))
+
+	t5b := time.Now()
+
+	var opts transpiler.TranspileOptions
+	if len(extraOpts) > 0 {
+		opts = extraOpts[0]
+	}
+	results, tsDiags := transpiler.TranspileProgramWithOptions(program, sourceRoot, luaTarget, nil, opts)
+
+	t6 := time.Now()
+
+	if serverDebugTiming {
+		fmt.Fprintf(os.Stderr, "  fs=%.1fms host=%.1fms config=%.1fms program=%.1fms bind=%.1fms check=%.1fms transpile=%.1fms total=%.1fms\n",
+			ms(t1.Sub(t0)), ms(t2.Sub(t1)), ms(t3.Sub(t2)), ms(t4.Sub(t3)), ms(t5.Sub(t4)), ms(t5b.Sub(t5)), ms(t6.Sub(t5b)), ms(t6.Sub(t0)))
+	}
+
+	allDiags := append(preEmitDiags, tsDiags...)
+	return program, results, allDiags, nil
+}
+
+func ms(d time.Duration) float64 {
+	return float64(d.Microseconds()) / 1000
+}
+
+// isInsideDir checks that path is inside dir after cleaning.
+func isInsideDir(path, dir string) bool {
+	cleaned := filepath.Clean(path)
+	return strings.HasPrefix(cleaned, filepath.Clean(dir)+string(filepath.Separator))
+}
+
+func serverLuaOutputPath(tsPath string, outdir string, sourceRoot string) string {
+	rel, err := filepath.Rel(sourceRoot, tsPath)
+	if err != nil {
+		rel = filepath.Base(tsPath)
+	}
+	rel = strings.TrimSuffix(rel, ".ts")
+	rel = strings.TrimSuffix(rel, ".tsx")
+	return filepath.Join(outdir, rel+".lua")
+}

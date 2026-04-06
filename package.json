@@ -1,0 +1,18 @@
+{
+  "private": true,
+  "scripts": {
+    "typecheck": "tsgo --noEmit -p scripts/tsconfig.json",
+    "migrate": "tsx scripts/migrate/cli.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@typescript/native-preview": "^7.0.0-dev.20260329.1",
+    "commander": "^14.0.3",
+    "eslint": "^10.1.0",
+    "oxfmt": "^0.42.0",
+    "oxlint": "^1.57.0",
+    "tsx": "^4.21.0",
+    "typescript": "6.0.2",
+    "typescript-eslint": "^8.58.0"
+  }
+}

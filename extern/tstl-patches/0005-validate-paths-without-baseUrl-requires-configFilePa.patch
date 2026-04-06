@@ -1,0 +1,41 @@
+From 90159dd9bb8c4e92b68b9dfaabf4922e6fa74f4b Mon Sep 17 00:00:00 2001
+From: Cold Fry <coldfry.business@gmail.com>
+Date: Thu, 2 Apr 2026 23:10:43 +0100
+Subject: [PATCH 5/9] validate paths without baseUrl requires configFilePath
+
+---
+ src/CompilerOptions.ts           | 4 +++-
+ src/transpilation/diagnostics.ts | 5 +++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/CompilerOptions.ts b/src/CompilerOptions.ts
+index ca06e6c..b8122ef 100644
+--- a/src/CompilerOptions.ts
++++ b/src/CompilerOptions.ts
+@@ -99,7 +99,9 @@ export function validateOptions(options: CompilerOptions): ts.Diagnostic[] {
+         diagnostics.push(diagnosticFactories.unsupportedJsxEmit());
+     }
+ 
+-    // paths without baseUrl is now supported (TS 6.0+ resolves paths relative to tsconfig location)
++    if (options.paths && Object.keys(options.paths).length > 0 && !options.baseUrl && !options.configFilePath) {
++        diagnostics.push(diagnosticFactories.pathsWithoutBaseDirectory());
++    }
+ 
+     return diagnostics;
+ }
+diff --git a/src/transpilation/diagnostics.ts b/src/transpilation/diagnostics.ts
+index 0428e0e..5141c14 100644
+--- a/src/transpilation/diagnostics.ts
++++ b/src/transpilation/diagnostics.ts
+@@ -55,3 +55,8 @@ export const cannotBundleLibrary = createDiagnosticFactory(
+ );
+ 
+ export const unsupportedJsxEmit = createDiagnosticFactory(() => 'JSX is only supported with "react" jsx option.');
++
++export const pathsWithoutBaseDirectory = createDiagnosticFactory(
++    () =>
++        "When using 'paths' without 'baseUrl', a tsconfig.json must be present so paths can be resolved relative to it."
++);
+-- 
+2.50.1 (Apple Git-155)
+

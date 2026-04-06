@@ -1,0 +1,276 @@
+diff --git a/test/util.ts b/test/util.ts
+index 2871f6e..219208c 100644
+--- a/test/util.ts
++++ b/test/util.ts
+@@ -13,6 +13,13 @@ import { EmitHost, getEmitOutDir, transpileProject } from "../src";
+ import { formatPathToLuaPath, normalizeSlashes } from "../src/utils";
+ import { resolveLuaLibDir } from "../src/LuaLib";
+ 
++import { execSync, execFileSync } from "child_process";
++
++const USE_TSTL_GO = Boolean(process.env.TSTL_GO);
++const TSTL_GO_BIN = path.resolve(__dirname, "../../../tslua");
++const TSTL_GO_CLIENT = path.resolve(__dirname, "../../../tslua-client");
++const TSTL_GO_SOCKET = process.env.TSLUA_SOCKET || path.resolve(__dirname, "../../../tmp/tslua-jest.sock");
++
+ function readLuaLib(target: tstl.LuaTarget) {
+     return fs.readFileSync(path.join(resolveLuaLibDir(target), "lualib_bundle.lua"), "utf8");
+ }
+@@ -242,6 +249,10 @@ export abstract class TestBuilder {
+ 
+     @memoize
+     public getLuaResult(): tstl.TranspileVirtualProjectResult {
++        if (USE_TSTL_GO) {
++            return this.getLuaResultTstlGo();
++        }
++
+         const program = this.getProgram();
+         const preEmitDiagnostics = ts.getPreEmitDiagnostics(program);
+         const collector = createEmitOutputCollector(this.options.extension);
+@@ -256,6 +267,222 @@ export abstract class TestBuilder {
+         return { diagnostics: [...diagnostics], transpiledFiles: collector.files };
+     }
+ 
++    private getLuaResultTstlGo(): tstl.TranspileVirtualProjectResult {
++        const luaTarget = this.options.luaTarget ?? tstl.LuaTarget.Lua55;
++        const targetMap: Partial<Record<tstl.LuaTarget, string>> = {
++            [tstl.LuaTarget.Universal]: "universal",
++            [tstl.LuaTarget.Lua50]: "5.0",
++            [tstl.LuaTarget.Lua51]: "5.1",
++            [tstl.LuaTarget.Lua52]: "5.2",
++            [tstl.LuaTarget.Lua53]: "5.3",
++            [tstl.LuaTarget.Lua54]: "5.4",
++            [tstl.LuaTarget.Lua55]: "5.5",
++            [tstl.LuaTarget.LuaJIT]: "JIT",
++        };
++        const tslTarget = targetMap[luaTarget] ?? "5.5";
++
++        // Fast path: use socket server + client if the server is running
++        if (fs.existsSync(TSTL_GO_SOCKET)) {
++            return this.getLuaResultViaSocket(tslTarget);
++        }
++
++        // Fallback: spawn tslua per test
++        return this.getLuaResultViaExec(tslTarget);
++    }
++
++    private getLuaResultViaSocket(tslTarget: string): tstl.TranspileVirtualProjectResult {
++        // Map TS compiler options to tsconfig format
++        const targetMap: Record<number, string> = {
++            [ts.ScriptTarget.ES3]: "ES3", [ts.ScriptTarget.ES5]: "ES5",
++            [ts.ScriptTarget.ES2015]: "ES2015", [ts.ScriptTarget.ES2016]: "ES2016",
++            [ts.ScriptTarget.ES2017]: "ES2017", [ts.ScriptTarget.ES2018]: "ES2018",
++            [ts.ScriptTarget.ES2019]: "ES2019", [ts.ScriptTarget.ES2020]: "ES2020",
++            [ts.ScriptTarget.ESNext]: "ESNext",
++        };
++        const moduleResolutionMap: Record<number, string> = {
++            [ts.ModuleResolutionKind.Classic]: "classic", [ts.ModuleResolutionKind.Node10]: "node",
++            [ts.ModuleResolutionKind.Node16]: "node16", [ts.ModuleResolutionKind.NodeNext]: "nodenext",
++            [ts.ModuleResolutionKind.Bundler]: "bundler",
++        };
++        const moduleMap: Record<number, string> = {
++            [ts.ModuleKind.CommonJS]: "commonjs", [ts.ModuleKind.AMD]: "amd",
++            [ts.ModuleKind.UMD]: "umd", [ts.ModuleKind.System]: "system",
++            [ts.ModuleKind.ES2015]: "es2015", [ts.ModuleKind.ES2020]: "es2020",
++            [ts.ModuleKind.ES2022]: "es2022", [ts.ModuleKind.ESNext]: "esnext",
++            [ts.ModuleKind.Node16]: "node16", [ts.ModuleKind.NodeNext]: "nodenext",
++            [ts.ModuleKind.Preserve]: "preserve",
++        };
++        const lib = (this.options.lib ?? []).map(l => l.replace(/^lib\./, "").replace(/\.d\.ts$/, ""));
++        const target = typeof this.options.target === "number" ? targetMap[this.options.target] : undefined;
++        const moduleResolution = typeof this.options.moduleResolution === "number"
++            ? moduleResolutionMap[this.options.moduleResolution] : undefined;
++
++        // Map JSX emit mode to tsconfig string
++        const jsxMap: Partial<Record<ts.JsxEmit, string>> = {
++            [ts.JsxEmit.Preserve]: "preserve",
++            [ts.JsxEmit.React]: "react",
++            [ts.JsxEmit.ReactNative]: "react-native",
++            [ts.JsxEmit.ReactJSX]: "react-jsx",
++            [ts.JsxEmit.ReactJSXDev]: "react-jsxdev",
++        };
++
++        const req = JSON.stringify({
++            source: this.getTsCode(),
++            luaTarget: tslTarget,
++            mainFileName: this.mainFileName !== "main.ts" ? this.mainFileName : undefined,
++            extraFiles: Object.keys(this.extraFiles).length > 0 ? this.extraFiles : undefined,
++            types: this.options.types,
++            compilerOptions: {
++                target,
++                lib,
++                strict: this.options.strict ?? false, // tsgo defaults strict to true unlike tsc
++                strictNullChecks: this.options.strictNullChecks,
++                skipLibCheck: this.options.skipLibCheck,
++                module: typeof this.options.module === "number" ? moduleMap[this.options.module] : undefined,
++                moduleResolution,
++                resolveJsonModule: this.options.resolveJsonModule,
++                sourceMap: this.options.sourceMap,
++                experimentalDecorators: this.options.experimentalDecorators,
++                jsx: typeof this.options.jsx === "number" ? jsxMap[this.options.jsx as ts.JsxEmit] : undefined,
++                jsxFactory: this.options.jsxFactory,
++                jsxFragmentFactory: this.options.jsxFragmentFactory,
++                noImplicitSelf: this.options.noImplicitSelf,
++            },
++        });
++
++        const respStr = execFileSync(TSTL_GO_CLIENT, [TSTL_GO_SOCKET], {
++            input: req,
++            encoding: "utf8",
++            timeout: 10000,
++        });
++
++        const resp = JSON.parse(respStr);
++        if (resp.error) {
++            throw new Error(`tslua server error: ${resp.error}`);
++        }
++
++        const mainLuaName = this.mainFileName.replace(/\.tsx?$/, ".lua");
++        const transpiledFiles: tstl.TranspiledFile[] = [];
++        for (const [fileName, lua] of Object.entries(resp.files ?? {})) {
++            const srcName = fileName === "lualib_bundle.lua" ? fileName
++                : fileName === mainLuaName ? this.mainFileName
++                : fileName.replace(/\.lua$/, ".ts");
++            transpiledFiles.push({
++                outPath: fileName,
++                lua: lua as string,
++                luaSourceMap: "",
++                sourceFiles: [{ fileName: srcName } as any],
++                declaration: undefined,
++                declarationMap: undefined,
++            } as any);
++        }
++
++        // Convert tslua diagnostics to TSTL-compatible format
++        const diagnostics: ts.Diagnostic[] = (resp.diagnostics ?? []).map((d: { code: number; message: string; file?: string; line?: number; character?: number }) => {
++            let file: ts.SourceFile | undefined;
++            let start: number | undefined;
++            if (d.file) {
++                // Build a minimal fake source file so ts.formatDiagnostics can render "file(line,col):"
++                // and formatDiagnosticsWithColorAndContext can read source text without crashing.
++                const line = d.line ?? 0;
++                const character = d.character ?? 0;
++                const lines: string[] = [];
++                for (let i = 0; i < line; i++) lines.push("");
++                lines.push(" ".repeat(character + 1));
++                const text = lines.join("\n");
++                start = line === 0 ? character : text.lastIndexOf("\n") + 1 + character;
++                const lineStarts = [0];
++                for (let i = 0; i < text.length; i++) {
++                    if (text.charCodeAt(i) === 10) lineStarts.push(i + 1);
++                }
++                file = { fileName: d.file, getLineStarts: () => lineStarts, text } as any;
++            }
++            return {
++                file,
++                start,
++                length: 1,
++                category: ts.DiagnosticCategory.Error,
++                code: d.code,
++                messageText: d.message,
++                source: d.code >= 100000 ? "typescript-to-lua" : undefined,
++            };
++        });
++
++        return { diagnostics, transpiledFiles };
++    }
++
++    private getLuaResultViaExec(tslTarget: string): tstl.TranspileVirtualProjectResult {
++        const tmpDir = fs.mkdtempSync(path.join(__dirname, "../../../tmp/jest-"));
++        const outDir = path.join(tmpDir, "out");
++        try {
++            fs.writeFileSync(path.join(tmpDir, this.mainFileName), this.getTsCode());
++            for (const [fileName, content] of Object.entries(this.extraFiles)) {
++                const filePath = path.join(tmpDir, fileName);
++                fs.mkdirSync(path.dirname(filePath), { recursive: true });
++                fs.writeFileSync(filePath, content);
++            }
++
++            const jsxMap: Partial<Record<ts.JsxEmit, string>> = {
++                [ts.JsxEmit.Preserve]: "preserve",
++                [ts.JsxEmit.React]: "react",
++                [ts.JsxEmit.ReactNative]: "react-native",
++                [ts.JsxEmit.ReactJSX]: "react-jsx",
++                [ts.JsxEmit.ReactJSXDev]: "react-jsxdev",
++            };
++            const tsconfig: any = {
++                compilerOptions: {
++                    target: "ESNext",
++                    strict: true,
++                    skipLibCheck: true,
++                    types: (this.options.types ?? []) as string[],
++                    moduleResolution: "node",
++                    ...(typeof this.options.jsx === "number" && { jsx: jsxMap[this.options.jsx as ts.JsxEmit] }),
++                    ...(this.options.jsxFactory && { jsxFactory: this.options.jsxFactory }),
++                    ...(this.options.jsxFragmentFactory && { jsxFragmentFactory: this.options.jsxFragmentFactory }),
++                },
++                files: [this.mainFileName, ...Object.keys(this.extraFiles).filter(f => f.endsWith(".ts") || f.endsWith(".tsx"))],
++            };
++            fs.writeFileSync(path.join(tmpDir, "tsconfig.json"), JSON.stringify(tsconfig));
++
++            execSync(`${TSTL_GO_BIN} -p ${path.join(tmpDir, "tsconfig.json")} --outdir ${outDir} --luaTarget ${tslTarget}`, {
++                encoding: "utf8",
++                timeout: 10000,
++                stdio: ["pipe", "pipe", "pipe"],
++            });
++
++            const transpiledFiles: tstl.TranspiledFile[] = [];
++            const readLuaFiles = (dir: string) => {
++                if (!fs.existsSync(dir)) return;
++                for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
++                    const fullPath = path.join(dir, entry.name);
++                    if (entry.isDirectory()) {
++                        readLuaFiles(fullPath);
++                    } else if (entry.name === "lualib_bundle.lua") {
++                        // Skip — TSTL's executeLua injects its own lualib for the wasm target
++                    } else if (entry.name.endsWith(".lua")) {
++                        const lua = fs.readFileSync(fullPath, "utf8");
++                        const relPath = path.relative(outDir, fullPath);
++                        const mainLua = this.mainFileName.replace(/\.tsx?$/, ".lua");
++                        const srcName = relPath === mainLua ? this.mainFileName : relPath.replace(/\.lua$/, ".ts");
++                        transpiledFiles.push({
++                            outPath: relPath,
++                            lua,
++                            luaSourceMap: "",
++                            sourceFiles: [{ fileName: srcName } as any],
++                            declaration: undefined,
++                            declarationMap: undefined,
++                        } as any);
++                    }
++                }
++            };
++            readLuaFiles(outDir);
++
++            return { diagnostics: [], transpiledFiles };
++        } finally {
++            fs.rmSync(tmpDir, { recursive: true, force: true });
++        }
++    }
++
+     @memoize
+     public getMainLuaFileResult(): ExecutableTranspiledFile {
+         const { transpiledFiles } = this.getLuaResult();
+@@ -454,16 +681,18 @@ export abstract class TestBuilder {
+         // Load modules
+         // Json
+         this.injectLuaFile(L, lua, lauxlib, "json", jsonLib(luaTarget));
+-        // Lua lib
++        // Load all transpiled files into Lua's package cache
++        const { transpiledFiles } = this.getLuaResult();
++
++        // Lua lib — check main file AND all extra transpiled files for lualib usage
++        const anyFileNeedsLualib = mainFile.includes('require("lualib_bundle")') ||
++            transpiledFiles.some(f => f.lua?.includes('require("lualib_bundle")'));
+         if (
+             this.options.luaLibImport === tstl.LuaLibImportKind.Require ||
+-            mainFile.includes('require("lualib_bundle")')
++            anyFileNeedsLualib
+         ) {
+             this.injectLuaFile(L, lua, lauxlib, "lualib_bundle", readLuaLib(luaTarget));
+         }
+-
+-        // Load all transpiled files into Lua's package cache
+-        const { transpiledFiles } = this.getLuaResult();
+         for (const transpiledFile of transpiledFiles) {
+             if (transpiledFile.lua) {
+                 const filePath = path.relative(getEmitOutDir(this.getProgram()), transpiledFile.outPath);

@@ -1,0 +1,13 @@
+The Lua runtime library in this directory is derived from TypeScriptToLua's
+lualib TypeScript source code.
+
+  TypeScriptToLua (TSTL)
+  https://github.com/TypeScriptToLua/TypeScriptToLua
+  Copyright (c) TypeScriptToLua Contributors
+  Licensed under the MIT License
+
+The original lualib source is located at extern/tstl/src/lualib/. tslua
+transpiles it from TypeScript to Lua using its own transpiler (internal/
+transpiler/) and bundles the result into lualib_bundle.lua.
+
+See extern/tstl/LICENSE for the full license text.

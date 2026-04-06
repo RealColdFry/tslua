@@ -1,0 +1,26 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - predeclared
+    - staticcheck
+    - unused
+
+  settings:
+    staticcheck:
+      checks:
+        - "all"
+        - "-QF1001"   # De Morgan's — negated conjunctions are often more readable
+        - "-ST1000"   # package comment form — we use "Ported from:" headers
+        - "-ST1021"   # exported type comment form
+
+  exclusions:
+    paths:
+      - extern
+
+formatters:
+  enable:
+    - goimports

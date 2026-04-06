@@ -1,0 +1,38 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { App } from '../components/playground/App';
+---
+<StarlightPage frontmatter={{ title: 'Playground', description: 'Try tslua in your browser.', template: 'splash', pagefind: false, prev: false, next: false }}>
+  <div class="not-content">
+    <App client:only="react" />
+  </div>
+</StarlightPage>
+
+<style>
+  :global(div.content-panel) {
+    padding: 0;
+  }
+  :global(.content-panel:nth-of-type(1)) {
+    display: none;
+  }
+  :global(div.sl-container) {
+    margin: 0;
+    max-width: none;
+  }
+  :global(div.sl-container footer) {
+    display: none;
+  }
+  :global(.main-pane main) {
+    padding: 0;
+    overflow: hidden;
+  }
+  :global(.main-pane) {
+    overflow: hidden;
+  }
+  :global(header.header) {
+    flex-shrink: 0;
+  }
+  .not-content {
+    height: calc(100dvh - var(--sl-nav-height));
+  }
+</style>

@@ -1,0 +1,13 @@
+The test cases in this directory are extracted and adapted from TypeScriptToLua's
+Jest test suite using the migration pipeline in scripts/migrate/.
+
+  TypeScriptToLua (TSTL)
+  https://github.com/TypeScriptToLua/TypeScriptToLua
+  Copyright (c) TypeScriptToLua Contributors
+  Licensed under the MIT License
+
+The original test specs are located at extern/tstl/test/unit/. Test cases are
+machine-translated to Go table-driven tests; expected values are baked from JS
+evaluation and TSTL reference output.
+
+See extern/tstl/LICENSE for the full license text.
