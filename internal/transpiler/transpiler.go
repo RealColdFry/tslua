@@ -458,8 +458,9 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 			sourceMapJSON = t.buildSourceMap(fileName, sf, printResult.Mappings)
 
 			if opts.SourceMapTraceback {
-				tracebackCall := buildSourceMapTracebackCall(printResult.Mappings)
-				luaCode = insertAfterLualibImports(luaCode, tracebackCall)
+				insertIdx := lualibInsertIndex(luaCode)
+				tracebackCall := buildSourceMapTracebackCall(printResult.Mappings, insertIdx)
+				luaCode = insertAtLine(luaCode, insertIdx, tracebackCall)
 			}
 
 			if opts.InlineSourceMap {
@@ -566,6 +567,10 @@ func (t *Transpiler) sourceMapRelativePath(fileName string) string {
 		} else {
 			baseDir = rootDir
 		}
+	} else if outDir != "" {
+		// When outDir is set without rootDir, TypeScript uses the common root
+		// of all source files. Use the source file's directory as approximation.
+		baseDir = filepath.Dir(fileName)
 	}
 	subPath, err := filepath.Rel(baseDir, fileName)
 	if err != nil {
@@ -585,12 +590,20 @@ func (t *Transpiler) sourceMapRelativePath(fileName string) string {
 // buildSourceMapTracebackCall builds the Lua statement that registers line→line
 // source map data at runtime for debug.traceback rewriting.
 // Produces: __TS__SourceMapTraceBack(debug.getinfo(1).short_src, {["1"] = 3, ["5"] = 7, ...});
-func buildSourceMapTracebackCall(mappings []lua.Mapping) string {
+// insertIdx is the 0-based line index where the traceback call itself will be inserted,
+// so generated lines at or after insertIdx are shifted by 1 to account for the insertion.
+func buildSourceMapTracebackCall(mappings []lua.Mapping, insertIdx int) string {
 	// Build genLine → min(srcLine) map. Source map lines are 0-based;
 	// the Lua runtime traceback table uses 1-based lines.
 	lineMap := make(map[int]int)
 	for _, m := range mappings {
-		genLine1 := m.GenLine + 1
+		genLine := m.GenLine
+		// Shift lines at or after the insertion point by 1 to account for the
+		// traceback call line that will be inserted.
+		if genLine >= insertIdx {
+			genLine++
+		}
+		genLine1 := genLine + 1
 		srcLine1 := m.SrcLine + 1
 		if existing, ok := lineMap[genLine1]; !ok || srcLine1 < existing {
 			lineMap[genLine1] = srcLine1
@@ -612,17 +625,15 @@ func buildSourceMapTracebackCall(mappings []lua.Mapping) string {
 		}
 		fmt.Fprintf(&b, "[%q] = %d", strconv.Itoa(k), lineMap[k])
 	}
-	b.WriteString("});\n")
+	b.WriteString("});")
 	return b.String()
 }
 
-// insertAfterLualibImports inserts text after the lualib import block in Lua code.
-// Looks for the last line starting with "local __" (lualib destructured imports)
-// or "local ____lualib" and inserts after it. Falls back to prepending.
-func insertAfterLualibImports(luaCode string, insertion string) string {
-	lines := strings.Split(luaCode, "\n")
+// lualibInsertIndex returns the 0-based line index after the lualib import block.
+// Used to determine where to insert the traceback call.
+func lualibInsertIndex(luaCode string) int {
 	insertIdx := 0
-	for i, line := range lines {
+	for i, line := range strings.Split(luaCode, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "local ____lualib") ||
 			strings.HasPrefix(trimmed, "local __TS__") ||
@@ -630,12 +641,22 @@ func insertAfterLualibImports(luaCode string, insertion string) string {
 			insertIdx = i + 1
 		}
 	}
-	// Insert after the identified line
+	return insertIdx
+}
+
+// insertAtLine inserts text at a specific 0-based line index in the code.
+func insertAtLine(luaCode string, insertIdx int, insertion string) string {
+	lines := strings.Split(luaCode, "\n")
 	result := make([]string, 0, len(lines)+1)
 	result = append(result, lines[:insertIdx]...)
 	result = append(result, insertion)
 	result = append(result, lines[insertIdx:]...)
 	return strings.Join(result, "\n")
+}
+
+// insertAfterLualibImports inserts text after the lualib import block in Lua code.
+func insertAfterLualibImports(luaCode string, insertion string) string {
+	return insertAtLine(luaCode, lualibInsertIndex(luaCode), insertion)
 }
 
 // lualibFeatureExports maps each multi-export lualib feature to its full export list.

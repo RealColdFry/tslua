@@ -45,6 +45,7 @@ type serverResponse struct {
 	OK          bool               `json:"ok"`
 	Error       string             `json:"error,omitempty"`
 	Files       map[string]string  `json:"files,omitempty"`
+	SourceMaps  map[string]string  `json:"sourceMaps,omitempty"`
 	Diagnostics []serverDiagnostic `json:"diagnostics,omitempty"`
 }
 
@@ -256,6 +257,11 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 	mainFile := "main.ts"
 	if req.MainFileName != "" {
 		mainFile = req.MainFileName
+		// Strip leading slash from absolute paths so they become relative
+		// within the temp project directory (e.g. "/proj/src/foo.ts" → "proj/src/foo.ts").
+		if filepath.IsAbs(mainFile) {
+			mainFile = strings.TrimPrefix(filepath.Clean(mainFile), string(filepath.Separator))
+		}
 	}
 	mainPath := filepath.Join(projectDir, mainFile)
 	if !isInsideDir(mainPath, projectDir) {
@@ -319,6 +325,13 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 		for k, v := range req.CompilerOptions {
 			compilerOpts[k] = v
 		}
+		// Strip leading slash from absolute paths so they become relative
+		// within the temp project directory.
+		for _, key := range []string{"outDir", "rootDir"} {
+			if s, ok := compilerOpts[key].(string); ok && filepath.IsAbs(s) {
+				compilerOpts[key] = strings.TrimPrefix(filepath.Clean(s), string(filepath.Separator))
+			}
+		}
 		if len(req.Types) > 0 {
 			compilerOpts["types"] = req.Types
 		}
@@ -332,10 +345,7 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 			return serverResponse{Error: fmt.Sprintf("write tsconfig: %v", err)}
 		}
 
-		coldTranspileOpts := transpiler.TranspileOptions{}
-		if v, ok := req.CompilerOptions["noImplicitSelf"].(bool); ok && v {
-			coldTranspileOpts.NoImplicitSelf = true
-		}
+		coldTranspileOpts := transpileOptsFromRequest(req)
 		coldProgram, results, coldDiags, err := transpileProjectReturnProgram(filepath.Join(projectDir, "tsconfig.json"), luaTarget, coldTranspileOpts)
 		if err != nil {
 			return serverResponse{Error: err.Error()}
@@ -352,13 +362,15 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 		}
 
 		luaFiles := make(map[string]string, len(results))
+		sourceMaps := make(map[string]string, len(results))
 		for _, r := range results {
-			rel, _ := filepath.Rel(projectDir, r.FileName)
-			rel = strings.TrimSuffix(rel, ".ts")
-			rel = strings.TrimSuffix(rel, ".tsx")
-			luaFiles[rel+".lua"] = r.Lua
+			key := inlineLuaOutputKey(r.FileName, projectDir, compilerOpts)
+			luaFiles[key] = r.Lua
+			if r.SourceMap != "" {
+				sourceMaps[key] = r.SourceMap
+			}
 		}
-		return serverResponse{OK: true, Files: luaFiles, Diagnostics: convertDiagnostics(coldDiags, projectDir)}
+		return serverResponse{OK: true, Files: luaFiles, SourceMaps: sourceMaps, Diagnostics: convertDiagnostics(coldDiags, projectDir)}
 	}
 
 	// Pre-emit diagnostics (syntactic + semantic), matching ts.getPreEmitDiagnostics
@@ -367,10 +379,7 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 	preEmitDiags := compiler.SortAndDeduplicateDiagnostics(append(syntacticDiags, semanticDiags...))
 
 	// Transpile using the updated program
-	transpileOpts := transpiler.TranspileOptions{}
-	if v, ok := req.CompilerOptions["noImplicitSelf"].(bool); ok && v {
-		transpileOpts.NoImplicitSelf = true
-	}
+	transpileOpts := transpileOptsFromRequest(req)
 	results, diags := transpiler.TranspileProgramWithOptions(program, sourceRoot, luaTarget, nil, transpileOpts)
 
 	// Cache program for next request
@@ -379,13 +388,15 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 
 	allDiags := compiler.SortAndDeduplicateDiagnostics(append(preEmitDiags, diags...))
 	luaFiles := make(map[string]string, len(results))
+	sourceMaps := make(map[string]string, len(results))
 	for _, r := range results {
-		rel, _ := filepath.Rel(projectDir, r.FileName)
-		rel = strings.TrimSuffix(rel, ".ts")
-		rel = strings.TrimSuffix(rel, ".tsx")
-		luaFiles[rel+".lua"] = r.Lua
+		key := inlineLuaOutputKey(r.FileName, projectDir, req.CompilerOptions)
+		luaFiles[key] = r.Lua
+		if r.SourceMap != "" {
+			sourceMaps[key] = r.SourceMap
+		}
 	}
-	return serverResponse{OK: true, Files: luaFiles, Diagnostics: convertDiagnostics(allDiags, projectDir)}
+	return serverResponse{OK: true, Files: luaFiles, SourceMaps: sourceMaps, Diagnostics: convertDiagnostics(allDiags, projectDir)}
 }
 
 func handleProjectRequest(req serverRequest, luaTarget transpiler.LuaTarget) serverResponse {
@@ -514,6 +525,25 @@ func transpileProjectInner(tsconfigPath string, luaTarget transpiler.LuaTarget, 
 	return program, results, allDiags, nil
 }
 
+func transpileOptsFromRequest(req serverRequest) transpiler.TranspileOptions {
+	opts := transpiler.TranspileOptions{}
+	if v, ok := req.CompilerOptions["noImplicitSelf"].(bool); ok && v {
+		opts.NoImplicitSelf = true
+	}
+	if v, ok := req.CompilerOptions["sourceMap"].(bool); ok && v {
+		opts.SourceMap = true
+	}
+	if v, ok := req.CompilerOptions["sourceMapTraceback"].(bool); ok && v {
+		opts.SourceMapTraceback = true
+		opts.SourceMap = true // traceback requires source map generation
+	}
+	if v, ok := req.CompilerOptions["inlineSourceMap"].(bool); ok && v {
+		opts.InlineSourceMap = true
+		opts.SourceMap = true // inline requires source map generation
+	}
+	return opts
+}
+
 func ms(d time.Duration) float64 {
 	return float64(d.Microseconds()) / 1000
 }
@@ -522,6 +552,45 @@ func ms(d time.Duration) float64 {
 func isInsideDir(path, dir string) bool {
 	cleaned := filepath.Clean(path)
 	return strings.HasPrefix(cleaned, filepath.Clean(dir)+string(filepath.Separator))
+}
+
+// inlineLuaOutputKey computes the response file key for inline mode.
+// When outDir is set, the output path mirrors the directory structure under rootDir.
+func inlineLuaOutputKey(fileName, projectDir string, compilerOpts map[string]any) string {
+	outDir, _ := compilerOpts["outDir"].(string)
+	rootDir, _ := compilerOpts["rootDir"].(string)
+
+	// Get the source file path relative to rootDir (or projectDir)
+	baseDir := projectDir
+	if rootDir != "" {
+		if filepath.IsAbs(rootDir) {
+			baseDir = rootDir
+		} else {
+			baseDir = filepath.Join(projectDir, rootDir)
+		}
+	} else if outDir != "" {
+		// When outDir is set without rootDir, use the source file's directory
+		baseDir = filepath.Dir(fileName)
+	}
+	rel, err := filepath.Rel(baseDir, fileName)
+	if err != nil {
+		rel, _ = filepath.Rel(projectDir, fileName)
+	}
+	rel = strings.TrimSuffix(rel, ".ts")
+	rel = strings.TrimSuffix(rel, ".tsx")
+
+	if outDir != "" {
+		// Place output under outDir
+		if !filepath.IsAbs(outDir) {
+			outDir = filepath.Join(projectDir, outDir)
+		}
+		outRel, err := filepath.Rel(projectDir, filepath.Join(outDir, rel+".lua"))
+		if err != nil {
+			return rel + ".lua"
+		}
+		return outRel
+	}
+	return rel + ".lua"
 }
 
 func serverLuaOutputPath(tsPath string, outdir string, sourceRoot string) string {

@@ -720,6 +720,7 @@ func (p *Printer) printFunctionExpression(e *FunctionExpression) {
 	p.write(")")
 
 	if e.Body == nil {
+		p.emitMapping(e)
 		p.write(" end")
 		return
 	}
@@ -727,6 +728,7 @@ func (p *Printer) printFunctionExpression(e *FunctionExpression) {
 	if len(e.Body.Statements) == 0 {
 		p.newline()
 		p.writeIndent()
+		p.emitMapping(e)
 		p.write("end")
 		return
 	}
@@ -736,6 +738,7 @@ func (p *Printer) printFunctionExpression(e *FunctionExpression) {
 		if ret, ok := e.Body.Statements[0].(*ReturnStatement); ok {
 			p.write(" return ")
 			p.printExprCommaSep(ret.Expressions)
+			p.emitMapping(e)
 			p.write(" end")
 			return
 		}
@@ -746,6 +749,7 @@ func (p *Printer) printFunctionExpression(e *FunctionExpression) {
 	p.printBlock(e.Body.Statements)
 	p.popIndent()
 	p.writeIndent()
+	p.emitMapping(e)
 	p.write("end")
 }
 
@@ -772,6 +776,7 @@ func (p *Printer) printFunctionDefinition(prefix, name string, fe *FunctionExpre
 		p.printBlock(fe.Body.Statements)
 		p.popIndent()
 	}
+	p.emitMapping(fe)
 	p.writeln("end")
 }
 

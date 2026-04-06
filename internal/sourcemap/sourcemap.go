@@ -12,7 +12,7 @@ import (
 type RawSourceMap struct {
 	Version        int       `json:"version"`
 	File           string    `json:"file"`
-	SourceRoot     string    `json:"sourceRoot,omitempty"`
+	SourceRoot     string    `json:"sourceRoot"`
 	Sources        []string  `json:"sources"`
 	Names          []string  `json:"names"`
 	Mappings       string    `json:"mappings"`
