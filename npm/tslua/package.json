@@ -12,7 +12,8 @@
     "tslua": "bin/tslua.js"
   },
   "files": [
-    "bin/tslua.js"
+    "bin/tslua.js",
+    "README.md"
   ],
   "optionalDependencies": {
     "@tslua/cli-darwin-arm64": "0.0.0",
