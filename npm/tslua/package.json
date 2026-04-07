@@ -1,0 +1,24 @@
+{
+  "name": "@tslua/cli",
+  "version": "0.0.0",
+  "description": "TypeScript-to-Lua transpiler",
+  "author": "Cold Fry",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RealColdFry/tslua"
+  },
+  "bin": {
+    "tslua": "bin/tslua.js"
+  },
+  "files": [
+    "bin/tslua.js"
+  ],
+  "optionalDependencies": {
+    "@tslua/cli-darwin-arm64": "0.0.0",
+    "@tslua/cli-darwin-x64": "0.0.0",
+    "@tslua/cli-linux-arm64": "0.0.0",
+    "@tslua/cli-linux-x64": "0.0.0",
+    "@tslua/cli-win32-x64": "0.0.0"
+  }
+}
