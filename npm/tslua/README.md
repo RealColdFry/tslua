@@ -2,7 +2,7 @@
 
 TypeScript-to-Lua transpiler built on [typescript-go](https://github.com/microsoft/typescript-go).
 
-**Supported targets:** LuaJIT, Lua 5.0-5.5, and universal.
+**Supported targets:** LuaJIT and Lua 5.0-5.5.
 
 > [!WARNING]
 > This is an early development build. Use at your own risk.
