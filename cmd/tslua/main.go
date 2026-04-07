@@ -30,19 +30,19 @@ var (
 )
 
 var (
-	projectFlag        string
-	outdirFlag         string
-	luaTargetFlag      string
-	emitModeFlag       string
-	diagFormatFlag     string
-	cpuprofileFlag     string
-	luaBundleFlag      string
-	luaBundleEntryFlag string
-	exportAsGlobalFlag bool
-	verboseFlag        bool
-	timingFlag         bool
-	watchFlag          bool
-	luaLibImportFlag   string
+	projectFlag                   string
+	outdirFlag                    string
+	luaTargetFlag                 string
+	emitModeFlag                  string
+	diagFormatFlag                string
+	cpuprofileFlag                string
+	luaBundleFlag                 string
+	luaBundleEntryFlag            string
+	exportAsGlobalFlag            bool
+	verboseFlag                   bool
+	timingFlag                    bool
+	watchFlag                     bool
+	luaLibImportFlag              string
 	socketFlag                    string
 	evalSourceFlag                string
 	sourceMapFlag                 bool

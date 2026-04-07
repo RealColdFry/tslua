@@ -128,7 +128,7 @@ type transpileResult struct {
 // wasmOptions holds the JSON structure passed from the JS side.
 type wasmOptions struct {
 	CompilerOptions map[string]any `json:"compilerOptions,omitempty"`
-	TSTL struct {
+	TSTL            struct {
 		LuaTarget                 string `json:"luaTarget,omitempty"`
 		EmitMode                  string `json:"emitMode,omitempty"`
 		ClassStyle                string `json:"classStyle,omitempty"`
