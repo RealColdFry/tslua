@@ -243,5 +243,13 @@ jobs:
             echo "Publishing $(jq -r .name "$package/package.json")@${{ needs.check.outputs.version }}"
             npm publish "$package" --tag dev --provenance
           done
-          echo "Publishing @tslua/cli@${{ needs.check.outputs.version }}"
+          # Wait for platform packages to be available on registry
+          VERSION="${{ needs.check.outputs.version }}"
+          for dep in darwin-arm64 darwin-x64 linux-arm64 linux-x64 win32-x64; do
+            until npm view "@tslua/cli-${dep}@${VERSION}" version >/dev/null 2>&1; do
+              echo "Waiting for @tslua/cli-${dep}@${VERSION}..."
+              sleep 5
+            done
+          done
+          echo "Publishing @tslua/cli@${VERSION}"
           npm publish npm/tslua --tag dev --provenance
