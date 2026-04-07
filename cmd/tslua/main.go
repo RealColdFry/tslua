@@ -25,7 +25,7 @@ import (
 
 // version and gitCommit are set at build time via ldflags.
 var (
-	version   = "0.0.0-dev"
+	version   = "0.1.0-dev"
 	gitCommit = ""
 )
 

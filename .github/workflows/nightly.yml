@@ -37,14 +37,14 @@ jobs:
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "sha_short=$SHA_SHORT" >> "$GITHUB_OUTPUT"
 
-          # Version: 0.0.1-dev.N (sha shown separately in CLI output)
-          VERSION="0.0.1-dev.${COMMIT_COUNT}"
-          TAG="v0.0.1-dev.${COMMIT_COUNT}"
+          BASE=$(grep -oP 'version\s*=\s*"\K[^-]+' cmd/tslua/main.go)
+          VERSION="${BASE}-dev.${COMMIT_COUNT}"
+          TAG="v${VERSION}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
           # Skip if this commit already has a dev tag
-          EXISTING=$(git tag --points-at HEAD | grep '^v0\.0\.1-dev\.' || true)
+          EXISTING=$(git tag --points-at HEAD | grep "^v${BASE}-dev\\." || true)
           if [ -n "$EXISTING" ]; then
             echo "should_release=false" >> "$GITHUB_OUTPUT"
             echo "Dev release already exists for HEAD ($SHA_SHORT): $EXISTING"
@@ -165,7 +165,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release list --json tagName --jq '.[].tagName' | grep '^v0\.0\.1-dev\.' | while read -r tag; do
+          gh release list --json tagName --jq '.[].tagName' | grep -- '-dev\.' | while read -r tag; do
             echo "Deleting release $tag"
             gh release delete "$tag" --yes --cleanup-tag || true
           done
