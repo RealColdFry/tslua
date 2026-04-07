@@ -27,7 +27,7 @@ index 2871f6e..219208c 100644
          const program = this.getProgram();
          const preEmitDiagnostics = ts.getPreEmitDiagnostics(program);
          const collector = createEmitOutputCollector(this.options.extension);
-@@ -256,6 +267,228 @@ export abstract class TestBuilder {
+@@ -256,6 +267,229 @@ export abstract class TestBuilder {
          return { diagnostics: [...diagnostics], transpiledFiles: collector.files };
      }
  
@@ -116,6 +116,7 @@ index 2871f6e..219208c 100644
 +                jsxFactory: this.options.jsxFactory,
 +                jsxFragmentFactory: this.options.jsxFragmentFactory,
 +                noImplicitSelf: this.options.noImplicitSelf,
++                noImplicitGlobalVariables: this.options.noImplicitGlobalVariables,
 +            },
 +        });
 +

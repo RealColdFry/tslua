@@ -134,6 +134,10 @@ type wasmOptions struct {
 		ClassStyle                string `json:"classStyle,omitempty"`
 		NoImplicitSelf            bool   `json:"noImplicitSelf,omitempty"`
 		NoImplicitGlobalVariables bool   `json:"noImplicitGlobalVariables,omitempty"`
+		ExportAsGlobal            bool   `json:"exportAsGlobal,omitempty"`
+		SourceMap                 bool   `json:"sourceMap,omitempty"`
+		SourceMapTraceback        bool   `json:"sourceMapTraceback,omitempty"`
+		InlineSourceMap           bool   `json:"inlineSourceMap,omitempty"`
 		Trace                     bool   `json:"trace,omitempty"`
 	} `json:"tstl,omitempty"`
 }
@@ -197,6 +201,10 @@ func transpile(tsCode string, wopts wasmOptions) transpileResult {
 		ClassStyle:                transpiler.ClassStyle(wopts.TSTL.ClassStyle),
 		NoImplicitSelf:            wopts.TSTL.NoImplicitSelf,
 		NoImplicitGlobalVariables: wopts.TSTL.NoImplicitGlobalVariables,
+		ExportAsGlobal:            wopts.TSTL.ExportAsGlobal,
+		SourceMap:                 wopts.TSTL.SourceMap || wopts.TSTL.SourceMapTraceback || wopts.TSTL.InlineSourceMap,
+		SourceMapTraceback:        wopts.TSTL.SourceMapTraceback,
+		InlineSourceMap:           wopts.TSTL.InlineSourceMap,
 		Trace:                     wopts.TSTL.Trace,
 	}
 	if fd, err := lualib.FeatureDataForTarget(string(lt)); err == nil {

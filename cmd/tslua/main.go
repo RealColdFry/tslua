@@ -30,24 +30,28 @@ var (
 )
 
 var (
-	projectFlag        string
-	outdirFlag         string
-	luaTargetFlag      string
-	emitModeFlag       string
-	diagFormatFlag     string
-	cpuprofileFlag     string
-	luaBundleFlag      string
-	luaBundleEntryFlag string
-	exportAsGlobalFlag bool
-	verboseFlag        bool
-	timingFlag         bool
-	watchFlag          bool
-	luaLibImportFlag   string
-	socketFlag         string
-	evalSourceFlag     string
-	sourceMapFlag      bool
-	noImplicitSelfFlag bool
-	traceFlag          bool
+	projectFlag                   string
+	outdirFlag                    string
+	luaTargetFlag                 string
+	emitModeFlag                  string
+	diagFormatFlag                string
+	cpuprofileFlag                string
+	luaBundleFlag                 string
+	luaBundleEntryFlag            string
+	exportAsGlobalFlag            bool
+	verboseFlag                   bool
+	timingFlag                    bool
+	watchFlag                     bool
+	luaLibImportFlag              string
+	socketFlag                    string
+	evalSourceFlag                string
+	sourceMapFlag                 bool
+	sourceMapTracebackFlag        bool
+	inlineSourceMapFlag           bool
+	noImplicitSelfFlag            bool
+	noImplicitGlobalVariablesFlag bool
+	classStyleFlag                string
+	traceFlag                     bool
 )
 
 func main() {
@@ -61,22 +65,26 @@ func main() {
 	}
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
 
-	// Persistent flags: shared across root and subcommands.
+	// Persistent flags: shared across root and subcommands (affect transpilation behavior).
 	rootCmd.PersistentFlags().StringVar(&luaTargetFlag, "luaTarget", "JIT", "Lua target version (JIT, 5.0, 5.1, 5.2, 5.3, 5.4, 5.5, Luau, universal)")
 	rootCmd.PersistentFlags().StringVar(&diagFormatFlag, "diagnosticFormat", "tstl", "diagnostic code format (tstl, native)")
 	rootCmd.PersistentFlags().StringVar(&cpuprofileFlag, "cpuprofile", "", "write CPU profile to file")
 	rootCmd.PersistentFlags().BoolVar(&timingFlag, "timing", false, "print phase timings to stderr")
 	rootCmd.PersistentFlags().StringVar(&luaLibImportFlag, "luaLibImport", "require", "how lualib features are included (require, inline, none)")
+	rootCmd.PersistentFlags().StringVar(&emitModeFlag, "emitMode", "tstl", "emit mode: tstl (match TSTL output) or optimized")
+	rootCmd.PersistentFlags().BoolVar(&noImplicitSelfFlag, "noImplicitSelf", false, "default functions to no-self unless annotated")
+	rootCmd.PersistentFlags().BoolVar(&noImplicitGlobalVariablesFlag, "noImplicitGlobalVariables", false, "force local declarations in script-mode top-level scope")
+	rootCmd.PersistentFlags().StringVar(&classStyleFlag, "classStyle", "", "class emit style (tstl, luabind, middleclass, inline)")
 
 	// Root-only flags: project build mode.
 	rootCmd.Flags().StringVarP(&projectFlag, "project", "p", "", "path to tsconfig.json")
 	rootCmd.Flags().StringVar(&outdirFlag, "outdir", "", "output directory for Lua files (default: stdout)")
-	rootCmd.Flags().StringVar(&emitModeFlag, "emitMode", "tstl", "emit mode: tstl (match TSTL output) or optimized")
 	rootCmd.Flags().StringVar(&luaBundleFlag, "luaBundle", "", "output all modules as a single bundled Lua file")
 	rootCmd.Flags().StringVar(&luaBundleEntryFlag, "luaBundleEntry", "", "entry point source file for bundle mode")
 	rootCmd.Flags().BoolVar(&exportAsGlobalFlag, "exportAsGlobal", false, "strip module wrapper, emit exports as globals")
 	rootCmd.Flags().BoolVar(&sourceMapFlag, "sourceMap", false, "generate .lua.map source map files")
-	rootCmd.Flags().BoolVar(&noImplicitSelfFlag, "noImplicitSelf", false, "default functions to no-self unless annotated")
+	rootCmd.Flags().BoolVar(&sourceMapTracebackFlag, "sourceMapTraceback", false, "register source maps at runtime for debug.traceback rewriting")
+	rootCmd.Flags().BoolVar(&inlineSourceMapFlag, "inlineSourceMap", false, "embed source map as base64 data URL in Lua output")
 	rootCmd.Flags().BoolVar(&verboseFlag, "verbose", false, "print each output file path")
 	rootCmd.Flags().BoolVarP(&watchFlag, "watch", "w", false, "watch for file changes and rebuild")
 
@@ -165,22 +173,52 @@ func main() {
 
 // buildConfig holds resolved settings shared across builds.
 type buildConfig struct {
-	cwd                 string
-	configDir           string
-	configParseResult   *tsoptions.ParsedCommandLine
-	sourceRoot          string
-	outdir              string
-	diagFormat          dw.DiagnosticFormat
-	luaTarget           transpiler.LuaTarget
-	emitMode            transpiler.EmitMode
-	luaLibImport        transpiler.LuaLibImportKind
-	luaBundle           string
-	luaBundleEntry      string
-	exportAsGlobal      bool
-	exportAsGlobalMatch string
-	noImplicitSelf      bool
-	sourceMap           bool
-	stderrIsTerminal    bool
+	cwd                       string
+	configDir                 string
+	configParseResult         *tsoptions.ParsedCommandLine
+	sourceRoot                string
+	outdir                    string
+	diagFormat                dw.DiagnosticFormat
+	luaTarget                 transpiler.LuaTarget
+	emitMode                  transpiler.EmitMode
+	luaLibImport              transpiler.LuaLibImportKind
+	luaBundle                 string
+	luaBundleEntry            string
+	exportAsGlobal            bool
+	exportAsGlobalMatch       string
+	noImplicitSelf            bool
+	noImplicitGlobalVariables bool
+	sourceMap                 bool
+	sourceMapTraceback        bool
+	inlineSourceMap           bool
+	classStyle                transpiler.ClassStyle
+	stderrIsTerminal          bool
+}
+
+// transpileOpts returns the TranspileOptions derived from this build config.
+// This is the single chokepoint for CLI entrypoints — all TranspileOptions
+// construction for project builds goes through here.
+func (cfg *buildConfig) transpileOpts() transpiler.TranspileOptions {
+	opts := transpiler.TranspileOptions{
+		EmitMode:                  cfg.emitMode,
+		ExportAsGlobal:            cfg.exportAsGlobal,
+		ExportAsGlobalMatch:       cfg.exportAsGlobalMatch,
+		NoImplicitSelf:            cfg.noImplicitSelf,
+		NoImplicitGlobalVariables: cfg.noImplicitGlobalVariables,
+		LuaLibImport:              cfg.luaLibImport,
+		SourceMap:                 cfg.sourceMap,
+		SourceMapTraceback:        cfg.sourceMapTraceback,
+		InlineSourceMap:           cfg.inlineSourceMap,
+		ClassStyle:                cfg.classStyle,
+	}
+	if cfg.luaLibImport == transpiler.LuaLibImportInline {
+		if fd, err := lualib.FeatureDataForTarget(string(cfg.luaTarget)); err == nil {
+			opts.LualibFeatureData = fd
+		} else {
+			opts.LualibInlineContent = lualibInlineContent(cfg.luaTarget)
+		}
+	}
+	return opts
 }
 
 func run(cmd *cobra.Command, args []string) error {
@@ -279,23 +317,29 @@ func run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	sourceMap := sourceMapFlag || sourceMapTracebackFlag || inlineSourceMapFlag || configParseResult.CompilerOptions().SourceMap.IsTrue()
+
 	cfg := &buildConfig{
-		cwd:                 cwd,
-		configDir:           string(configDir),
-		configParseResult:   configParseResult,
-		sourceRoot:          sourceRoot,
-		outdir:              outdir,
-		diagFormat:          diagFormat,
-		luaTarget:           luaTarget,
-		emitMode:            emitMode,
-		luaLibImport:        luaLibImport,
-		luaBundle:           luaBundleFlag,
-		luaBundleEntry:      luaBundleEntryFlag,
-		exportAsGlobal:      exportAsGlobal,
-		exportAsGlobalMatch: exportAsGlobalMatch,
-		noImplicitSelf:      noImplicitSelfFlag,
-		sourceMap:           sourceMapFlag || configParseResult.CompilerOptions().SourceMap.IsTrue(),
-		stderrIsTerminal:    stderrIsTerminal,
+		cwd:                       cwd,
+		configDir:                 string(configDir),
+		configParseResult:         configParseResult,
+		sourceRoot:                sourceRoot,
+		outdir:                    outdir,
+		diagFormat:                diagFormat,
+		luaTarget:                 luaTarget,
+		emitMode:                  emitMode,
+		luaLibImport:              luaLibImport,
+		luaBundle:                 luaBundleFlag,
+		luaBundleEntry:            luaBundleEntryFlag,
+		exportAsGlobal:            exportAsGlobal,
+		exportAsGlobalMatch:       exportAsGlobalMatch,
+		noImplicitSelf:            noImplicitSelfFlag,
+		noImplicitGlobalVariables: noImplicitGlobalVariablesFlag,
+		sourceMap:                 sourceMap,
+		sourceMapTraceback:        sourceMapTracebackFlag,
+		inlineSourceMap:           inlineSourceMapFlag,
+		classStyle:                transpiler.ClassStyle(classStyleFlag),
+		stderrIsTerminal:          stderrIsTerminal,
 	}
 
 	if watchFlag {
@@ -326,22 +370,7 @@ func runOnce(cfg *buildConfig, host compiler.CompilerHost) error {
 
 	tCheck := time.Now()
 
-	opts := transpiler.TranspileOptions{
-		EmitMode:            cfg.emitMode,
-		ExportAsGlobal:      cfg.exportAsGlobal,
-		ExportAsGlobalMatch: cfg.exportAsGlobalMatch,
-		NoImplicitSelf:      cfg.noImplicitSelf,
-		LuaLibImport:        cfg.luaLibImport,
-		SourceMap:           cfg.sourceMap,
-	}
-	if cfg.luaLibImport == transpiler.LuaLibImportInline {
-		if fd, err := lualib.FeatureDataForTarget(string(cfg.luaTarget)); err == nil {
-			opts.LualibFeatureData = fd
-		} else {
-			opts.LualibInlineContent = lualibInlineContent(cfg.luaTarget)
-		}
-	}
-	results, transpileDiags := transpiler.TranspileProgramWithOptions(program, cfg.sourceRoot, cfg.luaTarget, nil, opts)
+	results, transpileDiags := transpiler.TranspileProgramWithOptions(program, cfg.sourceRoot, cfg.luaTarget, nil, cfg.transpileOpts())
 
 	hasErrors := reportDiagnostics(cfg, semanticDiags, transpileDiags)
 

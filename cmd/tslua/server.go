@@ -530,6 +530,9 @@ func transpileOptsFromRequest(req serverRequest) transpiler.TranspileOptions {
 	if v, ok := req.CompilerOptions["noImplicitSelf"].(bool); ok && v {
 		opts.NoImplicitSelf = true
 	}
+	if v, ok := req.CompilerOptions["noImplicitGlobalVariables"].(bool); ok && v {
+		opts.NoImplicitGlobalVariables = true
+	}
 	if v, ok := req.CompilerOptions["sourceMap"].(bool); ok && v {
 		opts.SourceMap = true
 	}
@@ -540,6 +543,18 @@ func transpileOptsFromRequest(req serverRequest) transpiler.TranspileOptions {
 	if v, ok := req.CompilerOptions["inlineSourceMap"].(bool); ok && v {
 		opts.InlineSourceMap = true
 		opts.SourceMap = true // inline requires source map generation
+	}
+	if v, ok := req.CompilerOptions["emitMode"].(string); ok && v != "" {
+		opts.EmitMode = transpiler.EmitMode(v)
+	}
+	if v, ok := req.CompilerOptions["classStyle"].(string); ok && v != "" {
+		opts.ClassStyle = transpiler.ClassStyle(v)
+	}
+	if v, ok := req.CompilerOptions["luaLibImport"].(string); ok && v != "" {
+		opts.LuaLibImport = transpiler.LuaLibImportKind(v)
+	}
+	if v, ok := req.CompilerOptions["exportAsGlobal"].(bool); ok && v {
+		opts.ExportAsGlobal = true
 	}
 	return opts
 }
