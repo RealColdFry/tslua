@@ -6,7 +6,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/RealColdFry/tslua"
+    "url": "git+https://github.com/RealColdFry/tslua.git"
   },
   "bin": {
     "tslua": "bin/tslua.js"

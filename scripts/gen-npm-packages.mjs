@@ -21,7 +21,7 @@ const commonPackageJson = {
   version,
   license: "MIT",
   author: "Cold Fry",
-  repository: { type: "git", url: "https://github.com/RealColdFry/tslua" },
+  repository: { type: "git", url: "git+https://github.com/RealColdFry/tslua.git" },
   homepage: "https://github.com/RealColdFry/tslua",
   publishConfig: { access: "public" },
 };
