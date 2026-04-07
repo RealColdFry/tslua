@@ -230,63 +230,18 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: Generate and publish platform packages
+      - name: Generate npm packages
+        env:
+          TSLUA_VERSION: ${{ needs.check.outputs.version }}
+        run: node scripts/gen-npm-packages.mjs
+
+      - name: Publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          VERSION="${{ needs.check.outputs.version }}"
-
-          declare -A PLATFORM_MAP=(
-            ["linux-amd64"]="linux-x64 linux x64"
-            ["linux-arm64"]="linux-arm64 linux arm64"
-            ["darwin-arm64"]="darwin-arm64 darwin arm64"
-            ["darwin-amd64"]="darwin-x64 darwin x64"
-            ["windows-amd64"]="win32-x64 win32 x64"
-          )
-
-          for key in "${!PLATFORM_MAP[@]}"; do
-            read -r suffix os cpu <<< "${PLATFORM_MAP[$key]}"
-            PKG_DIR="npm-staging/@tslua/cli-${suffix}"
-            mkdir -p "${PKG_DIR}/bin"
-
-            # Copy binary
-            SRC="artifacts/tslua-${key}"
-            if [ "$os" = "win32" ]; then
-              SRC="${SRC}.exe"
-              cp "$SRC" "${PKG_DIR}/bin/tslua.exe"
-            else
-              cp "$SRC" "${PKG_DIR}/bin/tslua"
-              chmod +x "${PKG_DIR}/bin/tslua"
-            fi
-
-            # Generate package.json
-            node -e "
-              const pkg = { name: '@tslua/cli-${suffix}', version: '${VERSION}',
-                description: 'tslua platform binary (${os}-${cpu})', license: 'MIT',
-                os: ['${os}'], cpu: ['${cpu}'], files: ['bin/'] };
-              require('fs').writeFileSync('${PKG_DIR}/package.json', JSON.stringify(pkg, null, 2) + '\n');
-            "
-
-            echo "Publishing @tslua/cli-${suffix}@${VERSION}"
-            npm publish "${PKG_DIR}" --tag dev --access public --provenance
+          for package in npm/cli-*/; do
+            echo "Publishing $(jq -r .name "$package/package.json")@${{ needs.check.outputs.version }}"
+            npm publish "$package" --tag dev --provenance
           done
-
-      - name: Publish main package
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          VERSION="${{ needs.check.outputs.version }}"
-          PKG_DIR="npm/tslua"
-
-          # Inject version into main package and its optionalDependencies
-          node -e "
-            const pkg = require('./${PKG_DIR}/package.json');
-            pkg.version = '${VERSION}';
-            for (const dep of Object.keys(pkg.optionalDependencies || {})) {
-              pkg.optionalDependencies[dep] = '${VERSION}';
-            }
-            require('fs').writeFileSync('./${PKG_DIR}/package.json', JSON.stringify(pkg, null, 2) + '\n');
-          "
-
-          echo "Publishing @tslua/cli@${VERSION}"
-          npm publish "${PKG_DIR}" --tag dev --access public
+          echo "Publishing @tslua/cli@${{ needs.check.outputs.version }}"
+          npm publish npm/tslua --tag dev --provenance
