@@ -58,14 +58,11 @@ await Promise.all(
           2,
         ) + "\n",
       ),
-      fs.copyFile(
-        path.join(artifactsDir, artifactName),
-        path.join(packageDir, "bin", binaryName),
-      ).then(() =>
-        os !== "win32"
-          ? fs.chmod(path.join(packageDir, "bin", binaryName), 0o755)
-          : undefined,
-      ),
+      fs
+        .copyFile(path.join(artifactsDir, artifactName), path.join(packageDir, "bin", binaryName))
+        .then(() =>
+          os !== "win32" ? fs.chmod(path.join(packageDir, "bin", binaryName), 0o755) : undefined,
+        ),
     ]);
   }),
 );
