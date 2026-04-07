@@ -44,12 +44,7 @@ func runWatch(cfg *buildConfig, host compiler.CompilerHost) error {
 	semanticDiags := compiler.SortAndDeduplicateDiagnostics(
 		incremental.Program_GetSemanticDiagnostics(incrProg, context.Background(), nil),
 	)
-	results, transpileDiags := transpiler.TranspileProgramWithOptions(program, cfg.sourceRoot, cfg.luaTarget, nil, transpiler.TranspileOptions{
-		EmitMode:            cfg.emitMode,
-		ExportAsGlobal:      cfg.exportAsGlobal,
-		ExportAsGlobalMatch: cfg.exportAsGlobalMatch,
-		NoImplicitSelf:      cfg.noImplicitSelf,
-	})
+	results, transpileDiags := transpiler.TranspileProgramWithOptions(program, cfg.sourceRoot, cfg.luaTarget, nil, cfg.transpileOpts())
 	for _, r := range results {
 		cachedResults[r.FileName] = r
 	}
@@ -189,11 +184,7 @@ func runWatch(cfg *buildConfig, host compiler.CompilerHost) error {
 
 			tCheck := time.Now()
 
-			freshResults, transpileDiags := transpiler.TranspileProgramWithOptions(program, cfg.sourceRoot, cfg.luaTarget, changedFiles, transpiler.TranspileOptions{
-				EmitMode:            cfg.emitMode,
-				ExportAsGlobal:      cfg.exportAsGlobal,
-				ExportAsGlobalMatch: cfg.exportAsGlobalMatch,
-			})
+			freshResults, transpileDiags := transpiler.TranspileProgramWithOptions(program, cfg.sourceRoot, cfg.luaTarget, changedFiles, cfg.transpileOpts())
 			for _, r := range freshResults {
 				cachedResults[r.FileName] = r
 			}
@@ -237,11 +228,7 @@ func runWatch(cfg *buildConfig, host compiler.CompilerHost) error {
 			fmt.Fprintf(os.Stderr, "build finished in %.2fms\n", msf(time.Since(t0)))
 		} else {
 			// Async path: transpile+write immediately, incr+check in background.
-			freshResults, transpileDiags := transpiler.TranspileProgramWithOptions(program, cfg.sourceRoot, cfg.luaTarget, changedFiles, transpiler.TranspileOptions{
-				EmitMode:            cfg.emitMode,
-				ExportAsGlobal:      cfg.exportAsGlobal,
-				ExportAsGlobalMatch: cfg.exportAsGlobalMatch,
-			})
+			freshResults, transpileDiags := transpiler.TranspileProgramWithOptions(program, cfg.sourceRoot, cfg.luaTarget, changedFiles, cfg.transpileOpts())
 			for _, r := range freshResults {
 				cachedResults[r.FileName] = r
 			}

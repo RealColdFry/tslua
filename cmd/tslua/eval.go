@@ -92,8 +92,12 @@ func runEval(source string) error {
 		return fmt.Errorf("unsupported luaLibImport: %s (supported: require, inline, none)", luaLibImportFlag)
 	}
 	opts := transpiler.TranspileOptions{
-		LuaLibImport: luaLibImport,
-		Trace:        traceFlag,
+		EmitMode:                  transpiler.EmitMode(emitModeFlag),
+		NoImplicitSelf:            noImplicitSelfFlag,
+		NoImplicitGlobalVariables: noImplicitGlobalVariablesFlag,
+		ClassStyle:                transpiler.ClassStyle(classStyleFlag),
+		LuaLibImport:              luaLibImport,
+		Trace:                     traceFlag,
 	}
 	if luaLibImport == transpiler.LuaLibImportInline {
 		if fd, err := lualib.FeatureDataForTarget(string(luaTarget)); err == nil {

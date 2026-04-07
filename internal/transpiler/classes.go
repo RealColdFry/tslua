@@ -705,6 +705,7 @@ func (t *Transpiler) transformClassConstructor(classRef lua.Expression, construc
 	// Constructor: param defaults, super call, param properties, field inits, body
 	if constructor != nil {
 		ctor := constructor.AsConstructorDeclaration()
+		t.computeOptimizedVarArgs(ctor.Parameters, ctor.Body, false)
 		bodyStmts = append(bodyStmts, t.transformParamPreamble(ctor.Parameters)...)
 
 		// Transform the constructor body and split out the super call
