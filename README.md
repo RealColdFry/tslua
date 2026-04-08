@@ -1,25 +1,57 @@
 # tslua
 
-Go reimplementation of [TypeScriptToLua](https://github.com/TypeScriptToLua/TypeScriptToLua) using [typescript-go](https://github.com/microsoft/typescript-go) internals.
+TypeScript-to-Lua transpiler built on [typescript-go](https://github.com/microsoft/typescript-go). Single binary, no Node runtime required.
 
-Work in progress. Passes a large portion of TSTL's test suite but not yet a drop-in replacement.
+Built on the architecture and test suite of [TypeScriptToLua](https://github.com/TypeScriptToLua/TypeScriptToLua). Targets LuaJIT and Lua 5.0-5.5.
 
-Targets: LuaJIT, Lua 5.0–5.5, universal.
+## Try it
 
-tslua ports from TSTL's architecture, transforms, and test suite.
+```ts
+// tslua eval -e
+const items = [10, 20, 30];
+for (const x of items) { print(x * 2) }
 
-## What's missing
+// output:
+// items = {10, 20, 30}
+// for ____, x in ipairs(items) do
+//     print(x * 2)
+// end
+```
 
-tslua doesn't yet cover everything TSTL does. Notable gaps:
+Install: `npm i @tslua/cli`
 
-- **Plugins** - TSTL's `luaPlugins` hook system isn't ported. A Go binary can't load JS transformer plugins, so this needs a different approach. In practice, many TSTL plugins handle things like enum remapping, array proxy workarounds, and lualib patching. A native Go pipeline can address these differently since it transpiles lualib through the same path as user code. We're still figuring out what a plugin story looks like here.
-- **Build modes** - `--buildMode library` not implemented.
-- **Diagnostics** - not all TSTL diagnostics are implemented, and some differ due to using a different type checker.
+[Playground](https://realcoldfry.github.io/tslua/playground/) &middot; [Docs](https://realcoldfry.github.io/tslua/) &middot; [CLI reference](https://realcoldfry.github.io/tslua/cli/overview/)
 
-## Background reading
+## Why tslua
 
-- [Progress on TypeScript 7 (December 2025)](https://devblogs.microsoft.com/typescript/progress-on-typescript-7-december-2025/) — TS7 won't support the existing JS API; third-party tools (including TSTL plugins) face a migration
-- [typescript-go: API design direction](https://github.com/microsoft/typescript-go/discussions/455) — IPC-based programmatic API over msgpack, no stable Go API planned
-- [typescript-go: Public Go API for embedding?](https://github.com/microsoft/typescript-go/discussions/481) — whether typescript-go will expose stable Go packages for in-process use
-- [typescript-go: Transformer plugin / compiler API](https://github.com/microsoft/typescript-go/issues/516) — ecosystem asking what happens to compiler plugins (TSTL, typia, Angular) under TS7
-- [typescript-go: API patterns for editor extensions](https://github.com/microsoft/typescript-go/issues/2824) — concrete IPC API design replacing TS Server plugins (Vue case study)
+- **Native Go binary**  -  uses typescript-go's type checker and AST directly via `go:linkname` shims, no IPC or JS runtime in the loop
+- **TSTL-compatible**  -  ports TSTL's transforms and lualib faithfully; designed as a drop-in replacement
+- **TS 7 ready**  -  built on the compiler that TypeScript is migrating to
+- **Fast**  -  ~6-18ms incremental rebuilds in watch mode. [Benchmarks](https://realcoldfry.github.io/tslua/performance/)
+- **Alternative class styles**  -  `tstl` (default, TSTL-compatible), `inline`, `luabind`, `middleclass`
+
+## Compatibility
+
+Two verification approaches, both running TSTL's own tests:
+
+- **[Jest harness](https://realcoldfry.github.io/tslua/testing/overview/#jest-harness)**  -  TSTL's Jest suite runs unmodified, but with tslua's transpiler swapped in via a Unix socket server. **6071 / 6179 tests pass (98.3%).**
+- **[Migrated Go tests](https://realcoldfry.github.io/tslua/testing/overview/#migrated-go-tests)**  -  a migration system extracts TSTL's Jest specs and code-generates them into native Go tests. **5656 / 5903 cases migrated (95.8%)** across 70 of 71 spec files, with **100% behavioral pass rate** on migrated cases. The 247 unmigrated cases use TSTL assertion methods (`getMainLuaCodeChunk`, `getLuaExecutionResult`, etc.) not yet supported by the migration script.
+
+## What's not done yet
+
+- **Plugins**  -  TSTL's `luaPlugins` hook system. A Go binary can't load JS transformer plugins; the plugin story needs a different shape.
+- **Build modes**  -  `--buildMode library` not implemented.
+- **Diagnostics**  -  not all TSTL diagnostics are ported, and some differ due to typescript-go's type checker.
+
+## Building from source
+
+Requires Go 1.24+, Node 20+, and [just](https://github.com/casey/just).
+
+```bash
+git clone https://github.com/RealColdFry/tslua
+cd tslua
+just setup
+just build
+./tslua eval -e 'print("hello")'
+```
+

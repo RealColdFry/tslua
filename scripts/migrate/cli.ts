@@ -73,12 +73,12 @@ function runCheck(specPaths: string[]): void {
       cases = [];
       extractionErrors = [{ name: "(crash)", error: e.message ?? String(e) }];
     }
-    // Count "other" assertion cases as extraction failures — they can't be migrated
+    // Count "other" assertion cases as extraction failures  - they can't be migrated
     for (const c of cases) {
       if (c.assertion === "other") {
         extractionErrors.push({
           name: c.name,
-          error: `uses .${c.otherReason ?? "unknown"}() — not migratable`,
+          error: `uses .${c.otherReason ?? "unknown"}()  - not migratable`,
         });
       }
     }
@@ -118,8 +118,10 @@ function runCheck(specPaths: string[]): void {
   // Sort by count descending
   const sorted = [...byCapability.entries()].toSorted((a, b) => b[1].count - a[1].count);
 
+  const totalFound = totalCases + totalErrors;
+  const pct = totalFound > 0 ? ((totalCases / totalFound) * 100).toFixed(1) : "0";
   console.error(
-    `\n${totalSpecs} specs scanned, ${totalCases} cases extracted, ${totalErrors} extraction failures in ${specsWithErrors} specs\n`,
+    `\n${totalSpecs} specs scanned, ${totalCases} / ${totalFound} cases migrated (${pct}%), ${totalErrors} extraction failures in ${specsWithErrors} specs\n`,
   );
 
   if (sorted.length === 0) {

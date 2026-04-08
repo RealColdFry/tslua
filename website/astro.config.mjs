@@ -44,7 +44,22 @@ export default defineConfig({
           label: "Configuration",
           items: [
             { label: "tsconfig.json", slug: "config/tsconfig" },
+          ],
+        },
+        {
+          label: "Customization",
+          items: [
             { label: "Class Styles", slug: "config/class-style" },
+            { label: "Emit Mode", slug: "config/emit-mode" },
+            { label: "Export as Global", slug: "config/export-as-global" },
+          ],
+        },
+        {
+          label: "Development",
+          items: [
+            { label: "Testing", slug: "testing/overview" },
+            { label: "Performance", slug: "performance" },
+            { label: "Background", slug: "background" },
           ],
         },
       ],

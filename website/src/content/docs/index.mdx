@@ -3,7 +3,7 @@ title: tslua
 description: Fast TypeScript-to-Lua transpiler powered by typescript-go.
 template: splash
 hero:
-  tagline: A fast TypeScript-to-Lua transpiler, written in Go, powered by typescript-go.
+  tagline: A fast TypeScript-to-Lua transpiler, written in Go, powered by typescript-go. Built on the architecture and test suite of TypeScriptToLua.
   actions:
     - text: Get Started
       link: ./guides/installation/
@@ -12,3 +12,25 @@ hero:
       link: ./playground/
       variant: minimal
 ---
+
+import { Code } from '@astrojs/starlight/components';
+
+## Try it
+
+```bash
+npm install @tslua/cli
+```
+
+```ts
+// tslua eval -e
+const items = [10, 20, 30];
+for (const x of items) { print(x * 2) }
+
+// output:
+// items = {10, 20, 30}
+// for ____, x in ipairs(items) do
+//     print(x * 2)
+// end
+```
+
+Targets LuaJIT and Lua 5.0-5.5. Passes [98% of TSTL's test suite](/tslua/testing/overview/#jest-harness). See the [CLI reference](/tslua/cli/overview/) for all commands and flags.
