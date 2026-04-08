@@ -30,33 +30,30 @@ tslua -p tsconfig.json --exportAsGlobal
 Given this TypeScript:
 
 ```typescript
-export function greet(name: string) {
-  return "Hello, " + name;
-}
-export const VERSION = "1.0";
+export const SPEED = 200;
+export const GRAVITY = 9.8;
+export const PLAYER_NAME = "hero";
 ```
 
 **Default output** (module wrapper):
 
 ```lua
 local ____exports = {}
-function ____exports.greet(self, name)
-    return "Hello, " .. name
-end
-____exports.VERSION = "1.0"
+____exports.SPEED = 200
+____exports.GRAVITY = 9.8
+____exports.PLAYER_NAME = "hero"
 return ____exports
 ```
 
 **With `exportAsGlobal: true`**:
 
 ```lua
-local function greet(self, name)
-    return "Hello, " .. name
-end
-VERSION = "1.0"
+SPEED = 200
+GRAVITY = 9.8
+PLAYER_NAME = "hero"
 ```
 
-Exports become top-level declarations. Functions get `local` scope; constants are globals accessible to the host environment.
+Exports become top-level declarations, accessible to the host environment without a module wrapper.
 
 ## Selective matching
 

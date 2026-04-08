@@ -10,18 +10,18 @@ Each TSTL spec file is run in a sandboxed VM with mock `util.testExpression` / `
 
 ## Pipeline
 
-| File | Role |
-|------|------|
-| `cli.ts` | Entry point, spec discovery, cache pre-warming, `-c` check mode |
-| `extract.ts` | Sandboxed spec execution, test case capture |
-| `builder.ts` | Mock builder that records `.setOptions()`, `.ignoreDiagnostics()`, etc. |
-| `evaluate.ts` | JS baking - transpiles TS to JS and runs it to get expected values |
-| `tstl-ref.ts` | Runs code through TSTL to capture reference Lua for codegen comparison |
-| `codegen.ts` | Emits Go test files with batch test cases |
-| `constants.ts` | Overrides, skips, and target mappings |
-| `types.ts` | `TestCase` type definition |
-| `serialize.ts` | Go literal serialization |
-| `migrate.ts` | Orchestrates extract + evaluate + codegen for a single spec |
+| File           | Role                                                                    |
+| -------------- | ----------------------------------------------------------------------- |
+| `cli.ts`       | Entry point, spec discovery, cache pre-warming, `-c` check mode         |
+| `extract.ts`   | Sandboxed spec execution, test case capture                             |
+| `builder.ts`   | Mock builder that records `.setOptions()`, `.ignoreDiagnostics()`, etc. |
+| `evaluate.ts`  | JS baking - transpiles TS to JS and runs it to get expected values      |
+| `tstl-ref.ts`  | Runs code through TSTL to capture reference Lua for codegen comparison  |
+| `codegen.ts`   | Emits Go test files with batch test cases                               |
+| `constants.ts` | Overrides, skips, and target mappings                                   |
+| `types.ts`     | `TestCase` type definition                                              |
+| `serialize.ts` | Go literal serialization                                                |
+| `migrate.ts`   | Orchestrates extract + evaluate + codegen for a single spec             |
 
 ## Usage
 

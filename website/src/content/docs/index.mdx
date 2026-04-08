@@ -13,8 +13,6 @@ hero:
       variant: minimal
 ---
 
-import { Code } from '@astrojs/starlight/components';
-
 ## Try it
 
 ```bash
@@ -24,7 +22,9 @@ npm install @tslua/cli
 ```ts
 // tslua eval -e
 const items = [10, 20, 30];
-for (const x of items) { print(x * 2) }
+for (const x of items) {
+  print(x * 2);
+}
 
 // output:
 // items = {10, 20, 30}

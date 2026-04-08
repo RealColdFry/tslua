@@ -10,16 +10,6 @@ Built on the architecture and test suite of [TypeScriptToLua](https://github.com
 npm install @tslua/cli
 ```
 
-## Usage
-
-```bash
-# Transpile a project
-npx tslua -p tsconfig.json
-
-# Transpile inline code
-npx tslua eval -e 'const items = [10, 20, 30]; for (const x of items) { const y = x * 2 }'
-```
-
 ## Links
 
 - [Docs](https://realcoldfry.github.io/tslua/)

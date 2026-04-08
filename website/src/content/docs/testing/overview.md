@@ -18,6 +18,7 @@ A patch (`extern/tstl-test-util.patch`) modifies TSTL's `test/util.ts` to check 
 `tslua server --socket PATH` starts a long-lived process listening on a Unix socket. Jest workers send requests through `tslua-client`, a minimal Go binary that connects to the socket, pipes a JSON request from stdin, and writes the response to stdout.
 
 **Request** (JSON):
+
 ```json
 {
   "source": "const x: number = 1; print(x);",
@@ -29,6 +30,7 @@ A patch (`extern/tstl-test-util.patch`) modifies TSTL's `test/util.ts` to check 
 ```
 
 **Response** (JSON):
+
 ```json
 {
   "ok": true,
@@ -38,6 +40,7 @@ A patch (`extern/tstl-test-util.patch`) modifies TSTL's `test/util.ts` to check 
 ```
 
 The server processes requests sequentially through a single worker goroutine with panic recovery. This avoids concurrency issues with the typescript-go type checker while keeping the server alive across requests. Each request has a 10-second timeout.
+
 ```bash
 just tstl-test  # run full suite
 ```
@@ -48,15 +51,15 @@ just tstl-test expressions  # filter by spec name
 
 Current result: **6071 / 6179 tests pass (98.3%).** The 103 failures break down as:
 
-| Category | Count | Notes |
-|----------|-------|-------|
-| Codegen snapshot diffs | ~23 | Semantically equivalent output, different formatting (e.g. hex vs decimal literals, temp variable elision) |
-| Plugins/transformers | ~14 | `luaPlugins` not implemented |
-| Bundling/build modes | ~11 | `--buildMode library`, `luaLibImport inline`, bundling edge cases |
-| Module resolution | ~8 | `noResolvePaths`, `baseUrl` resolution differences |
-| Emit paths | ~4 | `getEmitPath` for outDir/rootDir/extensions |
-| Diagnostics | ~2 | Snapshot diffs in diagnostic output |
-| Other | ~41 | Mix of Luau-specific, language extension edge cases, async/generators on universal target, declaration file generation |
+| Category               | Count | Notes                                                                                                                  |
+| ---------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------- |
+| Codegen snapshot diffs | ~23   | Semantically equivalent output, different formatting (e.g. hex vs decimal literals, temp variable elision)             |
+| Plugins/transformers   | ~14   | `luaPlugins` not implemented                                                                                           |
+| Bundling/build modes   | ~11   | `--buildMode library`, `luaLibImport inline`, bundling edge cases                                                      |
+| Module resolution      | ~8    | `noResolvePaths`, `baseUrl` resolution differences                                                                     |
+| Emit paths             | ~4    | `getEmitPath` for outDir/rootDir/extensions                                                                            |
+| Diagnostics            | ~2    | Snapshot diffs in diagnostic output                                                                                    |
+| Other                  | ~41   | Mix of Luau-specific, language extension edge cases, async/generators on universal target, declaration file generation |
 
 Most failures are in unimplemented features (plugins, build modes) or codegen snapshot comparisons where the output is semantically equivalent but not byte-identical.
 
@@ -112,16 +115,16 @@ just testall  # runs all three packages including tstltest
 
 Both migrated and hand-written eval tests run the transpiled Lua against real Lua interpreters. `just lua-setup` builds all supported runtimes from source into `.lua-runtimes/bin/`:
 
-| Binary | Version | Source |
-|--------|---------|--------|
-| `lua5.0` | 5.0.3 | lua.org tarball |
-| `lua5.1` | 5.1.5 | lua.org tarball |
-| `lua5.2` | 5.2.4 | lua.org tarball |
-| `lua5.3` | 5.3.6 | lua.org tarball |
-| `lua5.4` | 5.4.7 | lua.org tarball |
-| `lua5.5` | 5.5.0 | lua.org tarball |
-| `luajit` | 2.1 | GitHub mirror, pinned commit |
-| `lune` | 0.10.4 | Pre-built binary from GitHub releases |
+| Binary   | Version | Source                                |
+| -------- | ------- | ------------------------------------- |
+| `lua5.0` | 5.0.3   | lua.org tarball                       |
+| `lua5.1` | 5.1.5   | lua.org tarball                       |
+| `lua5.2` | 5.2.4   | lua.org tarball                       |
+| `lua5.3` | 5.3.6   | lua.org tarball                       |
+| `lua5.4` | 5.4.7   | lua.org tarball                       |
+| `lua5.5` | 5.5.0   | lua.org tarball                       |
+| `luajit` | 2.1     | GitHub mirror, pinned commit          |
+| `lune`   | 0.10.4  | Pre-built binary from GitHub releases |
 
 Each `TestEval_*` case specifies a Lua target. The test harness selects the matching runtime and runs the transpiled output against it. Target-specific tests (e.g. bitwise operators on 5.3+, native continue on Luau) only run when the corresponding binary is available.
 

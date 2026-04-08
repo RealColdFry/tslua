@@ -42,9 +42,7 @@ export default defineConfig({
         },
         {
           label: "Configuration",
-          items: [
-            { label: "tsconfig.json", slug: "config/tsconfig" },
-          ],
+          items: [{ label: "tsconfig.json", slug: "config/tsconfig" }],
         },
         {
           label: "Customization",

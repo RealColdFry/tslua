@@ -29,7 +29,7 @@ for (const x of items) { print(x * 2) }
 ## Why tslua
 
 - **Native Go binary.** Uses typescript-go's type checker and AST directly via `go:linkname` shims, no IPC or JS runtime in the loop.
-- **TSTL-compatible.** Ports TSTL's transforms and lualib faithfully; designed as a drop-in replacement.
+- **TSTL-compatible.** Ports TSTL's transforms and lualib faithfully. Reads the same `tsconfig.json` options and produces compatible output.
 - **TS 7 ready.** Built on the compiler that TypeScript is migrating to.
 - **Fast.** ~6-18ms incremental rebuilds in watch mode. [Benchmarks](https://realcoldfry.github.io/tslua/performance/)
 - **Alternative class styles.** `tstl` (default, TSTL-compatible), `inline`, `luabind`, `middleclass`.

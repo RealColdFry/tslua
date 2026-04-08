@@ -23,10 +23,10 @@ Emits cleaner Lua where tslua can prove the result is semantically equivalent. E
 
 This mode is a work in progress. Current optimizations:
 
-| Area | Default (`tstl`) | Optimized | Notes |
-|------|-------------------|-----------|-------|
-| `tostring()` in concat | Wraps all non-string operands including numeric vars | Skips wrapping for numeric types | Lua `..` handles numbers natively |
-| C-style for loops | `while` loop with manual init/increment | `for i = start, limit` when pattern matches | Simpler, faster Lua |
-| Map/Set for-of | Allocates intermediate tables | Zero-garbage stateless iteration via [custom lualib helpers](https://github.com/RealColdFry/tslua/blob/master/internal/lualib/patches.lua) | Less GC pressure |
+| Area                   | Default (`tstl`)                                     | Optimized                                                                                                                                  | Notes                             |
+| ---------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------- |
+| `tostring()` in concat | Wraps all non-string operands including numeric vars | Skips wrapping for numeric types                                                                                                           | Lua `..` handles numbers natively |
+| C-style for loops      | `while` loop with manual init/increment              | `for i = start, limit` when pattern matches                                                                                                | Simpler, faster Lua               |
+| Map/Set for-of         | Allocates intermediate tables                        | Zero-garbage stateless iteration via [custom lualib helpers](https://github.com/RealColdFry/tslua/blob/master/internal/lualib/patches.lua) | Less GC pressure                  |
 
 More optimizations will be added over time. If you find a case where optimized mode changes runtime behavior, please [open an issue](https://github.com/RealColdFry/tslua/issues).
