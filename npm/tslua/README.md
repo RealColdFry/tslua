@@ -1,11 +1,8 @@
 # tslua
 
-TypeScript-to-Lua transpiler built on [typescript-go](https://github.com/microsoft/typescript-go).
+TypeScript-to-Lua transpiler built on [typescript-go](https://github.com/microsoft/typescript-go). Single binary, no Node runtime required.
 
-**Supported targets:** LuaJIT and Lua 5.0-5.5.
-
-> [!WARNING]
-> This is an early development build. Use at your own risk.
+Built on the architecture and test suite of [TypeScriptToLua](https://github.com/TypeScriptToLua/TypeScriptToLua). For general TypeScript-to-Lua usage and caveats, see the [TSTL docs](https://typescripttolua.github.io/). Targets LuaJIT and Lua 5.0-5.5.
 
 ## Install
 
@@ -13,16 +10,9 @@ TypeScript-to-Lua transpiler built on [typescript-go](https://github.com/microso
 npm install @tslua/cli
 ```
 
-## Usage
+## Links
 
-```bash
-# Transpile a project
-npx tslua -p tsconfig.json
-
-# Transpile inline code
-npx tslua eval -e 'const x: number = 1; print(x)'
-```
-
-## Binary downloads
-
-Pre-built binaries are also available on [GitHub Releases](https://github.com/RealColdFry/tslua/releases).
+- [Docs](https://realcoldfry.github.io/tslua/)
+- [Playground](https://realcoldfry.github.io/tslua/playground/)
+- [CLI reference](https://realcoldfry.github.io/tslua/cli/overview/)
+- [GitHub](https://github.com/RealColdFry/tslua)
