@@ -1,0 +1,12 @@
+{
+  "ExtraMethods": {
+    "Program": [
+      "ForEachCheckerParallel",
+      "GetSemanticDiagnostics",
+      "GetSyntacticDiagnostics",
+      "UpdateProgram",
+      "IsSourceFileDefaultLibrary",
+      "IsSourceFileFromExternalLibrary"
+    ]
+  }
+}
