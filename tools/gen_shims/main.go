@@ -201,10 +201,9 @@ func main() {
 				shimBuilder.WriteString("\n")
 			}
 
-			switch object.(type) {
+			switch object := object.(type) {
 			case *types.TypeName:
-				typeName := object.(*types.TypeName)
-				t := typeName.Type()
+				t := object.Type()
 				named, isNamed := t.(*types.Named)
 				if isNamed {
 					_, nameWithTypeParams, _ := strings.Cut(types.TypeString(named, qualifierOnlyPackageName), ".")
@@ -370,8 +369,7 @@ func main() {
 				printReexport("var")
 			case *types.Func:
 				if !slices.Contains(extraShim.IgnoreFunctions, name) {
-					funcType := object.(*types.Func)
-					emitLinkedFunction(funcType)
+					emitLinkedFunction(object)
 				}
 			}
 		}
