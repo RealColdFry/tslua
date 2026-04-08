@@ -2,7 +2,13 @@
 
 TypeScript-to-Lua transpiler built on [typescript-go](https://github.com/microsoft/typescript-go). Single binary, no Node runtime required.
 
-Built on the architecture and test suite of [TypeScriptToLua](https://github.com/TypeScriptToLua/TypeScriptToLua). Targets LuaJIT and Lua 5.0-5.5.
+Built on the architecture and test suite of [TypeScriptToLua](https://github.com/TypeScriptToLua/TypeScriptToLua). For general TypeScript-to-Lua usage and caveats, see the [TSTL docs](https://typescripttolua.github.io/). Targets LuaJIT and Lua 5.0-5.5.
+
+## Install
+
+```bash
+npm i @tslua/cli
+```
 
 ## Try it
 
@@ -17,8 +23,6 @@ for (const x of items) { print(x * 2) }
 //     print(x * 2)
 // end
 ```
-
-Install: `npm i @tslua/cli`
 
 [Playground](https://realcoldfry.github.io/tslua/playground/) &middot; [Docs](https://realcoldfry.github.io/tslua/) &middot; [CLI reference](https://realcoldfry.github.io/tslua/cli/overview/)
 
