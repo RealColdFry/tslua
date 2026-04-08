@@ -18,4 +18,4 @@ go mod tidy
 
 go run ./tools/gen_shims
 
-git add ./shim ./go.mod ./go.sum
+go build ./...

@@ -165,6 +165,10 @@ tstl-bump:
 tsgo-bump:
     cd extern/typescript-go && git fetch origin && git checkout origin/main
 
+# Regenerate shim/ from extern/typescript-go (applies patches, runs gen_shims)
+shim:
+    ./tools/update-shims.sh
+
 # Reset extern/tstl to the committed submodule pointer (discards patches/local changes)
 tstl-reset:
     git submodule update -- extern/tstl

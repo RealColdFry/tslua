@@ -278,9 +278,6 @@ func main() {
 					importPackage("unsafe", true)
 
 					matchedExtraFields[name] = true
-					if err != nil {
-						log.Fatalf("error formatting %v struct body: %v", name, err)
-					}
 					mirrorStructName := "extra_" + name
 
 					var emitExtraStruct func(name string, s *types.Struct)
@@ -419,12 +416,9 @@ func main() {
 		shimHeaderBuilder.WriteString("\n")
 
 		shimGoPath := path.Join(shimDirPath, "shim.go")
-		file, err := os.Create(shimGoPath)
-		if err != nil {
-			log.Fatalf("error opening shim file for writing: %v", err)
+		if err := os.WriteFile(shimGoPath, []byte(shimHeaderBuilder.String()+shimBuilder.String()), 0644); err != nil {
+			log.Fatalf("error writing shim file %s: %v", shimGoPath, err)
 		}
-		file.WriteString(shimHeaderBuilder.String())
-		file.WriteString(shimBuilder.String())
 
 		shimHeaderBuilder.Reset()
 		shimBuilder.Reset()
