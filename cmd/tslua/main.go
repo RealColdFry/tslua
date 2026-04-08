@@ -308,12 +308,16 @@ func run(cmd *cobra.Command, args []string) error {
 	// Merge tslua tsconfig options with CLI flags (CLI wins).
 	exportAsGlobal := exportAsGlobalFlag
 	var exportAsGlobalMatch string
+	classStyle := classStyleFlag
 	if tsluaCfg != nil {
 		if !exportAsGlobal {
 			exportAsGlobal = tsluaCfg.exportAsGlobalBool
 		}
 		if exportAsGlobalMatch == "" {
 			exportAsGlobalMatch = tsluaCfg.exportAsGlobalMatch
+		}
+		if classStyle == "" {
+			classStyle = tsluaCfg.ClassStyle
 		}
 	}
 
@@ -338,7 +342,7 @@ func run(cmd *cobra.Command, args []string) error {
 		sourceMap:                 sourceMap,
 		sourceMapTraceback:        sourceMapTracebackFlag,
 		inlineSourceMap:           inlineSourceMapFlag,
-		classStyle:                transpiler.ClassStyle(classStyleFlag),
+		classStyle:                transpiler.ClassStyle(classStyle),
 		stderrIsTerminal:          stderrIsTerminal,
 	}
 

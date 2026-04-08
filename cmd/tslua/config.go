@@ -11,6 +11,7 @@ type tsluaConfig struct {
 	ExportAsGlobal      any    `json:"exportAsGlobal"` // bool or string (regex pattern for file matching)
 	exportAsGlobalBool  bool   // resolved: apply to all files
 	exportAsGlobalMatch string // resolved: regex pattern for selective application
+	ClassStyle          string `json:"classStyle"`
 }
 
 // parseTsluaConfig reads the "tstl" or "tslua" section from a tsconfig.json file.

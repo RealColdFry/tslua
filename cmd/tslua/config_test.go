@@ -93,6 +93,25 @@ func TestParseTsluaConfig_NoSection(t *testing.T) {
 	}
 }
 
+func TestParseTsluaConfig_ClassStyle(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "tsconfig.json")
+	if err := os.WriteFile(path, []byte(`{"tstl":{"classStyle":"luabind"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := parseTsluaConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg == nil {
+		t.Fatal("expected config")
+	}
+	if cfg.ClassStyle != "luabind" {
+		t.Errorf("expected classStyle=luabind, got %q", cfg.ClassStyle)
+	}
+}
+
 func TestParseTsluaConfig_MissingFile(t *testing.T) {
 	cfg, err := parseTsluaConfig("/nonexistent/tsconfig.json")
 	if err != nil {
