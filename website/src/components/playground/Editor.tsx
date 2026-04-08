@@ -52,7 +52,7 @@ export function Editor({
           readOnly,
           fixedOverflowWidgets: true,
           minimap: { enabled: false },
-          fontFamily: '"Iosevka", "JetBrains Mono", "Fira Code", monospace',
+          fontFamily: '"JetBrains Mono", "Fira Code", monospace',
           fontSize: 14,
           lineNumbers: "on",
           scrollBeyondLastLine: false,
