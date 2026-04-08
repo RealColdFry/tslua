@@ -19,7 +19,7 @@ Matches TSTL's Lua output as closely as possible. Use this when you need byte-fo
 
 ## `"optimized"`
 
-Emits cleaner Lua where tslua can prove the result is semantically equivalent. Every optimization preserves identical runtime behavior - the Lua evaluates to the same result as the default mode.
+Emits cleaner Lua where tslua can prove the result is semantically equivalent. Every optimization preserves identical runtime behavior; the Lua evaluates to the same result as the default mode.
 
 This mode is a work in progress. Current optimizations:
 

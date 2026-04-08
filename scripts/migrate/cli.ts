@@ -73,12 +73,12 @@ function runCheck(specPaths: string[]): void {
       cases = [];
       extractionErrors = [{ name: "(crash)", error: e.message ?? String(e) }];
     }
-    // Count "other" assertion cases as extraction failures  - they can't be migrated
+    // Count "other" assertion cases as extraction failures, they can't be migrated
     for (const c of cases) {
       if (c.assertion === "other") {
         extractionErrors.push({
           name: c.name,
-          error: `uses .${c.otherReason ?? "unknown"}()  - not migratable`,
+          error: `uses .${c.otherReason ?? "unknown"}(), not migratable`,
         });
       }
     }
