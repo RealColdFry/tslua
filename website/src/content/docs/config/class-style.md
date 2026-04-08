@@ -5,6 +5,8 @@ description: Configure how TypeScript classes are emitted to Lua.
 
 TypeScript classes can be emitted using different Lua object system conventions. By default, tslua emits TSTL-compatible prototype chains. The `classStyle` option lets you target alternative object systems.
 
+Available styles: [`tstl`](#tstl-default) (default), [`luabind`](#luabind), [`middleclass`](#middleclass), [`inline`](#inline).
+
 ## Quick start
 
 Set `classStyle` in your tsconfig.json under the `tstl` key:

@@ -3,7 +3,11 @@ title: Testing
 description: How tslua verifies compatibility with TypeScriptToLua.
 ---
 
-tslua uses three complementary testing approaches to verify compatibility with TSTL.
+tslua uses three complementary testing approaches to verify compatibility with TSTL:
+
+1. **[Jest harness](#jest-harness)** runs TSTL's own test suite with tslua's transpiler swapped in via a socket server.
+2. **[Migrated Go tests](#migrated-go-tests)** extract TSTL's Jest specs and code-generate them into native Go tests.
+3. **[Hand-written tests](#hand-written-tests)** cover tslua-specific behavior and cases too complex to migrate.
 
 ## Jest harness
 
