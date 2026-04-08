@@ -1,4 +1,4 @@
-module github.com/microsoft/typescript-go/shim/checkershim
+module github.com/microsoft/typescript-go/shim/checker
 
 go 1.26
 

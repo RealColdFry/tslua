@@ -21,24 +21,23 @@ typescript-go
 https://github.com/microsoft/typescript-go
 
 Copyright (c) Microsoft Corporation
-Licensed under the Apache License, Version 2.0 (extern/tsgolint/typescript-go/LICENSE)
+Licensed under the Apache License, Version 2.0 (extern/typescript-go/LICENSE)
 
 tslua links against typescript-go's compiler and type checker internals for
 TypeScript parsing, type checking, and AST access. See
-extern/tsgolint/typescript-go/NOTICE.txt for typescript-go's own third-party
-notices.
+extern/typescript-go/NOTICE.txt for typescript-go's own third-party notices.
 
 ================================================================================
 
-tsgolint
+tsgolint (shim generator origin)
 https://github.com/oxc-project/tsgolint
 
 Copyright (c) 2025 July-present VoidZero Inc. & Contributors
 Copyright (c) 2025 July typescript-eslint and other contributors
-Licensed under the MIT License (extern/tsgolint/LICENSE)
+Licensed under the MIT License
 
-tslua uses tsgolint's Go shim layer (extern/tsgolint/shim/) to access
-typescript-go internal APIs via go:linkname.
+tslua's shim generator (tools/gen_shims/) is derived from tsgolint's
+tools/gen_shims. tsgolint is no longer a submodule dependency.
 
 ================================================================================
 

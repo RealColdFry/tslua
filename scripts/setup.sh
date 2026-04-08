@@ -37,8 +37,7 @@ fi
 
 echo ""
 echo "Initializing submodules..."
-git submodule update --init extern/tsgolint
-git -C extern/tsgolint submodule update --init typescript-go
+git submodule update --init extern/typescript-go
 git submodule update --init extern/tstl
 
 echo ""

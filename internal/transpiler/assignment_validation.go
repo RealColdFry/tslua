@@ -6,7 +6,6 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/microsoft/typescript-go/shim/checkershim"
 	dw "github.com/microsoft/typescript-go/shim/diagnosticwriter"
 )
 
@@ -46,9 +45,9 @@ func (t *Transpiler) getFunctionContextType(typ *checker.Type) contextType {
 // signatures (from union/intersection types) into their individual declarations.
 func (t *Transpiler) getSignatureContext(sig *checker.Signature) contextType {
 	// Flatten composite signatures (union/intersection types)
-	if comp := checkershim.Signature_composite(sig); comp != nil {
+	if comp := checker.Signature_composite(sig); comp != nil {
 		ct := contextNone
-		for _, cs := range checkershim.CompositeSignature_signatures(comp) {
+		for _, cs := range checker.CompositeSignature_signatures(comp) {
 			ct |= t.getSignatureContext(cs)
 			if ct == contextMixed {
 				break

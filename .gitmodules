@@ -1,8 +1,7 @@
-[submodule "extern/tsgolint"]
-	path = extern/tsgolint
-	url = https://github.com/oxc-project/tsgolint.git
-	ignore = dirty
 [submodule "extern/tstl"]
 	path = extern/tstl
 	url = https://github.com/TypeScriptToLua/TypeScriptToLua.git
 	ignore = dirty
+[submodule "extern/typescript-go"]
+	path = extern/typescript-go
+	url = https://github.com/microsoft/typescript-go
