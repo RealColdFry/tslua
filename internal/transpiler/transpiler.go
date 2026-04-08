@@ -387,7 +387,16 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 
 	// Trigger semantic analysis so the checker populates alias reference data
 	// (needed for import elision via IsReferencedAliasDeclaration).
-	compiler.Program_GetSemanticDiagnostics(program, context.Background(), nil)
+	if onlyFiles != nil {
+		// Incremental: only check files we're actually transpiling.
+		for _, sf := range program.SourceFiles() {
+			if onlyFiles[sf.FileName()] {
+				compiler.Program_GetSemanticDiagnostics(program, context.Background(), sf)
+			}
+		}
+	} else {
+		compiler.Program_GetSemanticDiagnostics(program, context.Background(), nil)
+	}
 
 	crossFileEnums := collectCrossFileEnums(program)
 
