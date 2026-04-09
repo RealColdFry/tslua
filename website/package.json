@@ -15,14 +15,14 @@
     "@monaco-editor/react": "4.7.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
+    "@typescript-to-lua/language-extensions": "1.19.0",
     "astro": "^6.0.1",
+    "lua-types": "2.14.1",
     "lua-wasm-bindings": "0.5.3",
     "monaco-editor": "0.55.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "sharp": "^0.34.2",
-    "@typescript-to-lua/language-extensions": "1.19.0",
-    "lua-types": "2.14.1"
+    "sharp": "^0.34.2"
   },
   "overrides": {
     "dompurify": "^3.3.3"

@@ -23,7 +23,7 @@ type tsluaConfig struct {
 	NoHeader                  *bool  `json:"noHeader"`
 	LuaBundle                 string `json:"luaBundle"`
 	LuaBundleEntry            string `json:"luaBundleEntry"`
-	SourceMapTraceback *bool `json:"sourceMapTraceback"`
+	SourceMapTraceback        *bool  `json:"sourceMapTraceback"`
 }
 
 // parseTsluaConfig reads the "tstl" or "tslua" section from a tsconfig.json file.

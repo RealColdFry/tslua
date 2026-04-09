@@ -339,8 +339,13 @@
   animation: pg-pulse 1s ease-in-out infinite;
 }
 @keyframes pg-pulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* ---- Dividers ---- */

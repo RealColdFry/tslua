@@ -14,10 +14,10 @@ func TestRawRequirePathNormalization(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		name       string
-		code       string
-		wantInLua  string // expected in output
-		dontWant   string // should NOT appear
+		name      string
+		code      string
+		wantInLua string // expected in output
+		dontWant  string // should NOT appear
 	}{
 		{
 			"raw require with slashes becomes dots",

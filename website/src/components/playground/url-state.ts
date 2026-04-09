@@ -87,7 +87,10 @@ function serializeState(state: PlaygroundState): object {
   }
   // Only serialize types if not the default set (all enabled)
   const defaultTypes = ["console", "language-extensions", "lua-types"];
-  if (ts.types && (ts.types.length !== defaultTypes.length || !defaultTypes.every((t) => ts.types!.includes(t)))) {
+  if (
+    ts.types &&
+    (ts.types.length !== defaultTypes.length || !defaultTypes.every((t) => ts.types!.includes(t)))
+  ) {
     tsOut.types = ts.types;
   }
   if (ts.tstl) {
