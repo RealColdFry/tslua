@@ -164,7 +164,7 @@ func (t *Transpiler) getExtensionKindForType(typ *checker.Type) (ExtensionKind, 
 
 // getExtensionKindForSymbol resolves the extension kind of a symbol by examining its type.
 func (t *Transpiler) getExtensionKindForSymbol(sym *ast.Symbol) (ExtensionKind, bool) {
-	if t.checker == nil || sym == nil {
+	if sym == nil {
 		return "", false
 	}
 	typ := checker.Checker_getTypeOfSymbol(t.checker, sym)
@@ -176,9 +176,7 @@ func (t *Transpiler) getExtensionKindForSymbol(sym *ast.Symbol) (ExtensionKind, 
 
 // getExtensionKindForNode resolves the extension kind of a node by examining its type.
 func (t *Transpiler) getExtensionKindForNode(node *ast.Node) (ExtensionKind, bool) {
-	if t.checker == nil {
-		return "", false
-	}
+
 	typ := t.checker.GetTypeAtLocation(node)
 	if typ == nil {
 		return "", false
@@ -537,12 +535,10 @@ func (t *Transpiler) transformTableIsEmptyExpression(ce *ast.CallExpression, kin
 func (t *Transpiler) checkExtensionIdentifier(node *ast.Node, text string) lua.Expression {
 	var extKind ExtensionKind
 	var hasExtKind bool
-	if t.checker != nil {
-		if sym := t.checker.GetSymbolAtLocation(node); sym != nil {
-			extKind, hasExtKind = t.getExtensionKindForSymbol(sym)
-		} else {
-			extKind, hasExtKind = t.getExtensionKindForNode(node)
-		}
+	if sym := t.checker.GetSymbolAtLocation(node); sym != nil {
+		extKind, hasExtKind = t.getExtensionKindForSymbol(sym)
+	} else {
+		extKind, hasExtKind = t.getExtensionKindForNode(node)
 	}
 	// Fallback: detect $multi/$range/$vararg by name when type info is unavailable
 	// (e.g., language-extensions types not loaded). Emits TL1010 to guide the user,
@@ -611,9 +607,7 @@ func (t *Transpiler) isExtensionValueIdentifier(node *ast.Node, kind ExtensionKi
 		return false
 	}
 	name := node.AsIdentifier().Text
-	if t.checker == nil {
-		return name == expectedName
-	}
+
 	sym := t.checker.GetSymbolAtLocation(node)
 	if sym != nil {
 		return sym.Name == expectedName
@@ -667,7 +661,7 @@ func (t *Transpiler) isCallExtensionKind(kind ExtensionKind) bool {
 // Unlike __tstlExtension (which is a string literal), __tstlMultiReturn is typed as `any`,
 // so we just check for property existence.
 func (t *Transpiler) isMultiReturnType(typ *checker.Type) bool {
-	if t.checker == nil || typ == nil {
+	if typ == nil {
 		return false
 	}
 	flags := checker.Type_flags(typ)
@@ -707,9 +701,7 @@ func (t *Transpiler) isMultiFunctionCall(ce *ast.CallExpression) bool {
 
 // returnsMultiType checks if a call expression returns a LuaMultiReturn type.
 func (t *Transpiler) returnsMultiType(node *ast.Node) bool {
-	if t.checker == nil {
-		return false
-	}
+
 	if node.Kind != ast.KindCallExpression {
 		return false
 	}
@@ -731,9 +723,7 @@ func (t *Transpiler) isMultiReturnCall(node *ast.Node) bool {
 
 // isInMultiReturnFunction checks if a node is inside a function that returns a multi-return type.
 func (t *Transpiler) isInMultiReturnFunction(node *ast.Node) bool {
-	if t.checker == nil {
-		return false
-	}
+
 	current := node.Parent
 	for current != nil {
 		switch current.Kind {
@@ -860,10 +850,8 @@ func (t *Transpiler) transformExpressionsInReturn(expr *ast.Node) []lua.Expressi
 		// return $multi(a, b, c) → return a, b, c
 		if t.isMultiFunctionCall(ce) {
 			// Don't allow $multi to be implicitly cast to something other than LuaMultiReturn
-			if t.checker != nil {
-				if ctxType := checker.Checker_getContextualType(t.checker, expr, checker.ContextFlagsNone); ctxType != nil && !t.canBeMultiReturnType(ctxType) {
-					t.addError(inner, dw.InvalidMultiFunctionReturnType, "The $multi function cannot be cast to a non-LuaMultiReturn type.")
-				}
+			if ctxType := checker.Checker_getContextualType(t.checker, expr, checker.ContextFlagsNone); ctxType != nil && !t.canBeMultiReturnType(ctxType) {
+				t.addError(inner, dw.InvalidMultiFunctionReturnType, "The $multi function cannot be cast to a non-LuaMultiReturn type.")
 			}
 			return t.transformArgExprs(ce.Arguments)
 		}
@@ -871,7 +859,7 @@ func (t *Transpiler) transformExpressionsInReturn(expr *ast.Node) []lua.Expressi
 
 	// Unpack variables/expressions typed as LuaMultiReturn when inside a multi-return function.
 	// e.g. `const m = foo(); return m;` where m is LuaMultiReturn → `return unpack(m)`
-	if t.checker != nil && t.isInMultiReturnFunction(expr) {
+	if t.isInMultiReturnFunction(expr) {
 		exprType := t.checker.GetTypeAtLocation(inner)
 		if exprType != nil && t.isMultiReturnType(exprType) && inner.Kind != ast.KindCallExpression {
 			luaExpr := t.transformExpression(expr)
@@ -889,9 +877,7 @@ func (t *Transpiler) transformExpressionsInReturn(expr *ast.Node) []lua.Expressi
 // tryTransformIterableForOf handles for...of on LuaIterable/LuaPairsIterable/LuaPairsKeyIterable.
 // Returns nil if the expression is not an iterable extension type.
 func (t *Transpiler) tryTransformIterableForOf(node *ast.Node, fs *ast.ForInOrOfStatement) []lua.Statement {
-	if t.checker == nil {
-		return nil
-	}
+
 	typ := t.checker.GetTypeAtLocation(fs.Expression)
 	if typ == nil {
 		return nil
@@ -966,9 +952,7 @@ func (t *Transpiler) tryTransformIterableForOf(node *ast.Node, fs *ast.ForInOrOf
 
 // isMultiReturnIterable checks if an iterable expression's value type is LuaMultiReturn.
 func (t *Transpiler) isMultiReturnIterable(expr *ast.Node) bool {
-	if t.checker == nil {
-		return false
-	}
+
 	typ := t.checker.GetTypeAtLocation(expr)
 	if typ == nil {
 		return false
@@ -1087,7 +1071,7 @@ var validIterableKinds = map[string]IterableExtensionKind{
 
 // getIterableExtensionKindForType returns the iterable extension kind for a type.
 func (t *Transpiler) getIterableExtensionKindForType(typ *checker.Type) (IterableExtensionKind, bool) {
-	if t.checker == nil || typ == nil {
+	if typ == nil {
 		return "", false
 	}
 	value := t.getPropertyStringValue(typ, "__tstlIterable")
@@ -1102,9 +1086,7 @@ func (t *Transpiler) getIterableExtensionKindForType(typ *checker.Type) (Iterabl
 
 // getIterableExtensionKindForNode returns the iterable extension kind from a node's type.
 func (t *Transpiler) getIterableExtensionKindForNode(node *ast.Node) (IterableExtensionKind, bool) {
-	if t.checker == nil {
-		return "", false
-	}
+
 	typ := t.checker.GetTypeAtLocation(node)
 	if typ == nil {
 		return "", false

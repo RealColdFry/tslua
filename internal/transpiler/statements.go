@@ -38,7 +38,7 @@ func (t *Transpiler) transformVariableStatement(node *ast.Node) []lua.Statement 
 
 		// Validate function context compatibility when both initializer and type annotation exist.
 		// Runs for all declarations (including destructuring) before the name-specific handling.
-		if d.Initializer != nil && d.Type != nil && t.checker != nil {
+		if d.Initializer != nil && d.Type != nil {
 			initType := t.checker.GetTypeAtLocation(d.Initializer)
 			varType := checker.Checker_getTypeFromTypeNode(t.checker, d.Type)
 			if initType != nil && varType != nil {
@@ -80,7 +80,7 @@ func (t *Transpiler) transformVariableStatement(node *ast.Node) []lua.Statement 
 			// This is the first "reference" for hasMultipleReferences counting;
 			// any reference inside the initializer will be the second.
 			var symID SymbolID
-			if t.inScope() && t.checker != nil {
+			if t.inScope() {
 				if sym := t.checker.GetSymbolAtLocation(nameNode); sym != nil {
 					symID = t.getOrCreateSymbolID(sym)
 					t.markSymbolDeclared(symID)
@@ -198,9 +198,7 @@ func (t *Transpiler) transformVariableStatement(node *ast.Node) []lua.Statement 
 // in a callable table (setmetatable). This applies when the initializer is a function/arrow
 // expression and the variable's type has properties beyond call signatures.
 func (t *Transpiler) shouldWrapInCallableTable(initializer *ast.Node, nameNode *ast.Node) bool {
-	if t.checker == nil {
-		return false
-	}
+
 	// Skip outer expressions (parentheses, type assertions, non-null assertions) in any order
 	inner := initializer
 	for {
@@ -371,7 +369,7 @@ func (t *Transpiler) transformSimpleArrayDestructuring(bp *ast.BindingPattern, i
 	// Register LHS symbols before transforming the initializer, so
 	// hasMultipleReferences can detect self-referencing closures.
 	var symIDs []SymbolID
-	if useLocal && t.inScope() && t.checker != nil {
+	if useLocal && t.inScope() {
 		for _, elem := range bp.Elements.Nodes {
 			if elem.Kind == ast.KindOmittedExpression {
 				continue
@@ -540,7 +538,7 @@ func (t *Transpiler) transformBindingPatternInner(pattern *ast.Node, tableExpr l
 		// TSTL's createLocalOrExportedOrGlobalDeclaration prepends the local declaration
 		// above all other statements, then returns only the assignment.
 		needsSplit := false
-		if useLocal && be.Name() != nil && t.checker != nil && t.inScope() {
+		if useLocal && be.Name() != nil && t.inScope() {
 			sym := t.checker.GetSymbolAtLocation(be.Name())
 			if sym != nil {
 				id := t.getOrCreateSymbolID(sym)
@@ -793,7 +791,7 @@ func (t *Transpiler) transformReturnStatement(node *ast.Node) []lua.Statement {
 	}
 
 	// Validate return value function context compatibility
-	if rs.Expression != nil && t.checker != nil {
+	if rs.Expression != nil {
 		exprType := t.checker.GetTypeAtLocation(rs.Expression)
 		returnType := checker.Checker_getContextualType(t.checker, rs.Expression, 0)
 		if exprType != nil && returnType != nil {
@@ -1719,19 +1717,17 @@ func (t *Transpiler) transformAsStatement(node *ast.Node) []lua.Statement {
 				return prec
 			}
 			// array.length = x → __TS__ArraySetLength(array, x)
-			if be.Left.Kind == ast.KindPropertyAccessExpression {
+			if t.isArrayLengthTarget(be.Left) {
 				pa := be.Left.AsPropertyAccessExpression()
-				if pa.Name().Kind == ast.KindIdentifier && pa.Name().AsIdentifier().Text == "length" && t.isArrayType(pa.Expression) {
-					arrExpr, arrPrec := t.transformExprInScope(pa.Expression)
-					right, rightPrec := t.transformExprInScope(be.Right)
-					var result []lua.Statement
-					result = append(result, arrPrec...)
-					result = append(result, rightPrec...)
-					fn := t.requireLualib("__TS__ArraySetLength")
-					call := lualibCall(fn, arrExpr, right)
-					result = append(result, lua.ExprStmt(call))
-					return result
-				}
+				arrExpr, arrPrec := t.transformExprInScope(pa.Expression)
+				right, rightPrec := t.transformExprInScope(be.Right)
+				var result []lua.Statement
+				result = append(result, arrPrec...)
+				result = append(result, rightPrec...)
+				fn := t.requireLualib("__TS__ArraySetLength")
+				call := lualibCall(fn, arrExpr, right)
+				result = append(result, lua.ExprStmt(call))
+				return result
 			}
 			// super.prop = value where prop is a set accessor
 			if be.Left.Kind == ast.KindPropertyAccessExpression {

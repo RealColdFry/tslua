@@ -13,9 +13,7 @@ import (
 // isTypeOnlyExportSpecifier checks if an export specifier targets a type-only symbol.
 // For `export { foo }` where foo is a type alias or interface, returns true.
 func (t *Transpiler) isTypeOnlyExportSpecifier(spec *ast.Node) bool {
-	if t.checker == nil {
-		return false
-	}
+
 	es := spec.AsExportSpecifier()
 	// Resolve the local target: for `export { x as y }`, get x's symbol
 	localNode := es.Name()
@@ -43,9 +41,7 @@ func (t *Transpiler) isTypeOnlyExportSpecifier(spec *ast.Node) bool {
 // shouldBeImported checks if an import binding is actually referenced as a value.
 // Type-only imports (used only in type positions) should be elided.
 func (t *Transpiler) shouldBeImported(node *ast.Node) bool {
-	if t.checker == nil {
-		return true
-	}
+
 	resolver := t.checker.GetEmitResolver()
 	if resolver == nil {
 		return true
@@ -74,13 +70,11 @@ func (t *Transpiler) transformImportDeclaration(node *ast.Node) []lua.Statement 
 						continue
 					}
 					// Skip const enum imports — they're inlined, no runtime dependency.
-					if t.checker != nil {
-						sym := t.checker.GetSymbolAtLocation(imp.Name())
-						if sym != nil && sym.Flags&ast.SymbolFlagsAlias != 0 {
-							resolved := checker.Checker_getImmediateAliasedSymbol(t.checker, sym)
-							if resolved != nil && resolved.Flags&ast.SymbolFlagsConstEnum != 0 {
-								continue
-							}
+					sym := t.checker.GetSymbolAtLocation(imp.Name())
+					if sym != nil && sym.Flags&ast.SymbolFlagsAlias != 0 {
+						resolved := checker.Checker_getImmediateAliasedSymbol(t.checker, sym)
+						if resolved != nil && resolved.Flags&ast.SymbolFlagsConstEnum != 0 {
+							continue
 						}
 					}
 					name := imp.Name().AsIdentifier().Text
@@ -202,19 +196,17 @@ func (t *Transpiler) transformNamedBindings(bindings *ast.Node, requireVar strin
 		// @customName on the imported symbol: use the custom name for both
 		// the local binding and the module property access.
 		// For aliased imports (import { X as Y }), check the original name's symbol.
-		if t.checker != nil {
-			lookupNode := s.Name()
-			if s.PropertyName != nil {
-				lookupNode = s.PropertyName
-			}
-			if sym := t.checker.GetSymbolAtLocation(lookupNode); sym != nil {
-				if customName := t.getCustomNameFromSymbol(sym); customName != "" {
-					if s.PropertyName == nil {
-						// Non-aliased: rename both local and remote
-						safeLocalName = customName
-					}
-					remoteName = customName
+		lookupNode := s.Name()
+		if s.PropertyName != nil {
+			lookupNode = s.PropertyName
+		}
+		if sym := t.checker.GetSymbolAtLocation(lookupNode); sym != nil {
+			if customName := t.getCustomNameFromSymbol(sym); customName != "" {
+				if s.PropertyName == nil {
+					// Non-aliased: rename both local and remote
+					safeLocalName = customName
 				}
+				remoteName = customName
 			}
 		}
 		bindingDecl := lua.LocalDecl(
@@ -580,7 +572,7 @@ func (t *Transpiler) transformModuleDeclaration(node *ast.Node) []lua.Statement 
 				[]*lua.Identifier{lua.Ident(name)},
 				[]lua.Expression{lua.Index(exportTarget, lua.Str(origName))},
 			)
-			if t.inScope() && t.checker != nil {
+			if t.inScope() {
 				if sym := t.checker.GetSymbolAtLocation(md.Name()); sym != nil {
 					symID := t.getOrCreateSymbolID(sym)
 					t.addScopeVariableDeclaration(decl, symID)
@@ -593,7 +585,7 @@ func (t *Transpiler) transformModuleDeclaration(node *ast.Node) []lua.Statement 
 				[]lua.Expression{lua.Binary(lua.Ident(name), lua.OpOr, lua.Table())},
 			)
 			// Register for hoisting consideration
-			if t.inScope() && t.checker != nil {
+			if t.inScope() {
 				if sym := t.checker.GetSymbolAtLocation(md.Name()); sym != nil {
 					symID := t.getOrCreateSymbolID(sym)
 					t.addScopeVariableDeclaration(decl, symID)
@@ -620,7 +612,7 @@ func (t *Transpiler) transformModuleDeclaration(node *ast.Node) []lua.Statement 
 				[]*lua.Identifier{nsIdent()},
 				[]lua.Expression{lua.Index(exportTarget, lua.Str(origNameStr))},
 			)
-			if t.inScope() && t.checker != nil {
+			if t.inScope() {
 				if sym := t.checker.GetSymbolAtLocation(md.Name()); sym != nil {
 					symID := t.getOrCreateSymbolID(sym)
 					t.addScopeVariableDeclaration(decl, symID)
@@ -632,7 +624,7 @@ func (t *Transpiler) transformModuleDeclaration(node *ast.Node) []lua.Statement 
 				[]*lua.Identifier{nsIdent()},
 				[]lua.Expression{lua.Table()},
 			)
-			if t.inScope() && t.checker != nil {
+			if t.inScope() {
 				if sym := t.checker.GetSymbolAtLocation(md.Name()); sym != nil {
 					symID := t.getOrCreateSymbolID(sym)
 					t.addScopeVariableDeclaration(decl, symID)

@@ -159,9 +159,6 @@ func (t *Transpiler) hasNoSelfAncestor(declaration *ast.Node) bool {
 // Handles contextual type resolution for arrows, function expressions, and methods
 // in object literals before falling back to computeDeclarationContextType.
 func (t *Transpiler) getDeclarationContextType(node *ast.Node) contextType {
-	if t.checker == nil {
-		return contextNonVoid
-	}
 
 	// If explicit this parameter exists, skip contextual type resolution
 	thisKind := getThisParamKindFromSignature(node)
@@ -204,9 +201,6 @@ func (t *Transpiler) getDeclarationContextType(node *ast.Node) contextType {
 
 // getCallContextType determines context type for a call expression.
 func (t *Transpiler) getCallContextType(node *ast.Node) contextType {
-	if t.checker == nil {
-		return contextNonVoid
-	}
 
 	sig := t.checker.GetResolvedSignature(node)
 	if sig != nil {

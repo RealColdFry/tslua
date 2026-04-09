@@ -11,7 +11,7 @@ import (
 // isFunctionTypeWithProperties checks whether a type is a function type that also has
 // user-defined properties (e.g. `function foo() {}; foo.bar = "baz";`).
 func (t *Transpiler) isFunctionTypeWithProperties(typ *checker.Type) bool {
-	if typ == nil || t.checker == nil {
+	if typ == nil {
 		return false
 	}
 	flags := checker.Type_flags(typ)
@@ -103,7 +103,7 @@ func (t *Transpiler) transformFunctionDeclaration(node *ast.Node) []lua.Statemen
 	// in the body will also increment the parent scope's count (via trackSymbolReference),
 	// enabling hasMultipleReferences to detect self-referencing functions.
 	var funcSymID SymbolID
-	if fd.Name() != nil && t.inScope() && t.checker != nil {
+	if fd.Name() != nil && t.inScope() {
 		if sym := t.checker.GetSymbolAtLocation(fd.Name()); sym != nil {
 			funcSymID = t.getOrCreateSymbolID(sym)
 			t.markSymbolDeclared(funcSymID)
@@ -126,24 +126,13 @@ func (t *Transpiler) transformFunctionDeclaration(node *ast.Node) []lua.Statemen
 
 	var bodyStmts []lua.Statement
 	if isAsync {
-		// For async functions, rest param capture must happen BEFORE the async wrapper
-		// because ... is not available inside the coroutine
-		var preAsync []lua.Statement
-		var innerStmts []lua.Statement
-		for _, s := range preamble {
-			if vds, ok := s.(*lua.VariableDeclarationStatement); ok && len(vds.Left) == 1 &&
-				len(vds.Right) == 1 {
-				if _, isTable := vds.Right[0].(*lua.TableExpression); isTable {
-					// This is likely a rest param capture: local args = {...}
-					preAsync = append(preAsync, s)
-					continue
-				}
-			}
-			innerStmts = append(innerStmts, s)
-		}
-		innerStmts = append(innerStmts, blockStmts...)
-		innerStmts = t.wrapInAsyncAwaiter(innerStmts)
-		bodyStmts = append(preAsync, innerStmts...)
+		// For async functions, all preamble (default params, rest param capture,
+		// destructuring) happens BEFORE the async wrapper. This matches TSTL
+		// behavior and ensures default expressions evaluate synchronously.
+		// Rest param capture specifically MUST be before because ... is not
+		// available inside the coroutine.
+		innerStmts := t.wrapInAsyncAwaiter(blockStmts)
+		bodyStmts = append(preamble, innerStmts...)
 		t.asyncDepth--
 	} else {
 		bodyStmts = make([]lua.Statement, 0, len(preamble)+len(blockStmts))
@@ -528,13 +517,11 @@ func (t *Transpiler) transformFunctionExpression(node *ast.Node) lua.Expression 
 
 		// Check if the function name is referenced inside the function body
 		isReferenced := false
-		if t.checker != nil {
-			sym := t.checker.GetSymbolAtLocation(fe.Name())
-			if sym != nil {
-				symID := t.getSymbolID(sym)
-				if symID != 0 && funcScope.ReferencedSymbols != nil && funcScope.ReferencedSymbols[symID] > 0 {
-					isReferenced = true
-				}
+		sym := t.checker.GetSymbolAtLocation(fe.Name())
+		if sym != nil {
+			symID := t.getSymbolID(sym)
+			if symID != 0 && funcScope.ReferencedSymbols != nil && funcScope.ReferencedSymbols[symID] > 0 {
+				isReferenced = true
 			}
 		}
 
@@ -555,7 +542,7 @@ func (t *Transpiler) transformFunctionExpression(node *ast.Node) lua.Expression 
 // and not written to (reads/indexing are fine — table capture handles those).
 // If the rest param is modified (e.g., args[i] = x), spreads must use unpack(args).
 func (t *Transpiler) computeOptimizedVarArgs(params *ast.NodeList, body *ast.Node, isAsync bool) {
-	if params == nil || body == nil || t.checker == nil || isAsync {
+	if params == nil || body == nil || isAsync {
 		return
 	}
 	// Find rest parameter
@@ -765,9 +752,7 @@ func isVarArgSpreadOnly(node *ast.Node, sym *ast.Symbol, ch *checker.Checker) bo
 // isVarArgSpreadOnly checks if a rest parameter is exclusively used in spread positions
 // (no indexing, no other references). Used to decide if table capture can be skipped entirely.
 func (t *Transpiler) isVarArgSpreadOnly(param *ast.ParameterDeclaration) bool {
-	if t.checker == nil {
-		return false
-	}
+
 	sym := t.checker.GetSymbolAtLocation(param.Name())
 	if sym == nil {
 		return false
@@ -807,7 +792,7 @@ func (t *Transpiler) isVarArgSpreadOnly(param *ast.ParameterDeclaration) bool {
 func (t *Transpiler) isOptimizedVarArgSpread(expr *ast.Node) bool {
 	// Unwrap type assertions and parenthesized expressions (e.g., ...(args as any[]))
 	inner := skipOuterExpressionsDown(expr)
-	if inner.Kind != ast.KindIdentifier || t.checker == nil || len(t.optimizedVarArgs) == 0 {
+	if inner.Kind != ast.KindIdentifier || len(t.optimizedVarArgs) == 0 {
 		return false
 	}
 	sym := t.checker.GetSymbolAtLocation(inner)
@@ -840,9 +825,7 @@ func findEnclosingFunction(node *ast.Node) *ast.Node {
 
 // isRestParamReferenced checks if a rest parameter is used anywhere in the function body.
 func (t *Transpiler) isRestParamReferenced(param *ast.ParameterDeclaration) bool {
-	if t.checker == nil {
-		return true // assume referenced if no checker
-	}
+
 	sym := t.checker.GetSymbolAtLocation(param.Name())
 	if sym == nil {
 		return true

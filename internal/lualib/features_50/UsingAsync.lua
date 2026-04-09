@@ -1,6 +1,6 @@
 local function __TS__UsingAsync(self, cb, ...)
+    local args = arg
     return __TS__AsyncAwaiter(function(____awaiter_resolve)
-        local args = arg
         local thrownError
         local ok, result = xpcall(
             function() return cb(

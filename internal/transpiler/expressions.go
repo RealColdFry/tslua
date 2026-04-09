@@ -320,10 +320,6 @@ func (t *Transpiler) hasUnsafeIdentifierName(node *ast.Node) bool {
 		return false
 	}
 
-	if t.checker == nil {
-		return !isValidLuaIdentifier(name, allowUnicode)
-	}
-
 	symbol := t.checker.GetSymbolAtLocation(node)
 	if symbol == nil {
 		// No symbol — report diagnostic for invalid identifiers
@@ -407,11 +403,9 @@ func (t *Transpiler) resolvePropertyName(pa *ast.PropertyAccessExpression) strin
 		return pa.Name().AsPrivateIdentifier().Text
 	}
 	name := pa.Name().AsIdentifier().Text
-	if t.checker != nil {
-		if sym := t.checker.GetSymbolAtLocation(pa.Name()); sym != nil {
-			if customName := t.getCustomNameFromSymbol(sym); customName != "" {
-				return customName
-			}
+	if sym := t.checker.GetSymbolAtLocation(pa.Name()); sym != nil {
+		if customName := t.getCustomNameFromSymbol(sym); customName != "" {
+			return customName
 		}
 	}
 	return name
@@ -510,7 +504,7 @@ func (t *Transpiler) transformElementAccessExpression(node *ast.Node) lua.Expres
 	// Multi-return element access: foo()[0] → (foo()), foo()[n] → select(n+1, foo())
 	if t.isMultiReturnCall(ea.Expression) {
 		// Accessing non-numeric properties on LuaMultiReturn is invalid
-		if t.checker != nil && !t.isNumericExpression(ea.ArgumentExpression) {
+		if !t.isNumericExpression(ea.ArgumentExpression) {
 			t.addError(node, dw.InvalidMultiReturnAccess, "The LuaMultiReturn type can only be accessed via an element access expression of a numeric type.")
 		}
 		obj := t.transformExpression(ea.Expression)
@@ -680,7 +674,7 @@ func (t *Transpiler) transformPrefixUnaryExpression(node *ast.Node) lua.Expressi
 		}
 		return lua.Call(memberAccess(lua.Ident(lib), "bnot"), operand)
 	default:
-		return lua.Comment(fmt.Sprintf("TODO: prefix op %d", pu.Operator))
+		panic(fmt.Sprintf("unhandled prefix unary operator: %d", pu.Operator))
 	}
 }
 
@@ -729,7 +723,7 @@ func (t *Transpiler) transformPostfixUnaryExpression(node *ast.Node) lua.Express
 		return lua.Ident(temp)
 	}
 
-	return lua.Comment(fmt.Sprintf("TODO: postfix op %d", pu.Operator))
+	panic(fmt.Sprintf("unhandled postfix unary operator: %d", pu.Operator))
 }
 
 // cond ? a : b → cond and a or b (simple case)
@@ -841,9 +835,7 @@ func (t *Transpiler) transformShortCircuitBinaryExpression(be *ast.BinaryExpress
 // Checks if a type could be falsy for reasons other than being null/undefined.
 // Used by ?? to decide whether simple `or` is safe.
 func (t *Transpiler) canBeFalsyWhenNotNull(node *ast.Node) bool {
-	if t.checker == nil {
-		return true
-	}
+
 	typ := t.checker.GetTypeAtLocation(node)
 	if typ == nil {
 		return true
@@ -905,9 +897,7 @@ func (t *Transpiler) couldBeFalsy(node *ast.Node) bool {
 	// For non-literal expressions, check if the type could be falsy.
 	// Note: even with strictNullChecks, Lua doesn't enforce TS types,
 	// so uninitialized variables can be nil at runtime.
-	if t.checker == nil {
-		return true
-	}
+
 	typ := t.checker.GetTypeAtLocation(node)
 	if typ == nil {
 		return true
@@ -966,7 +956,7 @@ func (t *Transpiler) typeCanBeFalsy(typ *checker.Type) bool {
 // checkOnlyTruthyCondition warns when a condition expression can only be truthy in Lua.
 // In Lua, only false and nil are falsy — 0, "", etc. are truthy unlike in JS.
 func (t *Transpiler) checkOnlyTruthyCondition(condition *ast.Node) {
-	if t.checker == nil || t.compilerOptions == nil {
+	if t.compilerOptions == nil {
 		return
 	}
 	// TSTL skips only when strictNullChecks is explicitly false.
@@ -1300,7 +1290,7 @@ func (t *Transpiler) shouldMoveToTempWithNode(expr lua.Expression, tsOriginal *a
 
 // isConstIdentifier checks if a TS node is an identifier declared with const.
 func (t *Transpiler) isConstIdentifier(node *ast.Node) bool {
-	if node == nil || t.checker == nil {
+	if node == nil {
 		return false
 	}
 	ident := node
@@ -1396,18 +1386,14 @@ func (t *Transpiler) superBaseExpression() lua.Expression {
 
 // isSuperGetAccessor checks if a node's symbol refers to a get accessor.
 func (t *Transpiler) isSuperGetAccessor(node *ast.Node) bool {
-	if t.checker == nil {
-		return false
-	}
+
 	sym := t.checker.GetSymbolAtLocation(node)
 	return sym != nil && sym.Flags&ast.SymbolFlagsGetAccessor != 0
 }
 
 // isSuperSetAccessor checks if a node's symbol refers to a set accessor.
 func (t *Transpiler) isSuperSetAccessor(node *ast.Node) bool {
-	if t.checker == nil {
-		return false
-	}
+
 	sym := t.checker.GetSymbolAtLocation(node)
 	return sym != nil && sym.Flags&ast.SymbolFlagsSetAccessor != 0
 }

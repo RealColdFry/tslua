@@ -47,15 +47,13 @@ func (t *Transpiler) transformBinaryExpression(node *ast.Node) lua.Expression {
 			return t.transformObjectDestructuringAssignment(be)
 		}
 		// array.length = x → __TS__ArraySetLength(array, x)
-		if be.Left.Kind == ast.KindPropertyAccessExpression {
+		if t.isArrayLengthTarget(be.Left) {
 			pa := be.Left.AsPropertyAccessExpression()
-			if pa.Name().AsIdentifier().Text == "length" && t.isArrayType(pa.Expression) {
-				exprs := t.transformOrderedExpressions([]*ast.Node{pa.Expression, be.Right})
-				fn := t.requireLualib("__TS__ArraySetLength")
-				call := lualibCall(fn, exprs[0], exprs[1])
-				t.addPrecedingStatements(lua.ExprStmt(call))
-				return exprs[1]
-			}
+			exprs := t.transformOrderedExpressions([]*ast.Node{pa.Expression, be.Right})
+			fn := t.requireLualib("__TS__ArraySetLength")
+			call := lualibCall(fn, exprs[0], exprs[1])
+			t.addPrecedingStatements(lua.ExprStmt(call))
+			return exprs[1]
 		}
 		// super.prop = value where prop is a set accessor
 		if be.Left.Kind == ast.KindPropertyAccessExpression {
@@ -70,7 +68,7 @@ func (t *Transpiler) transformBinaryExpression(node *ast.Node) lua.Expression {
 			}
 		}
 		// Property/element access LHS needs execution order preservation when RHS has side effects
-		if be.Left.Kind == ast.KindPropertyAccessExpression || be.Left.Kind == ast.KindElementAccessExpression {
+		if isAccessExpression(be.Left) {
 			right, rightPrec := t.transformExprInScope(be.Right)
 			left := t.transformAssignmentLHS(be.Left, len(rightPrec) > 0)
 			t.addPrecedingStatements(rightPrec...)
@@ -170,7 +168,7 @@ func (t *Transpiler) transformBinaryExpression(node *ast.Node) lua.Expression {
 		return lua.Binary(left, luaOp, right)
 	}
 
-	return lua.Comment(fmt.Sprintf("TODO: binary op %d", op))
+	panic(fmt.Sprintf("unhandled binary operator: %d", op))
 }
 
 // transformCompoundAssignmentStmt handles compound assignments (+=, -=, etc.) in statement context.
@@ -181,24 +179,22 @@ func (t *Transpiler) transformCompoundAssignmentStmt(be *ast.BinaryExpression) [
 	op := be.OperatorToken.Kind
 
 	// array.length op= val → __TS__ArraySetLength(arr, #arr op val)
-	if be.Left.Kind == ast.KindPropertyAccessExpression {
+	if t.isArrayLengthTarget(be.Left) {
 		pa := be.Left.AsPropertyAccessExpression()
-		if pa.Name().AsIdentifier().Text == "length" && t.isArrayType(pa.Expression) {
-			rightExpr, rightPrec := t.transformExprInScope(be.Right)
-			arrExpr := t.transformExpression(pa.Expression)
-			lenExpr := t.luaTarget.LenExpr(arrExpr)
-			newLen := t.compoundRHS(op, lenExpr, rightExpr, be)
-			fn := t.requireLualib("__TS__ArraySetLength")
-			call := lualibCall(fn, arrExpr, newLen)
-			var result []lua.Statement
-			result = append(result, rightPrec...)
-			result = append(result, lua.ExprStmt(call))
-			return result
-		}
+		rightExpr, rightPrec := t.transformExprInScope(be.Right)
+		arrExpr := t.transformExpression(pa.Expression)
+		lenExpr := t.luaTarget.LenExpr(arrExpr)
+		newLen := t.compoundRHS(op, lenExpr, rightExpr, be)
+		fn := t.requireLualib("__TS__ArraySetLength")
+		call := lualibCall(fn, arrExpr, newLen)
+		var result []lua.Statement
+		result = append(result, rightPrec...)
+		result = append(result, lua.ExprStmt(call))
+		return result
 	}
 
 	// For property/element access LHS: only cache when table/index have side effects or RHS has preceding statements.
-	if be.Left.Kind == ast.KindPropertyAccessExpression || be.Left.Kind == ast.KindElementAccessExpression {
+	if isAccessExpression(be.Left) {
 		leftExpr, leftPrec := t.transformExprInScope(be.Left)
 		rightExpr, rightPrec := t.transformExprInScope(be.Right)
 
@@ -252,28 +248,26 @@ func (t *Transpiler) transformCompoundAssignment(be *ast.BinaryExpression) lua.E
 	op := be.OperatorToken.Kind
 
 	// array.length op= val → __TS__ArraySetLength(arr, #arr op val)
-	if be.Left.Kind == ast.KindPropertyAccessExpression {
+	if t.isArrayLengthTarget(be.Left) {
 		pa := be.Left.AsPropertyAccessExpression()
-		if pa.Name().AsIdentifier().Text == "length" && t.isArrayType(pa.Expression) {
-			// Preserve evaluation order: array (left) before value (right)
-			exprs := t.transformOrderedExpressions([]*ast.Node{pa.Expression, be.Right})
-			arrExpr, rightExpr := exprs[0], exprs[1]
-			// Cache array reference if it could have side effects (avoids double evaluation)
-			if t.shouldMoveToTemp(arrExpr) {
-				arrExpr = t.moveToPrecedingTemp(arrExpr)
-			}
-			lenExpr := t.luaTarget.LenExpr(arrExpr)
-			newLen := t.compoundRHS(op, lenExpr, rightExpr, be)
-			fn := t.requireLualib("__TS__ArraySetLength")
-			call := lualibCall(fn, arrExpr, newLen)
-			t.addPrecedingStatements(lua.ExprStmt(call))
-			return t.luaTarget.LenExpr(arrExpr)
+		// Preserve evaluation order: array (left) before value (right)
+		exprs := t.transformOrderedExpressions([]*ast.Node{pa.Expression, be.Right})
+		arrExpr, rightExpr := exprs[0], exprs[1]
+		// Cache array reference if it could have side effects (avoids double evaluation)
+		if t.shouldMoveToTemp(arrExpr) {
+			arrExpr = t.moveToPrecedingTemp(arrExpr)
 		}
+		lenExpr := t.luaTarget.LenExpr(arrExpr)
+		newLen := t.compoundRHS(op, lenExpr, rightExpr, be)
+		fn := t.requireLualib("__TS__ArraySetLength")
+		call := lualibCall(fn, arrExpr, newLen)
+		t.addPrecedingStatements(lua.ExprStmt(call))
+		return t.luaTarget.LenExpr(arrExpr)
 	}
 
 	// For property/element access LHS: transform LHS first, then RHS in scope,
 	// and cache obj/index if either the LHS has side effects or RHS has preceding statements.
-	if be.Left.Kind == ast.KindPropertyAccessExpression || be.Left.Kind == ast.KindElementAccessExpression {
+	if isAccessExpression(be.Left) {
 		leftExpr := t.transformExpression(be.Left)
 		rightExpr, rightPrec := t.transformExprInScope(be.Right)
 
@@ -497,12 +491,10 @@ func (t *Transpiler) transformLogicalAssignment(be *ast.BinaryExpression, op ast
 }
 
 func (t *Transpiler) mapPlusOperator(be *ast.BinaryExpression) string {
-	if t.checker != nil {
-		leftType := t.checker.GetTypeAtLocation(be.Left)
-		rightType := t.checker.GetTypeAtLocation(be.Right)
-		if t.isStringType(leftType) || t.isStringType(rightType) {
-			return ".."
-		}
+	leftType := t.checker.GetTypeAtLocation(be.Left)
+	rightType := t.checker.GetTypeAtLocation(be.Right)
+	if t.isStringType(leftType) || t.isStringType(rightType) {
+		return ".."
 	}
 	return "+"
 }

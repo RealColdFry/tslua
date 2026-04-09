@@ -35,12 +35,12 @@ var shebangRe = regexp.MustCompile(`^#!.*\r?\n`)
 type ScopeType int
 
 const (
-	ScopeFile        ScopeType = 1 << 0
-	ScopeFunction    ScopeType = 1 << 1
-	ScopeSwitch      ScopeType = 1 << 2
-	ScopeLoop        ScopeType = 1 << 3
-	ScopeConditional ScopeType = 1 << 4
-	ScopeBlock       ScopeType = 1 << 5
+	ScopeFile ScopeType = 1 << iota
+	ScopeFunction
+	ScopeSwitch
+	ScopeLoop
+	ScopeConditional
+	ScopeBlock
 )
 
 // SymbolID is a unique identifier for a tracked symbol within a transpilation.
@@ -243,9 +243,7 @@ func (t *Transpiler) transformExprInScope(node *ast.Node) (lua.Expression, []lua
 // hasLocalBinding returns true if an identifier has a user-defined local declaration
 // (not a global built-in). Used to avoid replacing `const Infinity = 1` with `math.huge`.
 func (t *Transpiler) hasLocalBinding(node *ast.Node) bool {
-	if t.checker == nil {
-		return false
-	}
+
 	sym := t.checker.GetSymbolAtLocation(node)
 	if sym == nil {
 		return false
@@ -269,9 +267,7 @@ func (t *Transpiler) hasLocalBinding(node *ast.Node) bool {
 // isFirstDeclaration returns true if node is the first (or only) declaration of its symbol.
 // Used for enum/namespace merging: only the first declaration initializes the table.
 func (t *Transpiler) isFirstDeclaration(node *ast.Node, nameNode *ast.Node) bool {
-	if t.checker == nil {
-		return true
-	}
+
 	sym := t.checker.GetSymbolAtLocation(nameNode)
 	if sym == nil {
 		return true
@@ -283,9 +279,7 @@ func (t *Transpiler) isFirstDeclaration(node *ast.Node, nameNode *ast.Node) bool
 // is in the current source file. When true, merged enums/namespaces don't need
 // the `X = X or ({})` global-read pattern — a plain `local X = {}` suffices.
 func (t *Transpiler) allDeclarationsInCurrentFile(nameNode *ast.Node) bool {
-	if t.checker == nil {
-		return true
-	}
+
 	sym := t.checker.GetSymbolAtLocation(nameNode)
 	if sym == nil {
 		return true
@@ -420,6 +414,10 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 		exportAsGlobal := opts.ExportAsGlobal
 		if exportAsGlobalRe != nil {
 			exportAsGlobal = exportAsGlobalRe.MatchString(fileName)
+		}
+
+		if ch == nil {
+			panic("transpiler requires a non-nil checker")
 		}
 
 		isModule := isExternalModule(sf)
@@ -732,19 +730,9 @@ func isDeclarationFile(name string) bool {
 }
 
 func isExternalModule(sf *ast.SourceFile) bool {
-	for _, stmt := range sf.Statements.Nodes {
-		switch stmt.Kind {
-		case ast.KindImportDeclaration,
-			ast.KindImportEqualsDeclaration,
-			ast.KindExportDeclaration,
-			ast.KindExportAssignment:
-			return true
-		}
-		if hasExportModifier(stmt) {
-			return true
-		}
-	}
-	return false
+	// Use tsgo's ExternalModuleIndicator which respects moduleDetection: "force",
+	// matching TypeScript's ts.isExternalModule() that TSTL uses.
+	return sf.ExternalModuleIndicator != nil
 }
 
 func hasExportModifier(node *ast.Node) bool {
@@ -1444,9 +1432,7 @@ func (t *Transpiler) resolveIdentSymbol(name string) *ast.Symbol {
 // that shadows a module-level export. This prevents local `foo` parameters from
 // being rewritten to `____exports.foo`.
 func (t *Transpiler) isLocalShadow(node *ast.Node) bool {
-	if t.checker == nil {
-		return false
-	}
+
 	sym := t.checker.GetSymbolAtLocation(node)
 	if sym == nil {
 		return false
@@ -1486,9 +1472,7 @@ func (t *Transpiler) isLocalShadow(node *ast.Node) bool {
 // getIdentifierExportScope returns the Lua expression for the scope that exports this identifier,
 // or nil if the identifier is not exported. Handles both namespace exports and module exports.
 func (t *Transpiler) getIdentifierExportScope(node *ast.Node) lua.Expression {
-	if t.checker == nil {
-		return nil
-	}
+
 	sym := t.checker.GetSymbolAtLocation(node)
 	if sym == nil {
 		return nil
@@ -1579,7 +1563,7 @@ func (t *Transpiler) transformExpression(node *ast.Node) (result lua.Expression)
 		return lua.Nil()
 	case ast.KindIdentifier:
 		// Track symbol reference for hoisting analysis
-		if t.inScope() && t.checker != nil {
+		if t.inScope() {
 			if sym := t.checker.GetSymbolAtLocation(node); sym != nil {
 				t.trackSymbolReference(sym, node)
 			}
@@ -1621,15 +1605,13 @@ func (t *Transpiler) transformExpression(node *ast.Node) (result lua.Expression)
 		originalText := text
 		text = t.resolveIdentifierName(node, text)
 		// Check @customName annotation on the symbol's declaration
-		if t.checker != nil {
-			if sym := t.checker.GetSymbolAtLocation(node); sym != nil {
-				if customName := t.getCustomNameFromSymbol(sym); customName != "" {
-					text = customName
-				}
+		if sym := t.checker.GetSymbolAtLocation(node); sym != nil {
+			if customName := t.getCustomNameFromSymbol(sym); customName != "" {
+				text = customName
 			}
 		}
 		// Check namespace export scope before module export
-		if t.currentNamespace != "" && t.checker != nil {
+		if t.currentNamespace != "" {
 			if nsTarget := t.getIdentifierExportScope(node); nsTarget != nil {
 				return lua.Index(nsTarget, lua.Str(node.AsIdentifier().Text))
 			}
@@ -1790,15 +1772,13 @@ func (t *Transpiler) collectExportedNames(sf *ast.SourceFile) {
 							continue
 						}
 						// Skip exports of type-only symbols (interfaces, type aliases)
-						if t.checker != nil {
-							if sym := t.checker.GetSymbolAtLocation(es.Name()); sym != nil {
-								resolved := sym
-								if sym.Flags&ast.SymbolFlagsAlias != 0 {
-									resolved = checker.Checker_getImmediateAliasedSymbol(t.checker, sym)
-								}
-								if resolved != nil && resolved.Flags&ast.SymbolFlagsValue == 0 {
-									continue
-								}
+						if sym := t.checker.GetSymbolAtLocation(es.Name()); sym != nil {
+							resolved := sym
+							if sym.Flags&ast.SymbolFlagsAlias != 0 {
+								resolved = checker.Checker_getImmediateAliasedSymbol(t.checker, sym)
+							}
+							if resolved != nil && resolved.Flags&ast.SymbolFlagsValue == 0 {
+								continue
 							}
 						}
 						exportName := es.Name().AsIdentifier().Text
@@ -2027,12 +2007,57 @@ func (t *Transpiler) isStringType(typ *checker.Type) bool {
 		return allStringOrNullish
 	}
 	// Generic type parameter, indexed access, substitution: check base constraint
-	if t.checker != nil {
-		if flags&(checker.TypeFlagsTypeParameter|checker.TypeFlagsIndexedAccess|checker.TypeFlagsSubstitution) != 0 ||
-			checker.Type_symbol(typ) != nil {
-			base := checker.Checker_getBaseConstraintOfType(t.checker, typ)
-			if base != nil && base != typ {
-				return t.isStringType(base)
+	if flags&(checker.TypeFlagsTypeParameter|checker.TypeFlagsIndexedAccess|checker.TypeFlagsSubstitution) != 0 ||
+		checker.Type_symbol(typ) != nil {
+		base := checker.Checker_getBaseConstraintOfType(t.checker, typ)
+		if base != nil && base != typ {
+			return t.isStringType(base)
+		}
+	}
+	return false
+}
+
+// isElementTypeStringOrNumber checks whether an array's element type is always
+// string-like or number-like. Used to optimize .join() to table.concat().
+// Ported from: TSTL builtins/array.ts (lines 162-166)
+func (t *Transpiler) isElementTypeStringOrNumber(arrayNode *ast.Node) bool {
+	if t.checker == nil || arrayNode == nil {
+		return false
+	}
+	typ := t.checker.GetTypeAtLocation(arrayNode)
+	if typ == nil {
+		return false
+	}
+	elemType := checker.Checker_getElementTypeOfArrayType(t.checker, typ)
+	if elemType == nil {
+		return false
+	}
+	return t.typeAlwaysHasFlags(elemType, checker.TypeFlagsStringLike|checker.TypeFlagsNumberLike)
+}
+
+// typeAlwaysHasFlags checks if a type (including unions/intersections) always
+// has at least one of the given flags.
+// Ported from: TSTL utils/typescript/types.ts typeAlwaysHasSomeOfFlags
+func (t *Transpiler) typeAlwaysHasFlags(typ *checker.Type, flags checker.TypeFlags) bool {
+	base := checker.Checker_getBaseConstraintOfType(t.checker, typ)
+	if base != nil {
+		typ = base
+	}
+	if checker.Type_flags(typ)&flags != 0 {
+		return true
+	}
+	if checker.Type_flags(typ)&checker.TypeFlagsUnion != 0 {
+		for _, member := range typ.Types() {
+			if !t.typeAlwaysHasFlags(member, flags) {
+				return false
+			}
+		}
+		return len(typ.Types()) > 0
+	}
+	if checker.Type_flags(typ)&checker.TypeFlagsIntersection != 0 {
+		for _, member := range typ.Types() {
+			if t.typeAlwaysHasFlags(member, flags) {
+				return true
 			}
 		}
 	}
@@ -2040,9 +2065,7 @@ func (t *Transpiler) isStringType(typ *checker.Type) bool {
 }
 
 func (t *Transpiler) isArrayType(node *ast.Node) bool {
-	if t.checker == nil {
-		return false
-	}
+
 	// Unwrap NonNullExpression (x!) to check the inner expression's type
 	expr := node
 	for expr.Kind == ast.KindNonNullExpression {
@@ -2144,9 +2167,7 @@ func (t *Transpiler) isMapOrSetType(node *ast.Node) bool {
 
 // mapOrSetTypeName returns the symbol name of a Map/Set type, or "" if not one.
 func (t *Transpiler) mapOrSetTypeName(node *ast.Node) string {
-	if t.checker == nil {
-		return ""
-	}
+
 	expr := node
 	for expr.Kind == ast.KindNonNullExpression {
 		expr = expr.AsNonNullExpression().Expression
@@ -2174,9 +2195,7 @@ func (t *Transpiler) isSetType(node *ast.Node) bool {
 }
 
 func (t *Transpiler) isNumericExpression(node *ast.Node) bool {
-	if t.checker == nil {
-		return false
-	}
+
 	typ := t.checker.GetTypeAtLocation(node)
 	if typ == nil {
 		return false
@@ -2186,9 +2205,7 @@ func (t *Transpiler) isNumericExpression(node *ast.Node) bool {
 }
 
 func (t *Transpiler) isFunctionType(node *ast.Node) bool {
-	if t.checker == nil {
-		return false
-	}
+
 	// Check if the expression resolves to a function declaration/expression
 	sym := t.checker.GetSymbolAtLocation(node)
 	if sym != nil {
@@ -2221,9 +2238,7 @@ func (t *Transpiler) isFunctionType(node *ast.Node) bool {
 }
 
 func (t *Transpiler) isStringExpression(node *ast.Node) bool {
-	if t.checker == nil {
-		return false
-	}
+
 	typ := t.checker.GetTypeAtLocation(node)
 	return t.isStringType(typ)
 }
@@ -2231,9 +2246,7 @@ func (t *Transpiler) isStringExpression(node *ast.Node) bool {
 // isNonNullStringExpression returns true only if the type is definitely string
 // (not string | undefined). Used in template literals where nil needs tostring().
 func (t *Transpiler) isNonNullStringExpression(node *ast.Node) bool {
-	if t.checker == nil {
-		return false
-	}
+
 	typ := t.checker.GetTypeAtLocation(node)
 	if typ == nil {
 		return false

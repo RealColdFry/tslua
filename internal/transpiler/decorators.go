@@ -64,12 +64,10 @@ func (t *Transpiler) hasParameterDecorators(node *ast.Node) bool {
 func (t *Transpiler) transformDecoratorExpression(decorator *ast.Node) lua.Expression {
 	expr := decorator.AsDecorator().Expression
 	// Check if decorator function has 'this: void' — incompatible with class context
-	if t.checker != nil {
-		typ := t.checker.GetTypeAtLocation(expr)
-		if typ != nil && t.getFunctionContextType(typ) == contextVoid {
-			t.addError(decorator, dw.DecoratorInvalidContext,
-				"Decorator function cannot have 'this: void'.")
-		}
+	typ := t.checker.GetTypeAtLocation(expr)
+	if typ != nil && t.getFunctionContextType(typ) == contextVoid {
+		t.addError(decorator, dw.DecoratorInvalidContext,
+			"Decorator function cannot have 'this: void'.")
 	}
 	return t.transformExpression(expr)
 }
@@ -166,16 +164,14 @@ func (t *Transpiler) createClassPropertyDecoratingExpression(property *ast.Node,
 	}
 
 	// Warn when a field decorator returns a non-void value (TSTL ignores returned initializers)
-	if t.checker != nil {
-		for _, d := range decorators {
-			sig := t.checker.GetResolvedSignature(d)
-			if sig != nil {
-				retType := checker.Checker_getReturnTypeOfSignature(t.checker, sig)
-				if retType != nil && checker.Type_flags(retType)&checker.TypeFlagsVoid == 0 {
-					t.addWarning(property, dw.IncompleteFieldDecoratorWarning,
-						"You are using a class field decorator, note that tstl ignores returned value initializers!")
-					break
-				}
+	for _, d := range decorators {
+		sig := t.checker.GetResolvedSignature(d)
+		if sig != nil {
+			retType := checker.Checker_getReturnTypeOfSignature(t.checker, sig)
+			if retType != nil && checker.Type_flags(retType)&checker.TypeFlagsVoid == 0 {
+				t.addWarning(property, dw.IncompleteFieldDecoratorWarning,
+					"You are using a class field decorator, note that tstl ignores returned value initializers!")
+				break
 			}
 		}
 	}

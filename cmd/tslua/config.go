@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 )
 
 // tsluaConfig holds tslua-specific options parsed from the "tstl" or "tslua" section of tsconfig.json.
@@ -12,6 +13,14 @@ type tsluaConfig struct {
 	exportAsGlobalBool  bool   // resolved: apply to all files
 	exportAsGlobalMatch string // resolved: regex pattern for selective application
 	ClassStyle          string `json:"classStyle"`
+
+	// Options also available as CLI flags (CLI wins when explicitly set).
+	LuaTarget                 string `json:"luaTarget"`
+	NoImplicitSelf            *bool  `json:"noImplicitSelf"`
+	NoImplicitGlobalVariables *bool  `json:"noImplicitGlobalVariables"`
+	EmitMode                  string `json:"emitMode"`
+	LuaLibImport              string `json:"luaLibImport"`
+	NoHeader                  *bool  `json:"noHeader"`
 }
 
 // parseTsluaConfig reads the "tstl" or "tslua" section from a tsconfig.json file.
@@ -22,6 +31,8 @@ func parseTsluaConfig(tsconfigPath string) (*tsluaConfig, error) {
 	if err != nil {
 		return nil, nil // missing file is not an error here; tsgo handles that
 	}
+
+	data = stripJSONC(data)
 
 	var raw struct {
 		Tstl  *tsluaConfig `json:"tstl"`
@@ -55,4 +66,17 @@ func parseTsluaConfig(tsconfigPath string) (*tsluaConfig, error) {
 	}
 
 	return cfg, nil
+}
+
+// stripJSONC converts JSONC (as used by tsconfig.json) to valid JSON by
+// removing single-line comments (//) and trailing commas before } or ].
+var (
+	jsoncLineComment   = regexp.MustCompile(`(?m)//.*$`)
+	jsoncTrailingComma = regexp.MustCompile(`,\s*([}\]])`)
+)
+
+func stripJSONC(data []byte) []byte {
+	data = jsoncLineComment.ReplaceAll(data, nil)
+	data = jsoncTrailingComma.ReplaceAll(data, []byte("$1"))
+	return data
 }

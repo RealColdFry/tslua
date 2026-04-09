@@ -57,16 +57,18 @@ func jsDocTagAnnotation(tag *ast.Node) (AnnotationKind, bool) {
 	return kind, ok
 }
 
-// hasTypeAnnotation checks if the type at a node has a given annotation via its symbol's declaration.
-func (t *Transpiler) hasTypeAnnotation(node *ast.Node, kind AnnotationKind) bool {
-	if t.checker == nil {
-		return false
-	}
+// getTypeSymbol returns the symbol for the type at a node, or nil if unavailable.
+func (t *Transpiler) getTypeSymbol(node *ast.Node) *ast.Symbol {
 	typ := t.checker.GetTypeAtLocation(node)
 	if typ == nil {
-		return false
+		return nil
 	}
-	sym := typ.Symbol()
+	return typ.Symbol()
+}
+
+// hasTypeAnnotation checks if the type at a node has a given annotation via its symbol's declaration.
+func (t *Transpiler) hasTypeAnnotation(node *ast.Node, kind AnnotationKind) bool {
+	sym := t.getTypeSymbol(node)
 	if sym == nil {
 		return false
 	}
@@ -242,7 +244,7 @@ func (t *Transpiler) getCustomName(node *ast.Node) string {
 // For import specifiers without a property name (i.e. not renamed), it follows through
 // to the imported symbol's declaration.
 func (t *Transpiler) getCustomNameFromSymbol(sym *ast.Symbol) string {
-	if sym == nil || t.checker == nil {
+	if sym == nil {
 		return ""
 	}
 	for _, decl := range sym.Declarations {
@@ -265,14 +267,7 @@ func (t *Transpiler) getCustomNameFromSymbol(sym *ast.Symbol) string {
 // hasTypeAnnotationTag reports whether the type's declaration has an @annotName JSDoc tag,
 // regardless of whether it has arguments.
 func (t *Transpiler) hasTypeAnnotationTag(node *ast.Node, annotName string) bool {
-	if t.checker == nil {
-		return false
-	}
-	typ := t.checker.GetTypeAtLocation(node)
-	if typ == nil {
-		return false
-	}
-	sym := typ.Symbol()
+	sym := t.getTypeSymbol(node)
 	if sym == nil {
 		return false
 	}
@@ -317,14 +312,7 @@ func (t *Transpiler) hasAnnotationTag(node *ast.Node, annotName string) bool {
 // getTypeAnnotationArg extracts an annotation argument from the type's declaration.
 // Used for type-level annotations like @customConstructor on a class.
 func (t *Transpiler) getTypeAnnotationArg(node *ast.Node, annotName string) string {
-	if t.checker == nil {
-		return ""
-	}
-	typ := t.checker.GetTypeAtLocation(node)
-	if typ == nil {
-		return ""
-	}
-	sym := typ.Symbol()
+	sym := t.getTypeSymbol(node)
 	if sym == nil {
 		return ""
 	}

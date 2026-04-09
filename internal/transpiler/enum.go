@@ -103,7 +103,7 @@ func (t *Transpiler) transformEnumDeclaration(node *ast.Node) []lua.Statement {
 				// @compileMembersOnly: each member becomes its own declaration
 				// Check if the enum symbol is exported in this scope
 				enumExported := isExported
-				if !enumExported && t.checker != nil {
+				if !enumExported {
 					sym := t.checker.GetSymbolAtLocation(ed.Name())
 					if sym != nil {
 						enumExported = sym.ExportSymbol != nil
@@ -185,18 +185,16 @@ func (t *Transpiler) enumMemberName(em *ast.EnumMember) (lua.Expression, []lua.S
 func (t *Transpiler) enumMemberValue(enumNode *ast.Node, memberNode *ast.Node) (lua.Expression, bool, []lua.Statement) {
 	em := memberNode.AsEnumMember()
 
-	if t.checker != nil {
-		constVal := t.checker.GetConstantValue(memberNode)
-		if constVal != nil {
-			if expr, ok := formatConstantValue(constVal); ok {
-				return expr, isStringConstant(constVal), nil
-			}
+	constVal := t.checker.GetConstantValue(memberNode)
+	if constVal != nil {
+		if expr, ok := formatConstantValue(constVal); ok {
+			return expr, isStringConstant(constVal), nil
 		}
 	}
 
 	if em.Initializer != nil {
 		// Check if initializer references another member of the same enum
-		if t.checker != nil && em.Initializer.Kind == ast.KindIdentifier {
+		if em.Initializer.Kind == ast.KindIdentifier {
 			sym := t.checker.GetSymbolAtLocation(em.Initializer)
 			if sym != nil && sym.ValueDeclaration != nil && sym.ValueDeclaration.Kind == ast.KindEnumMember {
 				if sym.ValueDeclaration.Parent == enumNode {
@@ -215,9 +213,7 @@ func (t *Transpiler) enumMemberValue(enumNode *ast.Node, memberNode *ast.Node) (
 }
 
 func (t *Transpiler) tryGetConstEnumValue(node *ast.Node) (lua.Expression, bool) {
-	if t.checker == nil {
-		return nil, false
-	}
+
 	constVal := t.checker.GetConstantValue(node)
 	if constVal == nil {
 		return nil, false
