@@ -25,7 +25,7 @@ func (t *Transpiler) tryTransformBuiltinCallWithArgs(ce *ast.CallExpression, arg
 	}
 	method := pa.Name().AsIdentifier().Text
 
-	// Global object methods: Math.*, Object.*, Array.*, JSON.*
+	// Global object methods: Math.*, Object.*, Array.*
 	if pa.Expression.Kind == ast.KindIdentifier {
 		obj := pa.Expression.AsIdentifier().Text
 		if result := t.tryTransformGlobalCall(obj, method, argExprs, ce.Arguments); result != nil {
@@ -62,10 +62,10 @@ func (t *Transpiler) isBuiltinCall(ce *ast.CallExpression) bool {
 	}
 	method := pa.Name().AsIdentifier().Text
 
-	// Global object methods: Math.*, Object.*, Array.*, console.*, JSON.*, etc.
+	// Global object methods: Math.*, Object.*, Array.*, console.*, etc.
 	if pa.Expression.Kind == ast.KindIdentifier {
 		switch pa.Expression.AsIdentifier().Text {
-		case "Math", "Object", "Array", "console", "JSON", "Symbol", "Number", "String", "Promise":
+		case "Math", "Object", "Array", "console", "Symbol", "Number", "String", "Promise":
 			return true
 		case "Map":
 			return method == "groupBy"
@@ -86,7 +86,7 @@ func (t *Transpiler) isBuiltinCall(ce *ast.CallExpression) bool {
 	return false
 }
 
-// tryTransformGlobalCall handles Math.*, Object.*, Array.*, console.*, JSON.*
+// tryTransformGlobalCall handles Math.*, Object.*, Array.*, console.*, etc.
 func (t *Transpiler) tryTransformGlobalCall(obj, method string, argExprs []lua.Expression, argNodes *ast.NodeList) lua.Expression {
 	switch obj {
 	case "Math":
@@ -97,8 +97,6 @@ func (t *Transpiler) tryTransformGlobalCall(obj, method string, argExprs []lua.E
 		return t.transformArrayStaticCall(method, argExprs)
 	case "console":
 		return t.transformConsoleCall(method, argExprs, argNodes)
-	case "JSON":
-		return t.transformJSONCall(method, argExprs)
 	case "Symbol":
 		return t.transformSymbolCall(method, argExprs)
 	case "Map":
@@ -323,18 +321,6 @@ func (t *Transpiler) transformArrayStaticCall(method string, argExprs []lua.Expr
 			fields = append(fields, lua.Field(a))
 		}
 		return lua.Table(fields...)
-	}
-	return nil
-}
-
-func (t *Transpiler) transformJSONCall(method string, argExprs []lua.Expression) lua.Expression {
-	switch method {
-	case "stringify":
-		fn := t.requireLualib("__TS__JSONStringify")
-		return lualibCall(fn, argExprs...)
-	case "parse":
-		fn := t.requireLualib("__TS__JSONParse")
-		return lualibCall(fn, argExprs...)
 	}
 	return nil
 }
