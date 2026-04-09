@@ -36,10 +36,7 @@ jobs:
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: ~/.cache/go-build
-          key: go-build-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ github.sha }}
-          restore-keys: |
-            go-build-${{ runner.os }}-${{ hashFiles('go.sum') }}-
-            go-build-${{ runner.os }}-
+          key: go-build-${{ runner.os }}-${{ hashFiles('go.sum') }}
 
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
@@ -109,10 +106,7 @@ jobs:
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: ~/.cache/go-build
-          key: go-build-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ github.sha }}
-          restore-keys: |
-            go-build-${{ runner.os }}-${{ hashFiles('go.sum') }}-
-            go-build-${{ runner.os }}-
+          key: go-build-${{ runner.os }}-${{ hashFiles('go.sum') }}
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9
@@ -140,10 +134,7 @@ jobs:
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: ~/.cache/go-build
-          key: go-build-${{ runner.os }}-${{ hashFiles('go.sum') }}-${{ github.sha }}
-          restore-keys: |
-            go-build-${{ runner.os }}-${{ hashFiles('go.sum') }}-
-            go-build-${{ runner.os }}-
+          key: go-build-${{ runner.os }}-${{ hashFiles('go.sum') }}
 
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
