@@ -74,7 +74,24 @@ jobs:
       - name: Tests
         run: |
           export PATH="$PWD/.lua-runtimes/bin:$PATH"
-          FORCE_COLOR=1 gotestsum --format short ./internal/transpiler/ ./internal/lua/... ./internal/tstltest/ -skip TestCodegen_
+          FORCE_COLOR=1 gotestsum --format short -- \
+            -coverpkg=./internal/transpiler/,./internal/lua/ \
+            -coverprofile=coverage.out \
+            -covermode=atomic \
+            ./internal/transpiler/ ./internal/lua/... ./internal/luatest/ ./internal/tstltest/ \
+            -skip TestCodegen_
+
+      - name: Coverage summary
+        run: |
+          echo '### Coverage' >> "$GITHUB_STEP_SUMMARY"
+          total=$(go tool cover -func=coverage.out | grep '^total:' | awk '{print $NF}')
+          echo "**Total: ${total}**" >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '| File | Coverage |' >> "$GITHUB_STEP_SUMMARY"
+          echo '|------|----------|' >> "$GITHUB_STEP_SUMMARY"
+          go tool cover -func=coverage.out | grep -oP 'internal/\S+\.go.*\d+\.\d+%' | \
+            sed 's|internal/||' | \
+            awk '{printf "| `%s` | %s |\n", $1, $NF}' >> "$GITHUB_STEP_SUMMARY"
 
   golangci-lint:
     runs-on: ubuntu-latest
