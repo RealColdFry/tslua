@@ -397,23 +397,25 @@ func (t *Transpiler) transformArrayMethodCall(objExpr lua.Expression, method str
 			}
 		}
 		// Single-arg push: arr[#arr + 1] = val
-		// When return value is used, cache #arr+1 to temp and return it
+		// Cache objExpr to a temp if it has side effects (e.g. function call),
+		// so it's only evaluated once. Simple identifiers (const/let) skip caching.
 		if len(argExprs) == 1 {
 			val := argExprs[0]
-			lenExpr := lua.Binary(t.luaTarget.LenExpr(objExpr), lua.OpAdd, lua.Num("1"))
+			cachedObj := t.moveToPrecedingTempWithNode(objExpr, arrayTSNode)
+			lenExpr := lua.Binary(t.luaTarget.LenExpr(cachedObj), lua.OpAdd, lua.Num("1"))
 			// Check if the push result is used (parent is not ExpressionStatement)
 			resultUsed := callNode != nil && callNode.Parent != nil &&
 				callNode.Parent.Kind != ast.KindExpressionStatement
 			if resultUsed {
 				temp := t.moveToPrecedingTemp(lenExpr)
 				t.addPrecedingStatements(lua.Assign(
-					[]lua.Expression{lua.Index(objExpr, temp)},
+					[]lua.Expression{lua.Index(cachedObj, temp)},
 					[]lua.Expression{val},
 				))
 				return temp
 			}
 			t.addPrecedingStatements(lua.Assign(
-				[]lua.Expression{lua.Index(objExpr, lenExpr)},
+				[]lua.Expression{lua.Index(cachedObj, lenExpr)},
 				[]lua.Expression{val},
 			))
 			return lua.Nil()
