@@ -6,5 +6,5 @@
   "rules": {
     "unicorn/require-post-message-target-origin": "off"
   },
-  "ignorePatterns": ["node_modules", "extern", "tmp"]
+  "ignorePatterns": ["node_modules", "extern", "tmp", "website/src/assets/types"]
 }

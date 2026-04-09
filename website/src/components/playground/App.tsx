@@ -79,12 +79,7 @@ for (const x of [1, 2, 3]) {
 }
 `;
 
-import {
-  CONSOLE_DTS,
-  langExtDts,
-  getLuaTypesDts,
-  AVAILABLE_TYPES,
-} from "./builtin-types";
+import { CONSOLE_DTS, langExtDts, getLuaTypesDts, AVAILABLE_TYPES } from "./builtin-types";
 
 const EMPTY_EXEC: ExecResult = { output: [], error: null };
 
@@ -155,7 +150,7 @@ export function App() {
   });
   const tsCode = pgState.code;
   const tsconfig = pgState.tsconfig;
-  const target = getTarget(tsconfig);
+  const luaTarget = getTarget(tsconfig);
   const [luaCode, setLuaCode] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -219,35 +214,38 @@ export function App() {
       });
   }, []);
 
-  const runExecution = useCallback(async (_tsSource: string, lua: string, tgt: string, tsTarget?: string) => {
-    try {
-      const js = await compileTs(tsTarget);
-      const t0 = performance.now();
-      const result = await execJs(js);
-      setJsEvalMs(performance.now() - t0);
-      setJsResult(result);
-    } catch (e) {
-      setJsEvalMs(null);
-      setJsResult({ output: [], error: String(e) });
-    }
-    setStaleJs(false);
-    if (lua.trim()) {
+  const runExecution = useCallback(
+    async (_tsSource: string, lua: string, tgt: string, tsTarget?: string) => {
       try {
+        const js = await compileTs(tsTarget);
         const t0 = performance.now();
-        const result = await execLua(lua, tgt);
-        setLuaEvalMs(performance.now() - t0);
-        setLuaDualResult(result);
+        const result = await execJs(js);
+        setJsEvalMs(performance.now() - t0);
+        setJsResult(result);
       } catch (e) {
-        setLuaEvalMs(null);
-        const errResult = { output: [], error: String(e) };
-        setLuaDualResult({ raw: errResult, pretty: errResult });
+        setJsEvalMs(null);
+        setJsResult({ output: [], error: String(e) });
       }
-    } else {
-      setLuaEvalMs(null);
-      setLuaDualResult({ raw: EMPTY_EXEC, pretty: EMPTY_EXEC });
-    }
-    setStaleLuaEval(false);
-  }, []);
+      setStaleJs(false);
+      if (lua.trim()) {
+        try {
+          const t0 = performance.now();
+          const result = await execLua(lua, tgt);
+          setLuaEvalMs(performance.now() - t0);
+          setLuaDualResult(result);
+        } catch (e) {
+          setLuaEvalMs(null);
+          const errResult = { output: [], error: String(e) };
+          setLuaDualResult({ raw: errResult, pretty: errResult });
+        }
+      } else {
+        setLuaEvalMs(null);
+        setLuaDualResult({ raw: EMPTY_EXEC, pretty: EMPTY_EXEC });
+      }
+      setStaleLuaEval(false);
+    },
+    [],
+  );
 
   const monacoRef = useRef<typeof import("monaco-editor") | null>(null);
 
@@ -258,9 +256,19 @@ export function App() {
     if (!monaco) return;
     const target = (cfg.compilerOptions?.target as string) || "ESNext";
     const targetMap: Record<string, number> = {
-      ES5: 1, ES2015: 2, ES2016: 3, ES2017: 4, ES2018: 5,
-      ES2019: 6, ES2020: 7, ES2021: 8, ES2022: 9, ES2023: 10,
-      ES2024: 11, ES2025: 12, ESNext: 99,
+      ES5: 1,
+      ES2015: 2,
+      ES2016: 3,
+      ES2017: 4,
+      ES2018: 5,
+      ES2019: 6,
+      ES2020: 7,
+      ES2021: 8,
+      ES2022: 9,
+      ES2023: 10,
+      ES2024: 11,
+      ES2025: 12,
+      ESNext: 99,
     };
     monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
       ...monaco.languages.typescript.typescriptDefaults.getCompilerOptions(),
@@ -273,14 +281,17 @@ export function App() {
     extraLibsRef.current = [];
     const types = cfg.types ?? [];
     const addLib = (content: string, name: string) => {
-      const d = monaco.languages.typescript.typescriptDefaults.addExtraLib(content, `file:///${name}.d.ts`);
+      const d = monaco.languages.typescript.typescriptDefaults.addExtraLib(
+        content,
+        `file:///${name}.d.ts`,
+      );
       extraLibsRef.current.push(d);
     };
     if (types.includes("console")) addLib(CONSOLE_DTS, "console");
     if (types.includes("language-extensions")) addLib(langExtDts, "language-extensions");
     if (types.includes("lua-types")) {
-      const luaTarget = cfg.tstl?.luaTarget || "JIT";
-      const dts = await getLuaTypesDts(luaTarget);
+      const tgt = cfg.tstl?.luaTarget || "JIT";
+      const dts = await getLuaTypesDts(tgt);
       addLib(dts, "lua-types");
     }
   }, []);
@@ -320,7 +331,8 @@ export function App() {
       const types = cfg.types ?? [];
       const extraFiles: Record<string, string> = {};
       if (types.includes("console")) extraFiles["console.d.ts"] = CONSOLE_DTS;
-      if (types.includes("language-extensions")) extraFiles["language-extensions.d.ts"] = langExtDts;
+      if (types.includes("language-extensions"))
+        extraFiles["language-extensions.d.ts"] = langExtDts;
       if (types.includes("lua-types")) extraFiles["lua-types.d.ts"] = await getLuaTypesDts(tgt);
       const t0 = performance.now();
       const lib = [(cfg.compilerOptions?.target as string) || "ESNext"];
@@ -338,7 +350,10 @@ export function App() {
       setStaleLuaEval(true);
       if (execDebounceRef.current) clearTimeout(execDebounceRef.current);
       const tsTarget = (cfg.compilerOptions?.target as string) || undefined;
-      execDebounceRef.current = setTimeout(() => runExecution(code, result.lua, tgt, tsTarget), 500);
+      execDebounceRef.current = setTimeout(
+        () => runExecution(code, result.lua, tgt, tsTarget),
+        500,
+      );
     },
     [loading, runExecution, setTsluaMarkers, syncMonacoOptions],
   );
@@ -454,7 +469,7 @@ export function App() {
         <div className="pg-sidebar-section-title">tslua</div>
         <ConfigSelect
           label="Lua Target"
-          value={target}
+          value={luaTarget}
           options={LUA_TARGETS}
           onChange={(v) => updateTstl("luaTarget", v === "JIT" ? "" : v)}
         />
@@ -505,7 +520,7 @@ export function App() {
           </button>
         ))}
         <select
-          value={target}
+          value={luaTarget}
           onChange={(e) => updateTstl("luaTarget", e.target.value === "JIT" ? "" : e.target.value)}
           className="pg-select pg-select-sm"
         >
