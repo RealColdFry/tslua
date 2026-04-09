@@ -1,7 +1,10 @@
 // Package lualibinfo defines types shared between the lualib and transpiler packages.
 package lualibinfo
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // FeatureInfo describes a single lualib feature (one source file).
 type FeatureInfo struct {
@@ -55,7 +58,13 @@ func (d *FeatureData) ResolveInlineCode(usedExports []string) string {
 		}
 		resolved = append(resolved, feature)
 	}
+	// Sort features for deterministic output order.
+	sortedNeeded := make([]string, 0, len(needed))
 	for feature := range needed {
+		sortedNeeded = append(sortedNeeded, feature)
+	}
+	slices.Sort(sortedNeeded)
+	for _, feature := range sortedNeeded {
 		visit(feature)
 	}
 
