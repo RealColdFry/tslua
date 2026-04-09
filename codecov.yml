@@ -1,1 +1,17 @@
 comment: false
+
+coverage:
+  status:
+    project:
+      default:
+        target: 88%
+        paths:
+          - "internal/transpiler/"
+          - "internal/lua/"
+          - "internal/lualib/"
+          - "internal/lualibinfo/"
+          - "internal/sourcemap/"
+    patch:
+      default:
+        target: 75%
+
