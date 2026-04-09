@@ -42,6 +42,29 @@ func (t *Transpiler) transformCallExpression(node *ast.Node) lua.Expression {
 		return result
 	}
 
+	// Raw require("path/with/slashes") → require("path.with.dots")
+	// Lua's require uses dots as path separators, not slashes.
+	// Import-generated requires go through resolveModulePath which handles this,
+	// but raw require() calls in TS source bypass that path.
+	if ce.Expression.Kind == ast.KindIdentifier && ce.Expression.AsIdentifier().Text == "require" &&
+		ce.Arguments != nil && len(ce.Arguments.Nodes) > 0 &&
+		ce.Arguments.Nodes[0].Kind == ast.KindStringLiteral {
+		argText := ce.Arguments.Nodes[0].AsStringLiteral().Text
+		if strings.Contains(argText, "/") {
+			p := argText
+			for strings.HasPrefix(p, "./") || strings.HasPrefix(p, "../") {
+				if strings.HasPrefix(p, "./") {
+					p = p[2:]
+				} else {
+					p = p[3:]
+				}
+			}
+			normalized := strings.ReplaceAll(p, "/", ".")
+			argExprs := []lua.Expression{lua.Str(normalized)}
+			return lua.Call(lua.Ident("require"), argExprs...)
+		}
+	}
+
 	// performance.now() → os.clock() * 1000
 	if result := t.tryTransformPerformanceCall(ce); result != nil {
 		return result
