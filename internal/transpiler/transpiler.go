@@ -1469,6 +1469,20 @@ func (t *Transpiler) isLocalShadow(node *ast.Node) bool {
 	return false
 }
 
+// isAmbientSymbol returns true if the node's symbol is an ambient declaration (declare keyword or .d.ts).
+func (t *Transpiler) isAmbientSymbol(node *ast.Node) bool {
+	sym := t.checker.GetSymbolAtLocation(node)
+	if sym == nil {
+		return false
+	}
+	for _, decl := range sym.Declarations {
+		if ast.GetCombinedModifierFlags(decl)&ast.ModifierFlagsAmbient != 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // getIdentifierExportScope returns the Lua expression for the scope that exports this identifier,
 // or nil if the identifier is not exported. Handles both namespace exports and module exports.
 func (t *Transpiler) getIdentifierExportScope(node *ast.Node) lua.Expression {
@@ -2062,6 +2076,29 @@ func (t *Transpiler) typeAlwaysHasFlags(typ *checker.Type, flags checker.TypeFla
 		}
 	}
 	return false
+}
+
+// isStandardLibraryType checks whether the type at a node is a standard library type
+// with the given symbol name. Used for type-directed builtin detection.
+// Ported from: TSTL src/transformation/utils/typescript/index.ts isStandardLibraryType
+func (t *Transpiler) isStandardLibraryType(node *ast.Node, name string) bool {
+	typ := t.checker.GetTypeAtLocation(node)
+	if typ == nil {
+		return false
+	}
+	sym := typ.Symbol()
+	if sym == nil || sym.Name != name {
+		return false
+	}
+	// If no valueDeclaration, assume it's a lib type (ambient with no source)
+	if sym.ValueDeclaration == nil {
+		return true
+	}
+	sf := ast.GetSourceFileOfNode(sym.ValueDeclaration)
+	if sf == nil {
+		return false
+	}
+	return compiler.Program_IsSourceFileDefaultLibrary(t.program, sf.Path())
 }
 
 func (t *Transpiler) isArrayType(node *ast.Node) bool {

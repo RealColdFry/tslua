@@ -42,6 +42,29 @@ func (t *Transpiler) transformCallExpression(node *ast.Node) lua.Expression {
 		return result
 	}
 
+	// Raw require("path/with/slashes") → require("path.with.dots")
+	// Lua's require uses dots as path separators, not slashes.
+	// Import-generated requires go through resolveModulePath which handles this,
+	// but raw require() calls in TS source bypass that path.
+	if ce.Expression.Kind == ast.KindIdentifier && ce.Expression.AsIdentifier().Text == "require" &&
+		ce.Arguments != nil && len(ce.Arguments.Nodes) > 0 &&
+		ce.Arguments.Nodes[0].Kind == ast.KindStringLiteral {
+		argText := ce.Arguments.Nodes[0].AsStringLiteral().Text
+		if strings.Contains(argText, "/") {
+			p := argText
+			for strings.HasPrefix(p, "./") || strings.HasPrefix(p, "../") {
+				if strings.HasPrefix(p, "./") {
+					p = p[2:]
+				} else {
+					p = p[3:]
+				}
+			}
+			normalized := strings.ReplaceAll(p, "/", ".")
+			argExprs := []lua.Expression{lua.Str(normalized)}
+			return lua.Call(lua.Ident("require"), argExprs...)
+		}
+	}
+
 	// performance.now() → os.clock() * 1000
 	if result := t.tryTransformPerformanceCall(ce); result != nil {
 		return result
@@ -434,10 +457,12 @@ func (t *Transpiler) transformPropertyAccessExpression(node *ast.Node) lua.Expre
 			parentObj := t.transformExpression(parent.Expression)
 			return lua.Index(parentObj, lua.Str(prop))
 		}
-		// Check if the enum is exported — use getIdentifierExportScope which handles
-		// both direct exports (export enum X) and re-exports (export { X }).
-		if exportScope := t.getIdentifierExportScope(pa.Expression); exportScope != nil {
-			return lua.Index(exportScope, lua.Str(prop))
+		// Ambient (declare) enums have no runtime code — members are globals.
+		// Only use export scope for non-ambient enums.
+		if !t.isAmbientSymbol(pa.Expression) {
+			if exportScope := t.getIdentifierExportScope(pa.Expression); exportScope != nil {
+				return lua.Index(exportScope, lua.Str(prop))
+			}
 		}
 		return lua.Ident(prop)
 	}

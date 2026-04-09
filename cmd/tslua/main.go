@@ -189,6 +189,7 @@ type buildConfig struct {
 	noImplicitSelf            bool
 	noImplicitGlobalVariables bool
 	sourceMap                 bool
+	emitSourceMapFiles        bool
 	sourceMapTraceback        bool
 	inlineSourceMap           bool
 	classStyle                transpiler.ClassStyle
@@ -264,7 +265,6 @@ func run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-
 	sourceRoot := string(configDir)
 	if configParseResult.CompilerOptions().RootDir != "" {
 		sourceRoot = tspath.ResolvePath(string(configDir), string(configParseResult.CompilerOptions().RootDir))
@@ -323,9 +323,17 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("unsupported luaLibImport: %s (supported: require, inline, none)", luaLibImportStr)
 	}
 
-	// Validate bundle options: both must be set or neither.
-	if (luaBundleFlag != "") != (luaBundleEntryFlag != "") {
-		return fmt.Errorf("--luaBundle and --luaBundleEntry must both be specified")
+	// Resolve bundle options from CLI or tsconfig.
+	luaBundle := luaBundleFlag
+	luaBundleEntry := luaBundleEntryFlag
+	if luaBundle == "" && tsluaCfg != nil && tsluaCfg.LuaBundle != "" {
+		luaBundle = tsluaCfg.LuaBundle
+	}
+	if luaBundleEntry == "" && tsluaCfg != nil && tsluaCfg.LuaBundleEntry != "" {
+		luaBundleEntry = tsluaCfg.LuaBundleEntry
+	}
+	if (luaBundle != "") != (luaBundleEntry != "") {
+		return fmt.Errorf("luaBundle and luaBundleEntry must both be specified")
 	}
 
 	// Merge tslua tsconfig options with CLI flags (CLI wins).
@@ -350,9 +358,15 @@ func run(cmd *cobra.Command, args []string) error {
 		if !cmd.Flags().Changed("noImplicitGlobalVariables") && tsluaCfg.NoImplicitGlobalVariables != nil {
 			noImplicitGlobalVariables = *tsluaCfg.NoImplicitGlobalVariables
 		}
+		if !cmd.Flags().Changed("sourceMapTraceback") && tsluaCfg.SourceMapTraceback != nil {
+			sourceMapTracebackFlag = *tsluaCfg.SourceMapTraceback
+		}
 	}
 
+	// sourceMap controls internal source map generation (needed by traceback too).
+	// emitSourceMapFiles controls writing .map files and sourceMappingURL comments.
 	sourceMap := sourceMapFlag || sourceMapTracebackFlag || inlineSourceMapFlag || configParseResult.CompilerOptions().SourceMap.IsTrue()
+	emitSourceMapFiles := sourceMapFlag || configParseResult.CompilerOptions().SourceMap.IsTrue()
 
 	cfg := &buildConfig{
 		cwd:                       cwd,
@@ -364,13 +378,14 @@ func run(cmd *cobra.Command, args []string) error {
 		luaTarget:                 luaTarget,
 		emitMode:                  emitMode,
 		luaLibImport:              luaLibImport,
-		luaBundle:                 luaBundleFlag,
-		luaBundleEntry:            luaBundleEntryFlag,
+		luaBundle:                 luaBundle,
+		luaBundleEntry:            luaBundleEntry,
 		exportAsGlobal:            exportAsGlobal,
 		exportAsGlobalMatch:       exportAsGlobalMatch,
 		noImplicitSelf:            noImplicitSelf,
 		noImplicitGlobalVariables: noImplicitGlobalVariables,
 		sourceMap:                 sourceMap,
+		emitSourceMapFiles:        emitSourceMapFiles,
 		sourceMapTraceback:        sourceMapTracebackFlag,
 		inlineSourceMap:           inlineSourceMapFlag,
 		classStyle:                transpiler.ClassStyle(classStyle),
@@ -475,10 +490,12 @@ func writeBundle(cfg *buildConfig, results []transpiler.TranspileResult) error {
 	entryModule := transpiler.ModuleNameFromPath(string(entryPath), cfg.sourceRoot)
 
 	var lualibContent []byte
-	for _, r := range results {
-		if r.UsesLualib {
-			lualibContent = lualib.BundleForTarget(string(cfg.luaTarget))
-			break
+	if cfg.luaLibImport == transpiler.LuaLibImportRequire {
+		for _, r := range results {
+			if r.UsesLualib {
+				lualibContent = lualib.BundleForTarget(string(cfg.luaTarget))
+				break
+			}
 		}
 	}
 
@@ -515,8 +532,9 @@ func writeResults(cfg *buildConfig, results []transpiler.TranspileResult) {
 			continue
 		}
 		luaCode := r.Lua
-		if r.SourceMap != "" {
-			// Append sourceMappingURL comment
+		if r.SourceMap != "" && cfg.emitSourceMapFiles {
+			// Append sourceMappingURL comment and write .map file only when
+			// sourceMap is explicitly enabled (not just implied by sourceMapTraceback).
 			mapFileName := filepath.Base(outPath) + ".map"
 			luaCode += "--# sourceMappingURL=" + mapFileName + "\n"
 		}
@@ -524,7 +542,7 @@ func writeResults(cfg *buildConfig, results []transpiler.TranspileResult) {
 			fmt.Fprintf(os.Stderr, "error writing %s: %v\n", outPath, err)
 			continue
 		}
-		if r.SourceMap != "" {
+		if r.SourceMap != "" && cfg.emitSourceMapFiles {
 			mapPath := outPath + ".map"
 			if err := os.WriteFile(mapPath, []byte(r.SourceMap), 0o644); err != nil {
 				fmt.Fprintf(os.Stderr, "error writing %s: %v\n", mapPath, err)

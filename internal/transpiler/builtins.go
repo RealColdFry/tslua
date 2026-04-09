@@ -25,10 +25,13 @@ func (t *Transpiler) tryTransformBuiltinCallWithArgs(ce *ast.CallExpression, arg
 	}
 	method := pa.Name().AsIdentifier().Text
 
-	// Global object methods: Math.*, Object.*, Array.*
+	// Global object methods: Math.*, Object.*, Array.*, console.*, etc.
 	if pa.Expression.Kind == ast.KindIdentifier {
 		obj := pa.Expression.AsIdentifier().Text
-		if result := t.tryTransformGlobalCall(obj, method, argExprs, ce.Arguments); result != nil {
+		// console is type-directed: only transform if the Console type is from the standard library.
+		if obj == "console" && !t.isStandardLibraryType(pa.Expression, "Console") {
+			// Not the standard library Console - fall through to normal transpilation.
+		} else if result := t.tryTransformGlobalCall(obj, method, argExprs, ce.Arguments); result != nil {
 			return result
 		}
 	}
@@ -62,11 +65,15 @@ func (t *Transpiler) isBuiltinCall(ce *ast.CallExpression) bool {
 	}
 	method := pa.Name().AsIdentifier().Text
 
-	// Global object methods: Math.*, Object.*, Array.*, console.*, etc.
+	// Global object methods: Math.*, Object.*, Array.*, etc.
 	if pa.Expression.Kind == ast.KindIdentifier {
 		switch pa.Expression.AsIdentifier().Text {
-		case "Math", "Object", "Array", "console", "Symbol", "Number", "String", "Promise":
+		case "Math", "Object", "Array", "Symbol", "Number", "String", "Promise":
 			return true
+		case "console":
+			// Type-directed: only match the standard library Console type.
+			// Ported from: TSTL src/transformation/builtins/index.ts tryTransformBuiltinGlobalMethodCall
+			return t.isStandardLibraryType(pa.Expression, "Console")
 		case "Map":
 			return method == "groupBy"
 		}
@@ -397,23 +404,25 @@ func (t *Transpiler) transformArrayMethodCall(objExpr lua.Expression, method str
 			}
 		}
 		// Single-arg push: arr[#arr + 1] = val
-		// When return value is used, cache #arr+1 to temp and return it
+		// Cache objExpr to a temp if it has side effects (e.g. function call),
+		// so it's only evaluated once. Simple identifiers (const/let) skip caching.
 		if len(argExprs) == 1 {
 			val := argExprs[0]
-			lenExpr := lua.Binary(t.luaTarget.LenExpr(objExpr), lua.OpAdd, lua.Num("1"))
+			cachedObj := t.moveToPrecedingTempWithNode(objExpr, arrayTSNode)
+			lenExpr := lua.Binary(t.luaTarget.LenExpr(cachedObj), lua.OpAdd, lua.Num("1"))
 			// Check if the push result is used (parent is not ExpressionStatement)
 			resultUsed := callNode != nil && callNode.Parent != nil &&
 				callNode.Parent.Kind != ast.KindExpressionStatement
 			if resultUsed {
 				temp := t.moveToPrecedingTemp(lenExpr)
 				t.addPrecedingStatements(lua.Assign(
-					[]lua.Expression{lua.Index(objExpr, temp)},
+					[]lua.Expression{lua.Index(cachedObj, temp)},
 					[]lua.Expression{val},
 				))
 				return temp
 			}
 			t.addPrecedingStatements(lua.Assign(
-				[]lua.Expression{lua.Index(objExpr, lenExpr)},
+				[]lua.Expression{lua.Index(cachedObj, lenExpr)},
 				[]lua.Expression{val},
 			))
 			return lua.Nil()

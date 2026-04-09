@@ -177,6 +177,9 @@
   flex-direction: column;
 }
 .pg-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 0.75rem;
   font-size: 0.75rem;
   font-weight: 600;
@@ -185,11 +188,39 @@
   letter-spacing: 0.05em;
   border-bottom: 1px solid var(--pg-border);
 }
+.pg-sidebar-collapse {
+  background: none;
+  border: none;
+  color: var(--pg-text-muted);
+  font-size: 1.125rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  border-radius: 3px;
+}
+.pg-sidebar-collapse:hover {
+  color: var(--pg-text);
+  background: var(--pg-divider);
+}
+.pg-sidebar-toggle {
+  background: none;
+  border: none;
+  color: var(--pg-text-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.125rem 0.25rem;
+  border-radius: 3px;
+}
+.pg-sidebar-toggle:hover {
+  color: var(--pg-text);
+  background: var(--pg-divider);
+}
 .pg-sidebar-section {
   padding: 0.5rem 0.75rem;
 }
 .pg-sidebar-section-title {
-  font-size: 0.625rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--pg-text-muted);
   text-transform: uppercase;
@@ -203,13 +234,35 @@
   margin-bottom: 0.5rem;
 }
 .pg-config-label {
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
   color: var(--pg-text-muted);
 }
 .pg-config-select {
   width: 100%;
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
   padding: 0.2rem 0.375rem;
+}
+.pg-config-value {
+  font-size: 0.8125rem;
+  color: var(--pg-text);
+}
+.pg-types-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.pg-type-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--pg-text);
+  cursor: pointer;
+}
+.pg-type-item input[type="checkbox"] {
+  accent-color: var(--pg-accent);
+  cursor: pointer;
+  margin: 0;
 }
 .pg-config-toggle {
   flex-direction: row;
@@ -273,6 +326,26 @@
   font-size: 11px;
   font-weight: 400;
   color: var(--pg-text-muted);
+}
+
+/* ---- Stale indicator ---- */
+.pg-stale {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--pg-accent);
+  opacity: 0.7;
+  animation: pg-pulse 1s ease-in-out infinite;
+}
+@keyframes pg-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* ---- Dividers ---- */

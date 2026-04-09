@@ -4,7 +4,8 @@ local function __TS__ObjectGroupBy(items, keySelector)
     for ____, item in __TS__Iterator(items) do
         local key = keySelector(nil, item, i)
         if result[key] ~= nil then
-            result[key][#result[key] + 1] = item
+            local ____result_key_0 = result[key]
+            ____result_key_0[#____result_key_0 + 1] = item
         else
             result[key] = {item}
         end

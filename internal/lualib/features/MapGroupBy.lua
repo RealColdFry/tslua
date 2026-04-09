@@ -4,7 +4,8 @@ local function __TS__MapGroupBy(items, keySelector)
     for ____, item in __TS__Iterator(items) do
         local key = keySelector(nil, item, i)
         if result:has(key) then
-            result:get(key)[#result:get(key) + 1] = item
+            local ____temp_0 = result:get(key)
+            ____temp_0[#____temp_0 + 1] = item
         else
             result:set(key, {item})
         end

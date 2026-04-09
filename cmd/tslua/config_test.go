@@ -192,6 +192,37 @@ func TestParseTsluaConfig_JSONC(t *testing.T) {
 	}
 }
 
+func TestParseTsluaConfig_JSONC_SchemaURL(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "tsconfig.json")
+	// $schema contains "https://" which must not be treated as a // comment
+	content := `{
+  "$schema": "https://raw.githubusercontent.com/TypeScriptToLua/TypeScriptToLua/master/tsconfig-schema.json",
+  "tstl": {
+    "luaTarget": "JIT",
+    "luaBundle": "control.lua",
+    "luaBundleEntry": "src/control.ts"
+  }
+}`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := parseTsluaConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg == nil {
+		t.Fatal("expected config, got nil")
+	}
+	if cfg.LuaTarget != "JIT" {
+		t.Errorf("expected luaTarget=JIT, got %q", cfg.LuaTarget)
+	}
+	if cfg.LuaBundle != "control.lua" {
+		t.Errorf("expected luaBundle=control.lua, got %q", cfg.LuaBundle)
+	}
+}
+
 func TestParseTsluaConfig_MissingFile(t *testing.T) {
 	cfg, err := parseTsluaConfig("/nonexistent/tsconfig.json")
 	if err != nil {

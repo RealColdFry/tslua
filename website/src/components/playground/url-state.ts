@@ -8,6 +8,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 
 export interface PlaygroundTsconfig {
   compilerOptions?: Record<string, unknown>;
+  types?: string[];
   tstl?: {
     luaTarget?: string;
     emitMode?: string;
@@ -83,6 +84,14 @@ function serializeState(state: PlaygroundState): object {
   const tsOut: Record<string, unknown> = {};
   if (ts.compilerOptions && Object.keys(ts.compilerOptions).length > 0) {
     tsOut.compilerOptions = ts.compilerOptions;
+  }
+  // Only serialize types if not the default set (all enabled)
+  const defaultTypes = ["console", "language-extensions", "lua-types"];
+  if (
+    ts.types &&
+    (ts.types.length !== defaultTypes.length || !defaultTypes.every((t) => ts.types!.includes(t)))
+  ) {
+    tsOut.types = ts.types;
   }
   if (ts.tstl) {
     const tstl: Record<string, unknown> = {};

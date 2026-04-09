@@ -75,3 +75,49 @@ func TestEnum_LocalInit(t *testing.T) {
 		}
 	})
 }
+
+// TestCompileMembersOnly_DeclareEnum verifies that @compileMembersOnly on a
+// declare enum emits bare member names (globals), not ____exports.MEMBER.
+// Found via dota2bot wild testing: Dota engine globals like BOT_ACTION_DESIRE_NONE
+// were incorrectly prefixed with ____exports.
+func TestCompileMembersOnly_DeclareEnum(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name      string
+		code      string
+		wantInLua string
+		dontWant  string
+	}{
+		{
+			"declare enum members are bare globals",
+			"/** @compileMembersOnly */\n" +
+				"export declare enum Globals { FOO, BAR }\n" +
+				"export const x = Globals.FOO;\n",
+			"= FOO",
+			"____exports.FOO",
+		},
+		{
+			"declare enum used as value in another enum",
+			"/** @compileMembersOnly */\n" +
+				"export declare enum Globals { FOO }\n" +
+				"export enum MyEnum { A = Globals.FOO }\n",
+			"= FOO",
+			"____exports.FOO",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			results := TranspileTS(t, tc.code, Opts{})
+			lua := results[0].Lua
+			if !strings.Contains(lua, tc.wantInLua) {
+				t.Errorf("expected %q in output\ngot:\n%s", tc.wantInLua, lua)
+			}
+			if tc.dontWant != "" && strings.Contains(lua, tc.dontWant) {
+				t.Errorf("did not expect %q in output\ngot:\n%s", tc.dontWant, lua)
+			}
+		})
+	}
+}
