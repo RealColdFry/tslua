@@ -264,7 +264,6 @@ func run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-
 	sourceRoot := string(configDir)
 	if configParseResult.CompilerOptions().RootDir != "" {
 		sourceRoot = tspath.ResolvePath(string(configDir), string(configParseResult.CompilerOptions().RootDir))
@@ -323,9 +322,17 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("unsupported luaLibImport: %s (supported: require, inline, none)", luaLibImportStr)
 	}
 
-	// Validate bundle options: both must be set or neither.
-	if (luaBundleFlag != "") != (luaBundleEntryFlag != "") {
-		return fmt.Errorf("--luaBundle and --luaBundleEntry must both be specified")
+	// Resolve bundle options from CLI or tsconfig.
+	luaBundle := luaBundleFlag
+	luaBundleEntry := luaBundleEntryFlag
+	if luaBundle == "" && tsluaCfg != nil && tsluaCfg.LuaBundle != "" {
+		luaBundle = tsluaCfg.LuaBundle
+	}
+	if luaBundleEntry == "" && tsluaCfg != nil && tsluaCfg.LuaBundleEntry != "" {
+		luaBundleEntry = tsluaCfg.LuaBundleEntry
+	}
+	if (luaBundle != "") != (luaBundleEntry != "") {
+		return fmt.Errorf("luaBundle and luaBundleEntry must both be specified")
 	}
 
 	// Merge tslua tsconfig options with CLI flags (CLI wins).
@@ -364,8 +371,8 @@ func run(cmd *cobra.Command, args []string) error {
 		luaTarget:                 luaTarget,
 		emitMode:                  emitMode,
 		luaLibImport:              luaLibImport,
-		luaBundle:                 luaBundleFlag,
-		luaBundleEntry:            luaBundleEntryFlag,
+		luaBundle:                 luaBundle,
+		luaBundleEntry:            luaBundleEntry,
 		exportAsGlobal:            exportAsGlobal,
 		exportAsGlobalMatch:       exportAsGlobalMatch,
 		noImplicitSelf:            noImplicitSelf,
@@ -475,10 +482,12 @@ func writeBundle(cfg *buildConfig, results []transpiler.TranspileResult) error {
 	entryModule := transpiler.ModuleNameFromPath(string(entryPath), cfg.sourceRoot)
 
 	var lualibContent []byte
-	for _, r := range results {
-		if r.UsesLualib {
-			lualibContent = lualib.BundleForTarget(string(cfg.luaTarget))
-			break
+	if cfg.luaLibImport == transpiler.LuaLibImportRequire {
+		for _, r := range results {
+			if r.UsesLualib {
+				lualibContent = lualib.BundleForTarget(string(cfg.luaTarget))
+				break
+			}
 		}
 	}
 

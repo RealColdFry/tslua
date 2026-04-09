@@ -21,6 +21,8 @@ type tsluaConfig struct {
 	EmitMode                  string `json:"emitMode"`
 	LuaLibImport              string `json:"luaLibImport"`
 	NoHeader                  *bool  `json:"noHeader"`
+	LuaBundle                 string `json:"luaBundle"`
+	LuaBundleEntry            string `json:"luaBundleEntry"`
 }
 
 // parseTsluaConfig reads the "tstl" or "tslua" section from a tsconfig.json file.
@@ -70,13 +72,40 @@ func parseTsluaConfig(tsconfigPath string) (*tsluaConfig, error) {
 
 // stripJSONC converts JSONC (as used by tsconfig.json) to valid JSON by
 // removing single-line comments (//) and trailing commas before } or ].
-var (
-	jsoncLineComment   = regexp.MustCompile(`(?m)//.*$`)
-	jsoncTrailingComma = regexp.MustCompile(`,\s*([}\]])`)
-)
+// It respects quoted strings (won't strip "//" inside "https://...").
+var jsoncTrailingComma = regexp.MustCompile(`,\s*([}\]])`)
 
 func stripJSONC(data []byte) []byte {
-	data = jsoncLineComment.ReplaceAll(data, nil)
-	data = jsoncTrailingComma.ReplaceAll(data, []byte("$1"))
-	return data
+	// Remove // line comments that aren't inside strings.
+	var out []byte
+	inString := false
+	i := 0
+	for i < len(data) {
+		ch := data[i]
+		if inString {
+			out = append(out, ch)
+			if ch == '\\' && i+1 < len(data) {
+				i++
+				out = append(out, data[i])
+			} else if ch == '"' {
+				inString = false
+			}
+		} else {
+			if ch == '"' {
+				inString = true
+				out = append(out, ch)
+			} else if ch == '/' && i+1 < len(data) && data[i+1] == '/' {
+				// Skip to end of line.
+				for i < len(data) && data[i] != '\n' {
+					i++
+				}
+				continue
+			} else {
+				out = append(out, ch)
+			}
+		}
+		i++
+	}
+	out = jsoncTrailingComma.ReplaceAll(out, []byte("$1"))
+	return out
 }
