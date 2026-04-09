@@ -71,7 +71,7 @@ bench-lua:
 
 # Run all 100%-passing Go tests
 testall: tstlgen
-    FORCE_COLOR=1 gotestsum --format short ./internal/transpiler/ ./internal/lua/... ./internal/tstltest/ -skip TestCodegen_
+    FORCE_COLOR=1 gotestsum --format short ./internal/transpiler/ ./internal/lua/... ./internal/luatest/ ./internal/tstltest/ -skip TestCodegen_
 
 # Format code (Go + TS)
 fmt:
