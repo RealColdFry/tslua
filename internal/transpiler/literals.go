@@ -163,7 +163,7 @@ func (t *Transpiler) transformObjectPropertyValue(prop *ast.Node) lua.Expression
 		t.addError(prop, dw.UnsupportedAccessorInObjectLiteral, "Accessors in object literal are not supported.")
 		return lua.Nil()
 	default:
-		return lua.Comment(fmt.Sprintf("TODO: obj prop kind %d", prop.Kind))
+		panic(fmt.Sprintf("unhandled object property kind: %d", prop.Kind))
 	}
 }
 
@@ -177,7 +177,7 @@ func (t *Transpiler) transformShorthandValue(prop *ast.Node) lua.Expression {
 	// Track the VALUE symbol for hoisting analysis.
 	// GetSymbolAtLocation returns the property symbol, not the value variable.
 	var valueSym *ast.Symbol
-	if t.inScope() && t.checker != nil {
+	if t.inScope() {
 		valueSym = checker.Checker_GetShorthandAssignmentValueSymbol(t.checker, prop)
 		if valueSym != nil {
 			t.trackSymbolReference(valueSym, spa.Name())
@@ -206,7 +206,7 @@ func (t *Transpiler) transformShorthandValue(prop *ast.Node) lua.Expression {
 	}
 
 	// Undeclared ambient identifiers with invalid Lua names get a generic diagnostic.
-	if !extensionDiagnosed && !isValidLuaIdentifier(name, t.luaTarget.AllowsUnicodeIds()) && t.checker != nil {
+	if !extensionDiagnosed && !isValidLuaIdentifier(name, t.luaTarget.AllowsUnicodeIds()) {
 		symbol := t.checker.GetSymbolAtLocation(spa.Name())
 		isValueDeclared := false
 		if symbol != nil {
@@ -260,7 +260,7 @@ func (t *Transpiler) transformObjectPropertyField(prop *ast.Node) *lua.TableFiel
 	case ast.KindSpreadAssignment:
 		return lua.Field(lua.Comment("spread handled elsewhere"))
 	default:
-		return lua.Field(lua.Comment(fmt.Sprintf("TODO: obj prop kind %d", prop.Kind)))
+		panic(fmt.Sprintf("unhandled object property kind: %d", prop.Kind))
 	}
 }
 

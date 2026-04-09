@@ -329,7 +329,7 @@ func (t *Transpiler) transformArrayStaticCall(method string, argExprs []lua.Expr
 func (t *Transpiler) tryTransformMethodCall(pa *ast.PropertyAccessExpression, objExpr lua.Expression, method string, argExprs []lua.Expression, argNodes *ast.NodeList, callNode *ast.Node) lua.Expression {
 	// Type-directed: check if the object is an array
 	if t.isArrayType(pa.Expression) {
-		return t.transformArrayMethodCall(objExpr, method, argExprs, argNodes, callNode)
+		return t.transformArrayMethodCall(objExpr, method, argExprs, argNodes, callNode, pa.Expression)
 	}
 
 	// Check if it's a string type
@@ -360,7 +360,7 @@ func (t *Transpiler) tryTransformMethodCall(pa *ast.PropertyAccessExpression, ob
 	return nil
 }
 
-func (t *Transpiler) transformArrayMethodCall(objExpr lua.Expression, method string, argExprs []lua.Expression, argNodes *ast.NodeList, callNode *ast.Node) lua.Expression {
+func (t *Transpiler) transformArrayMethodCall(objExpr lua.Expression, method string, argExprs []lua.Expression, argNodes *ast.NodeList, callNode *ast.Node, arrayTSNode *ast.Node) lua.Expression {
 	allArgs := append([]lua.Expression{objExpr}, argExprs...)
 
 	switch method {
@@ -437,6 +437,20 @@ func (t *Transpiler) transformArrayMethodCall(objExpr lua.Expression, method str
 		fn := t.requireLualib("__TS__ArrayConcat")
 		return lualibCall(fn, allArgs...)
 	case "join":
+		// Optimization: when element type is string|number, emit table.concat() directly.
+		// Ported from: TSTL builtins/array.ts join (lines 161-186)
+		if t.isElementTypeStringOrNumber(arrayTSNode) {
+			defaultSep := lua.Str(",")
+			var sep lua.Expression
+			if len(argExprs) == 0 {
+				sep = defaultSep
+			} else if _, ok := argExprs[0].(*lua.StringLiteral); ok {
+				sep = argExprs[0]
+			} else {
+				sep = lua.Binary(argExprs[0], lua.OpOr, defaultSep)
+			}
+			return lua.Call(lua.Index(lua.Ident("table"), lua.Str("concat")), objExpr, sep)
+		}
 		fn := t.requireLualib("__TS__ArrayJoin")
 		if len(argExprs) == 0 {
 			return lualibCall(fn, objExpr)
@@ -690,6 +704,11 @@ func (t *Transpiler) transformMapSetMethodCall(objExpr lua.Expression, method st
 
 // transformPropertyLength handles .length on arrays and strings
 func (t *Transpiler) tryTransformPropertyAccess(pa *ast.PropertyAccessExpression) lua.Expression {
+	// Optional chains must go through the chain-flattening algorithm for nil guards.
+	if ast.IsOptionalChain(pa.AsNode()) {
+		return nil
+	}
+
 	prop := pa.Name().AsIdentifier().Text
 
 	// Math constants
@@ -757,9 +776,7 @@ func (t *Transpiler) tryTransformPropertyAccess(pa *ast.PropertyAccessExpression
 
 // functionHasThisVoid checks if the function expression's declaration has `this: void`.
 func (t *Transpiler) functionHasThisVoid(node *ast.Node) bool {
-	if t.checker == nil {
-		return false
-	}
+
 	sym := t.checker.GetSymbolAtLocation(node)
 	if sym == nil {
 		return false
@@ -866,6 +883,18 @@ func (t *Transpiler) tryTransformFunctionCallApply(ce *ast.CallExpression) lua.E
 	}
 	method := pa.Name().AsIdentifier().Text
 	if method != "call" && method != "apply" && method != "bind" {
+		return nil
+	}
+
+	// Only intercept when the method actually belongs to Function/CallableFunction/NewableFunction.
+	// A user-defined method named "call" on a non-function type must not be intercepted.
+	// Ported from: TSTL builtins/index.ts tryTransformBuiltinPrototypeMethodCall
+	callSym := t.checker.GetSymbolAtLocation(ce.Expression)
+	if callSym == nil || callSym.Parent == nil {
+		return nil
+	}
+	name := callSym.Parent.Name
+	if name != "Function" && name != "CallableFunction" && name != "NewableFunction" {
 		return nil
 	}
 

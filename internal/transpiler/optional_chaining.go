@@ -282,8 +282,8 @@ func (t *Transpiler) buildChainRight(base *lua.Identifier, chain []*ast.Node, in
 					"Optional calls are not supported on enums marked with @compileMembersOnly.")
 			}
 
-			// Check .length on arrays
-			if prop == "length" && t.isArrayType(pa.Expression) {
+			// Check .length on arrays and strings
+			if prop == "length" && (t.isArrayType(pa.Expression) || t.isStringExpression(pa.Expression)) {
 				result = t.luaTarget.LenExpr(result)
 			} else {
 				result = lua.Index(result, lua.Str(prop))

@@ -112,6 +112,86 @@ func TestParseTsluaConfig_ClassStyle(t *testing.T) {
 	}
 }
 
+func TestParseTsluaConfig_LuaTarget(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "tsconfig.json")
+	if err := os.WriteFile(path, []byte(`{"tstl":{"luaTarget":"5.3"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := parseTsluaConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg == nil || cfg.LuaTarget != "5.3" {
+		t.Errorf("expected luaTarget=5.3, got %q", cfg.LuaTarget)
+	}
+}
+
+func TestParseTsluaConfig_NoImplicitSelf(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "tsconfig.json")
+	if err := os.WriteFile(path, []byte(`{"tstl":{"noImplicitSelf":true}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := parseTsluaConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg == nil || cfg.NoImplicitSelf == nil || !*cfg.NoImplicitSelf {
+		t.Error("expected noImplicitSelf=true")
+	}
+}
+
+func TestParseTsluaConfig_NoImplicitSelfFalse(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "tsconfig.json")
+	if err := os.WriteFile(path, []byte(`{"tstl":{"noImplicitSelf":false}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := parseTsluaConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg == nil || cfg.NoImplicitSelf == nil || *cfg.NoImplicitSelf {
+		t.Error("expected noImplicitSelf=false (explicit)")
+	}
+}
+
+func TestParseTsluaConfig_JSONC(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "tsconfig.json")
+	// tsconfig.json with trailing commas and // comments (standard JSONC)
+	content := `{
+  "compilerOptions": {
+    "outDir": "build/", // trailing comma
+  },
+  "tstl": {
+    "luaTarget": "universal",
+    "noImplicitSelf": true, // trailing comma
+  }
+}`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := parseTsluaConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg == nil {
+		t.Fatal("expected config, got nil")
+	}
+	if cfg.LuaTarget != "universal" {
+		t.Errorf("expected luaTarget=universal, got %q", cfg.LuaTarget)
+	}
+	if cfg.NoImplicitSelf == nil || !*cfg.NoImplicitSelf {
+		t.Error("expected noImplicitSelf=true")
+	}
+}
+
 func TestParseTsluaConfig_MissingFile(t *testing.T) {
 	cfg, err := parseTsluaConfig("/nonexistent/tsconfig.json")
 	if err != nil {

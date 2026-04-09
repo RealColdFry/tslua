@@ -225,7 +225,7 @@ func (t *Transpiler) transformClassDeclaration(node *ast.Node) []lua.Statement {
 			decl := lua.LocalDecl([]*lua.Identifier{lua.Ident(name)}, nil)
 			if t.inScope() {
 				var symID SymbolID
-				if t.checker != nil && cd.Name() != nil {
+				if cd.Name() != nil {
 					if sym := t.checker.GetSymbolAtLocation(cd.Name()); sym != nil {
 						symID = t.getOrCreateSymbolID(sym)
 					}
@@ -315,7 +315,7 @@ func (t *Transpiler) transformClassDeclaration(node *ast.Node) []lua.Statement {
 			t.setNodePos(decl, node)
 			if t.inScope() {
 				var symID SymbolID
-				if t.checker != nil && cd.Name() != nil {
+				if cd.Name() != nil {
 					if sym := t.checker.GetSymbolAtLocation(cd.Name()); sym != nil {
 						symID = t.getOrCreateSymbolID(sym)
 					}
@@ -426,13 +426,11 @@ func (t *Transpiler) getBaseClassName(heritageClauses *ast.NodeList) string {
 					return ""
 				}
 				// Also check for top-level module exports
-				if t.checker != nil {
-					sym := t.checker.GetSymbolAtLocation(expr)
-					if sym != nil {
-						for _, decl := range sym.Declarations {
-							if hasExportModifier(decl) {
-								return ""
-							}
+				sym := t.checker.GetSymbolAtLocation(expr)
+				if sym != nil {
+					for _, decl := range sym.Declarations {
+						if hasExportModifier(decl) {
+							return ""
 						}
 					}
 				}
@@ -1098,9 +1096,7 @@ func (t *Transpiler) isArrayConstructor(ne *ast.NewExpression) bool {
 	if ne.Expression.Kind != ast.KindIdentifier || ne.Expression.AsIdentifier().Text != "Array" {
 		return false
 	}
-	if t.checker == nil {
-		return true // fallback to name-based check
-	}
+
 	typ := t.checker.GetTypeAtLocation(ne.Expression)
 	if typ == nil {
 		return true
@@ -1127,16 +1123,14 @@ func (t *Transpiler) transformNewExpression(node *ast.Node) lua.Expression {
 			return lua.Table()
 		}
 		// Check if this is the length constructor (single param, no rest parameter)
-		if t.checker != nil {
-			sig := t.checker.GetResolvedSignature(node)
-			if sig != nil {
-				sigDecl := checker.Signature_declaration(sig)
-				if sigDecl != nil {
-					params := sigDecl.Parameters()
-					if len(params) == 1 && params[0].AsParameterDeclaration().DotDotDotToken == nil {
-						t.addError(node, dw.UnsupportedArrayWithLengthConstructor, "Constructing new Array with length is not supported.")
-						return lua.Table()
-					}
+		sig := t.checker.GetResolvedSignature(node)
+		if sig != nil {
+			sigDecl := checker.Signature_declaration(sig)
+			if sigDecl != nil {
+				params := sigDecl.Parameters()
+				if len(params) == 1 && params[0].AsParameterDeclaration().DotDotDotToken == nil {
+					t.addError(node, dw.UnsupportedArrayWithLengthConstructor, "Constructing new Array with length is not supported.")
+					return lua.Table()
 				}
 			}
 		}

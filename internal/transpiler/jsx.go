@@ -315,9 +315,7 @@ func (t *Transpiler) getJsxFragmentFactory() lua.Expression {
 // jsxFactoryNeedsSelf checks whether the JSX factory function expects a self parameter.
 // For simple-name factories, looks up the identifier's type and checks its call signatures.
 func (t *Transpiler) jsxFactoryNeedsSelf(_ *ast.Node) bool {
-	if t.checker == nil {
-		return false
-	}
+
 	name := t.getJsxFactoryName()
 	if strings.Contains(name, ".") {
 		return false // dotted names use method call, not this path

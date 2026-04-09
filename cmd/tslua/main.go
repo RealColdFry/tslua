@@ -274,6 +274,10 @@ func run(cmd *cobra.Command, args []string) error {
 	if outdir == "" && configParseResult.CompilerOptions().OutDir != "" {
 		outdir = tspath.ResolvePath(string(configDir), configParseResult.CompilerOptions().OutDir)
 	}
+	// Default to writing .lua files next to sources (matches TSTL behavior).
+	if outdir == "" {
+		outdir = sourceRoot
+	}
 
 	var diagFormat dw.DiagnosticFormat
 	switch diagFormatFlag {
@@ -285,19 +289,38 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("unsupported diagnosticFormat: %s (supported: tstl, native)", diagFormatFlag)
 	}
 
-	luaTarget := transpiler.LuaTarget(luaTargetFlag)
-	if !transpiler.ValidTarget(luaTargetFlag) {
-		return fmt.Errorf("unsupported luaTarget: %s (supported: JIT, 5.0, 5.1, 5.2, 5.3, 5.4, 5.5, Luau, universal)", luaTarget)
+	// Resolve options: CLI flag wins when explicitly set, otherwise fall back to tsconfig.
+	luaTargetStr := luaTargetFlag
+	if !cmd.Flags().Changed("luaTarget") && tsluaCfg != nil && tsluaCfg.LuaTarget != "" {
+		luaTargetStr = tsluaCfg.LuaTarget
+	}
+	luaTarget := transpiler.LuaTarget(luaTargetStr)
+	if !transpiler.ValidTarget(luaTargetStr) {
+		if cmd.Flags().Changed("luaTarget") {
+			// Explicit CLI flag: hard error.
+			return fmt.Errorf("unsupported luaTarget: %s (supported: JIT, 5.0, 5.1, 5.2, 5.3, 5.4, 5.5, Luau, universal)", luaTarget)
+		}
+		// From tsconfig: warn and fall back to universal.
+		fmt.Fprintf(os.Stderr, "warning: unknown luaTarget %q from tsconfig, falling back to universal\n", luaTargetStr)
+		luaTarget = transpiler.LuaTargetUniversal
 	}
 
-	emitMode := transpiler.EmitMode(emitModeFlag)
+	emitModeStr := emitModeFlag
+	if !cmd.Flags().Changed("emitMode") && tsluaCfg != nil && tsluaCfg.EmitMode != "" {
+		emitModeStr = tsluaCfg.EmitMode
+	}
+	emitMode := transpiler.EmitMode(emitModeStr)
 	if emitMode != transpiler.EmitModeTSTL && emitMode != transpiler.EmitModeOptimized {
 		return fmt.Errorf("unsupported emitMode: %s (supported: tstl, optimized)", emitMode)
 	}
 
-	luaLibImport := transpiler.LuaLibImportKind(luaLibImportFlag)
-	if !transpiler.ValidLuaLibImport(luaLibImportFlag) {
-		return fmt.Errorf("unsupported luaLibImport: %s (supported: require, inline, none)", luaLibImportFlag)
+	luaLibImportStr := luaLibImportFlag
+	if !cmd.Flags().Changed("luaLibImport") && tsluaCfg != nil && tsluaCfg.LuaLibImport != "" {
+		luaLibImportStr = tsluaCfg.LuaLibImport
+	}
+	luaLibImport := transpiler.LuaLibImportKind(luaLibImportStr)
+	if !transpiler.ValidLuaLibImport(luaLibImportStr) {
+		return fmt.Errorf("unsupported luaLibImport: %s (supported: require, inline, none)", luaLibImportStr)
 	}
 
 	// Validate bundle options: both must be set or neither.
@@ -309,6 +332,8 @@ func run(cmd *cobra.Command, args []string) error {
 	exportAsGlobal := exportAsGlobalFlag
 	var exportAsGlobalMatch string
 	classStyle := classStyleFlag
+	noImplicitSelf := noImplicitSelfFlag
+	noImplicitGlobalVariables := noImplicitGlobalVariablesFlag
 	if tsluaCfg != nil {
 		if !exportAsGlobal {
 			exportAsGlobal = tsluaCfg.exportAsGlobalBool
@@ -318,6 +343,12 @@ func run(cmd *cobra.Command, args []string) error {
 		}
 		if classStyle == "" {
 			classStyle = tsluaCfg.ClassStyle
+		}
+		if !cmd.Flags().Changed("noImplicitSelf") && tsluaCfg.NoImplicitSelf != nil {
+			noImplicitSelf = *tsluaCfg.NoImplicitSelf
+		}
+		if !cmd.Flags().Changed("noImplicitGlobalVariables") && tsluaCfg.NoImplicitGlobalVariables != nil {
+			noImplicitGlobalVariables = *tsluaCfg.NoImplicitGlobalVariables
 		}
 	}
 
@@ -337,8 +368,8 @@ func run(cmd *cobra.Command, args []string) error {
 		luaBundleEntry:            luaBundleEntryFlag,
 		exportAsGlobal:            exportAsGlobal,
 		exportAsGlobalMatch:       exportAsGlobalMatch,
-		noImplicitSelf:            noImplicitSelfFlag,
-		noImplicitGlobalVariables: noImplicitGlobalVariablesFlag,
+		noImplicitSelf:            noImplicitSelf,
+		noImplicitGlobalVariables: noImplicitGlobalVariables,
 		sourceMap:                 sourceMap,
 		sourceMapTraceback:        sourceMapTracebackFlag,
 		inlineSourceMap:           inlineSourceMapFlag,
@@ -347,9 +378,6 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	if watchFlag {
-		if outdir == "" {
-			return fmt.Errorf("--watch requires --outdir")
-		}
 		return runWatch(cfg, host)
 	}
 
@@ -385,14 +413,8 @@ func runOnce(cfg *buildConfig, host compiler.CompilerHost) error {
 			if err := writeBundle(cfg, results); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 			}
-		} else if cfg.outdir != "" {
-			writeResults(cfg, results)
 		} else {
-			for _, r := range results {
-				fmt.Printf("-- %s\n", r.FileName)
-				fmt.Print(r.Lua)
-				fmt.Println()
-			}
+			writeResults(cfg, results)
 		}
 	}
 

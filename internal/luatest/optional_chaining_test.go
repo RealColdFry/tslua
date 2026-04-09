@@ -1,6 +1,9 @@
 package luatest
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestOptionalChaining_UnwrapCallee(t *testing.T) {
 	t.Parallel()
@@ -65,5 +68,59 @@ func TestOptionalChaining_UnwrapCallee(t *testing.T) {
 			t.Parallel()
 			ExpectFunction(t, tc.body, tc.want, Opts{})
 		})
+	}
+}
+
+// TestOptionalChaining_LengthNilGuard verifies that optional chaining on .length
+// preserves the nil guard. s?.length must not crash when s is nil.
+// Found via awesome-config wild testing: output?.length > 0 dropped the nil check.
+func TestOptionalChaining_LengthNilGuard(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			"optional length on nil returns nil",
+			`function test(s: string | undefined): number | undefined { return s?.length; }
+			return test(undefined) ?? -1;`,
+			`-1`,
+		},
+		{
+			"optional length on string returns length",
+			`function test(s: string | undefined): number | undefined { return s?.length; }
+			return test("hello") ?? -1;`,
+			`5`,
+		},
+		{
+			"optional length in comparison",
+			`function test(s: string | undefined): boolean { return (s?.length ?? 0) > 0; }
+			return test(undefined);`,
+			`false`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ExpectFunction(t, tc.body, tc.want, Opts{})
+		})
+	}
+}
+
+// TestOptionalChaining_LengthCodegen verifies that s?.length emits a nil guard
+// in the Lua output (not just bare #s which crashes on nil).
+func TestOptionalChaining_LengthCodegen(t *testing.T) {
+	t.Parallel()
+
+	code := `function test(s: string | undefined): number | undefined { return s?.length; }
+	export function __main() { return test(undefined); }`
+	results := TranspileTS(t, code, Opts{})
+	lua := results[0].Lua
+	// Should NOT contain bare "#s" without a nil guard
+	if strings.Contains(lua, "return #s") && !strings.Contains(lua, "s and") {
+		t.Errorf("optional chain on .length should include nil guard, got:\n%s", lua)
 	}
 }

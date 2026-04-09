@@ -185,7 +185,7 @@ func (t *Transpiler) destructurePropertyAssignment(pa *ast.PropertyAssignment, r
 	if initializer.Kind == ast.KindBinaryExpression {
 		bin := initializer.AsBinaryExpression()
 		if bin.OperatorToken.Kind == ast.KindEqualsToken {
-			if bin.Left.Kind == ast.KindPropertyAccessExpression || bin.Left.Kind == ast.KindElementAccessExpression {
+			if isAccessExpression(bin.Left) {
 				// Access expression LHS needs table+index cached
 				left := t.transformExpression(bin.Left)
 				defaultExpr, defaultPrec := t.transformExprInScope(bin.Right)
@@ -313,11 +313,9 @@ func (t *Transpiler) transformAssignmentLHSExpression(node *ast.Node, rightHasPr
 	left := t.transformExpression(node)
 	// Handle exports
 	if ident, ok := left.(*lua.Identifier); ok {
-		if t.checker != nil {
-			sym := t.checker.GetSymbolAtLocation(node)
-			if sym != nil && t.getIdentifierExportScope(node) != nil {
-				return lua.Index(lua.Ident("____exports"), lua.Str(ident.Text))
-			}
+		sym := t.checker.GetSymbolAtLocation(node)
+		if sym != nil && t.getIdentifierExportScope(node) != nil {
+			return lua.Index(lua.Ident("____exports"), lua.Str(ident.Text))
 		}
 	}
 	return left
@@ -341,7 +339,7 @@ func (t *Transpiler) isArrayLengthTarget(node *ast.Node) bool {
 		return false
 	}
 	pa := node.AsPropertyAccessExpression()
-	return pa.Name().AsIdentifier().Text == "length" && t.isArrayType(pa.Expression)
+	return pa.Name().Kind == ast.KindIdentifier && pa.Name().AsIdentifier().Text == "length" && t.isArrayType(pa.Expression)
 }
 
 // canUseSimpleArrayAssignment checks whether an array destructuring assignment

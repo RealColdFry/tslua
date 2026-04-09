@@ -190,9 +190,7 @@ func (t *Transpiler) validateFunctionAssignment(node *ast.Node, fromType, toType
 // Uses getTypeOfSymbol for the LHS to get the declared type rather than the
 // flow-narrowed type that getTypeAtLocation may return.
 func (t *Transpiler) validateBinaryAssignment(be *ast.BinaryExpression) {
-	if t.checker == nil {
-		return
-	}
+
 	rightType := t.checker.GetTypeAtLocation(be.Right)
 	var leftType *checker.Type
 	lhsSym := t.checker.GetSymbolAtLocation(be.Left)
@@ -208,9 +206,7 @@ func (t *Transpiler) validateBinaryAssignment(be *ast.BinaryExpression) {
 
 // validateTypeAssertion checks function context compatibility on as/type assertion expressions.
 func (t *Transpiler) validateTypeAssertion(node *ast.Node) {
-	if t.checker == nil {
-		return
-	}
+
 	var exprNode, typeNode *ast.Node
 	switch node.Kind {
 	case ast.KindAsExpression:
@@ -236,9 +232,7 @@ func (t *Transpiler) validateTypeAssertion(node *ast.Node) {
 
 // validateCallArguments checks function context compatibility for call arguments.
 func (t *Transpiler) validateCallArguments(node *ast.Node) {
-	if t.checker == nil {
-		return
-	}
+
 	sig := t.checker.GetResolvedSignature(node)
 	if sig == nil {
 		return
