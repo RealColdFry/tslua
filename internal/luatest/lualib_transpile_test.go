@@ -111,7 +111,8 @@ io.write(type(lb) .. ":" .. type(lb.Map))
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			luaCode := fmt.Sprintf(`package.path = %q .. "/?.lua;" .. package.path
+			luaCode := fmt.Sprintf(`package.loaded["lualib_bundle"] = nil
+package.path = %q .. "/?.lua;" .. package.path
 %s`, tmpDir, tc.lua)
 
 			if e, ok := Evaluators[luaRuntime]; ok {
