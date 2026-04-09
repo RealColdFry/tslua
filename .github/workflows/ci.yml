@@ -74,7 +74,7 @@ jobs:
         run: |
           export PATH="$PWD/.lua-runtimes/bin:$PATH"
           FORCE_COLOR=1 gotestsum --format short -- \
-            -coverpkg=./internal/transpiler/,./internal/lua/ \
+            -coverpkg=./internal/transpiler/,./internal/lua/,./internal/lualib/,./internal/lualibinfo/,./internal/sourcemap/ \
             -coverprofile=coverage.out \
             -covermode=atomic \
             ./internal/transpiler/ ./internal/lua/... ./internal/luatest/ ./internal/tstltest/ \

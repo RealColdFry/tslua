@@ -73,6 +73,16 @@ bench-lua:
 testall: tstlgen
     FORCE_COLOR=1 gotestsum --format short ./internal/transpiler/ ./internal/lua/... ./internal/luatest/ ./internal/tstltest/ -skip TestCodegen_
 
+# Run tests with coverage profiling
+coverage:
+    gotestsum --format short -- \
+        -coverpkg=./internal/transpiler/,./internal/lua/,./internal/lualib/,./internal/lualibinfo/,./internal/sourcemap/ \
+        -coverprofile=coverage.out \
+        -covermode=atomic \
+        ./internal/transpiler/ ./internal/lua/... ./internal/luatest/ ./internal/tstltest/ \
+        -skip TestCodegen_
+    go tool cover -func=coverage.out | grep '^total:'
+
 # Format code (Go + TS)
 fmt:
     goimports -w cmd/ internal/
