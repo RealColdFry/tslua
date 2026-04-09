@@ -1469,6 +1469,20 @@ func (t *Transpiler) isLocalShadow(node *ast.Node) bool {
 	return false
 }
 
+// isAmbientSymbol returns true if the node's symbol is an ambient declaration (declare keyword or .d.ts).
+func (t *Transpiler) isAmbientSymbol(node *ast.Node) bool {
+	sym := t.checker.GetSymbolAtLocation(node)
+	if sym == nil {
+		return false
+	}
+	for _, decl := range sym.Declarations {
+		if ast.GetCombinedModifierFlags(decl)&ast.ModifierFlagsAmbient != 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // getIdentifierExportScope returns the Lua expression for the scope that exports this identifier,
 // or nil if the identifier is not exported. Handles both namespace exports and module exports.
 func (t *Transpiler) getIdentifierExportScope(node *ast.Node) lua.Expression {
