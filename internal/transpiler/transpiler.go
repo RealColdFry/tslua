@@ -2078,6 +2078,29 @@ func (t *Transpiler) typeAlwaysHasFlags(typ *checker.Type, flags checker.TypeFla
 	return false
 }
 
+// isStandardLibraryType checks whether the type at a node is a standard library type
+// with the given symbol name. Used for type-directed builtin detection.
+// Ported from: TSTL src/transformation/utils/typescript/index.ts isStandardLibraryType
+func (t *Transpiler) isStandardLibraryType(node *ast.Node, name string) bool {
+	typ := t.checker.GetTypeAtLocation(node)
+	if typ == nil {
+		return false
+	}
+	sym := typ.Symbol()
+	if sym == nil || sym.Name != name {
+		return false
+	}
+	// If no valueDeclaration, assume it's a lib type (ambient with no source)
+	if sym.ValueDeclaration == nil {
+		return true
+	}
+	sf := ast.GetSourceFileOfNode(sym.ValueDeclaration)
+	if sf == nil {
+		return false
+	}
+	return compiler.Program_IsSourceFileDefaultLibrary(t.program, sf.Path())
+}
+
 func (t *Transpiler) isArrayType(node *ast.Node) bool {
 
 	// Unwrap NonNullExpression (x!) to check the inner expression's type

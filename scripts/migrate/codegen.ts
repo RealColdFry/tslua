@@ -69,9 +69,15 @@ export function goOpts(tc: TestCase): string[] {
       opts.push(`WithLuaTarget(${goTargetConst[luaTarget]})`);
     }
     const filtered = Object.fromEntries(
-      Object.entries(tc.options).filter(
-        ([k]) => k !== "luaTarget" && !(k === "types" && tc.languageExtensions),
-      ),
+      Object.entries(tc.options)
+        .filter(([k]) => k !== "luaTarget" && !(k === "types" && tc.languageExtensions))
+        .map(([k, v]) => {
+          // Normalize lib names: tsgo only accepts short forms ("esnext", "dom")
+          if (k === "lib" && Array.isArray(v)) {
+            return [k, v.map((s: unknown) => (typeof s === "string" ? normalizeLibName(s) : s))];
+          }
+          return [k, v];
+        }),
     );
     if (Object.keys(filtered).length > 0) {
       const pairs = Object.entries(filtered)
@@ -87,7 +93,17 @@ export function goValue(v: unknown): string {
   if (typeof v === "boolean") return v ? "true" : "false";
   if (typeof v === "number") return String(v);
   if (typeof v === "string") return JSON.stringify(v);
+  if (Array.isArray(v)) {
+    const elems = v.map((e) => goValue(e)).join(", ");
+    return `[]any{${elems}}`;
+  }
   return "nil";
+}
+
+// Normalize TypeScript lib names: "lib.esnext.d.ts" -> "esnext", "lib.dom.d.ts" -> "dom", etc.
+// tsgo only accepts short-form lib names, unlike tsc which accepts both.
+function normalizeLibName(name: string): string {
+  return name.replace(/^lib\./, "").replace(/\.d\.ts$/, "");
 }
 
 function isBatchable(tc: TestCase): boolean {
@@ -373,15 +389,15 @@ export function generateGoTest(
   // Emit snapshot codegen tests (exact match against TSTL reference output)
   const snapshotCases = cases.filter((tc) => tc.assertion === "snapshot-resolved" && tc.refLua);
   if (snapshotCases.length > 0) {
-    const byTarget = new Map<string, TestCase[]>();
+    const byOpts = new Map<string, TestCase[]>();
     for (const tc of snapshotCases) {
-      const target = (tc.options?.luaTarget as string) ?? "";
-      if (!byTarget.has(target)) byTarget.set(target, []);
-      byTarget.get(target)!.push(tc);
+      const key = JSON.stringify(goOpts(tc));
+      if (!byOpts.has(key)) byOpts.set(key, []);
+      byOpts.get(key)!.push(tc);
     }
-    for (const [target, tcs] of byTarget) {
-      const targetOpt =
-        target && goTargetConst[target] ? `, WithLuaTarget(${goTargetConst[target]})` : "";
+    for (const [, tcs] of byOpts) {
+      const opts = goOpts(tcs[0]);
+      const optStr = opts.length > 0 ? `, ${opts.join(", ")}` : "";
       lines.push(``);
       lines.push(`\tbatchCompareCodegen(t, []batchTestCase{`);
       for (const tc of tcs) {
@@ -398,7 +414,7 @@ export function generateGoTest(
           `\t\t{name: ${JSON.stringify(tc.name)}, tsCode: ${goString(tsCode)}, refLua: ${goString(tc.refLua ?? "")}${bugField}},`,
         );
       }
-      lines.push(`\t}${targetOpt})`);
+      lines.push(`\t}${optStr})`);
     }
   }
 

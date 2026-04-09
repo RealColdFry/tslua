@@ -127,7 +127,8 @@ type transpileResult struct {
 
 // wasmOptions holds the JSON structure passed from the JS side.
 type wasmOptions struct {
-	CompilerOptions map[string]any `json:"compilerOptions,omitempty"`
+	CompilerOptions map[string]any    `json:"compilerOptions,omitempty"`
+	ExtraFiles      map[string]string `json:"extraFiles,omitempty"` // filename -> content (e.g. "console.d.ts" -> "declare var console...")
 	TSTL            struct {
 		LuaTarget                 string `json:"luaTarget,omitempty"`
 		EmitMode                  string `json:"emitMode,omitempty"`
@@ -164,10 +165,15 @@ func transpile(tsCode string, wopts wasmOptions) transpileResult {
 	}
 	tsconfigBytes, _ := json.Marshal(tsconfig)
 
-	mem := newMemFS(map[string]string{
+	files := map[string]string{
 		configPath: string(tsconfigBytes),
 		mainPath:   tsCode,
-	})
+	}
+	// Add extra files (e.g. ambient type declarations)
+	for name, content := range wopts.ExtraFiles {
+		files[root+"/"+name] = content
+	}
+	mem := newMemFS(files)
 
 	wrapped := bundled.WrapFS(mem)
 	configDir := tspath.GetDirectoryPath(configPath)

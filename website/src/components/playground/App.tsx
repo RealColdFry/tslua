@@ -45,6 +45,23 @@ const EMIT_MODES = [
   { value: "optimized", label: "Optimized" },
 ] as const;
 
+const TS_TARGETS = [
+  { value: "", label: "ESNext (default)" },
+  { value: "ES5", label: "ES5" },
+  { value: "ES2015", label: "ES2015" },
+  { value: "ES2016", label: "ES2016" },
+  { value: "ES2017", label: "ES2017" },
+  { value: "ES2018", label: "ES2018" },
+  { value: "ES2019", label: "ES2019" },
+  { value: "ES2020", label: "ES2020" },
+  { value: "ES2021", label: "ES2021" },
+  { value: "ES2022", label: "ES2022" },
+  { value: "ES2023", label: "ES2023" },
+  { value: "ES2024", label: "ES2024" },
+  { value: "ES2025", label: "ES2025" },
+  { value: "ESNext", label: "ESNext (ES2025)" },
+] as const;
+
 const CLASS_STYLES = [
   { value: "", label: "TSTL (default)" },
   { value: "luabind", label: "Luabind" },
@@ -61,6 +78,13 @@ for (const x of [1, 2, 3]) {
   console.log(greet("world"), x);
 }
 `;
+
+import {
+  CONSOLE_DTS,
+  langExtDts,
+  getLuaTypesDts,
+  AVAILABLE_TYPES,
+} from "./builtin-types";
 
 const EMPTY_EXEC: ExecResult = { output: [], error: null };
 
@@ -127,7 +151,7 @@ export function App() {
   const theme = useStarlightTheme();
   const [pgState, setPgState, hashReady] = useHashState({
     code: DEFAULT_CODE,
-    tsconfig: {},
+    tsconfig: { types: ["console", "language-extensions", "lua-types"] },
   });
   const tsCode = pgState.code;
   const tsconfig = pgState.tsconfig;
@@ -143,6 +167,10 @@ export function App() {
     pretty: EMPTY_EXEC,
   });
   const [luaPretty, setLuaPretty] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [staleLua, setStaleLua] = useState(false);
+  const [staleJs, setStaleJs] = useState(false);
+  const [staleLuaEval, setStaleLuaEval] = useState(false);
   const [jsEvalMs, setJsEvalMs] = useState<number | null>(null);
   const [luaEvalMs, setLuaEvalMs] = useState<number | null>(null);
   const tsEditorRef = useRef<monacoEditor.IStandaloneCodeEditor>(null);
@@ -191,9 +219,9 @@ export function App() {
       });
   }, []);
 
-  const runExecution = useCallback(async (_tsSource: string, lua: string, tgt: string) => {
+  const runExecution = useCallback(async (_tsSource: string, lua: string, tgt: string, tsTarget?: string) => {
     try {
-      const js = await compileTs();
+      const js = await compileTs(tsTarget);
       const t0 = performance.now();
       const result = await execJs(js);
       setJsEvalMs(performance.now() - t0);
@@ -202,6 +230,7 @@ export function App() {
       setJsEvalMs(null);
       setJsResult({ output: [], error: String(e) });
     }
+    setStaleJs(false);
     if (lua.trim()) {
       try {
         const t0 = performance.now();
@@ -217,15 +246,51 @@ export function App() {
       setLuaEvalMs(null);
       setLuaDualResult({ raw: EMPTY_EXEC, pretty: EMPTY_EXEC });
     }
+    setStaleLuaEval(false);
   }, []);
 
   const monacoRef = useRef<typeof import("monaco-editor") | null>(null);
 
+  const extraLibsRef = useRef<{ dispose(): void }[]>([]);
+
+  const syncMonacoOptions = useCallback(async (cfg: PlaygroundTsconfig) => {
+    const monaco = monacoRef.current;
+    if (!monaco) return;
+    const target = (cfg.compilerOptions?.target as string) || "ESNext";
+    const targetMap: Record<string, number> = {
+      ES5: 1, ES2015: 2, ES2016: 3, ES2017: 4, ES2018: 5,
+      ES2019: 6, ES2020: 7, ES2021: 8, ES2022: 9, ES2023: 10,
+      ES2024: 11, ES2025: 12, ESNext: 99,
+    };
+    monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+      ...monaco.languages.typescript.typescriptDefaults.getCompilerOptions(),
+      target: targetMap[target] ?? 99,
+      lib: [target.toLowerCase()],
+      strict: true,
+    });
+    // Sync extra type libs
+    for (const d of extraLibsRef.current) d.dispose();
+    extraLibsRef.current = [];
+    const types = cfg.types ?? [];
+    const addLib = (content: string, name: string) => {
+      const d = monaco.languages.typescript.typescriptDefaults.addExtraLib(content, `file:///${name}.d.ts`);
+      extraLibsRef.current.push(d);
+    };
+    if (types.includes("console")) addLib(CONSOLE_DTS, "console");
+    if (types.includes("language-extensions")) addLib(langExtDts, "language-extensions");
+    if (types.includes("lua-types")) {
+      const luaTarget = cfg.tstl?.luaTarget || "JIT";
+      const dts = await getLuaTypesDts(luaTarget);
+      addLib(dts, "lua-types");
+    }
+  }, []);
+
   useEffect(() => {
     loader.init().then((m) => {
       monacoRef.current = m;
+      syncMonacoOptions(tsconfig);
     });
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setTsluaMarkers = useCallback((diagnostics: WasmDiagnostic[]) => {
     const editor = tsEditorRef.current;
@@ -247,22 +312,35 @@ export function App() {
   }, []);
 
   const doTranspile = useCallback(
-    (code: string, cfg: PlaygroundTsconfig) => {
+    async (code: string, cfg: PlaygroundTsconfig) => {
       if (loading) return;
+      syncMonacoOptions(cfg);
       const tgt = cfg.tstl?.luaTarget || "JIT";
+      // Build extra .d.ts files from enabled types
+      const types = cfg.types ?? [];
+      const extraFiles: Record<string, string> = {};
+      if (types.includes("console")) extraFiles["console.d.ts"] = CONSOLE_DTS;
+      if (types.includes("language-extensions")) extraFiles["language-extensions.d.ts"] = langExtDts;
+      if (types.includes("lua-types")) extraFiles["lua-types.d.ts"] = await getLuaTypesDts(tgt);
       const t0 = performance.now();
+      const lib = [(cfg.compilerOptions?.target as string) || "ESNext"];
       const result = transpile(code, {
-        compilerOptions: cfg.compilerOptions,
+        compilerOptions: { ...cfg.compilerOptions, lib },
+        extraFiles,
         tstl: cfg.tstl,
       });
       setTranspileMs(performance.now() - t0);
       setLuaCode(result.lua);
       setErrors(result.errors);
       setTsluaMarkers(result.diagnostics);
+      setStaleLua(false);
+      setStaleJs(true);
+      setStaleLuaEval(true);
       if (execDebounceRef.current) clearTimeout(execDebounceRef.current);
-      execDebounceRef.current = setTimeout(() => runExecution(code, result.lua, tgt), 500);
+      const tsTarget = (cfg.compilerOptions?.target as string) || undefined;
+      execDebounceRef.current = setTimeout(() => runExecution(code, result.lua, tgt, tsTarget), 500);
     },
-    [loading, runExecution, setTsluaMarkers],
+    [loading, runExecution, setTsluaMarkers, syncMonacoOptions],
   );
 
   useEffect(() => {
@@ -272,6 +350,9 @@ export function App() {
   const handleTsChange = useCallback(
     (value: string) => {
       setPgState((prev) => ({ ...prev, code: value }));
+      setStaleLua(true);
+      setStaleJs(true);
+      setStaleLuaEval(true);
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => doTranspile(value, tsconfig), 300);
     },
@@ -295,9 +376,80 @@ export function App() {
     [doTranspile, setPgState],
   );
 
+  const updateCompilerOption = useCallback(
+    (key: string, value: string) => {
+      setPgState((prev) => {
+        const co = { ...prev.tsconfig.compilerOptions, [key]: value };
+        if (value === "") delete (co as Record<string, unknown>)[key];
+        const next: PlaygroundState = {
+          ...prev,
+          tsconfig: { ...prev.tsconfig, compilerOptions: co },
+        };
+        doTranspile(prev.code, next.tsconfig);
+        return next;
+      });
+    },
+    [doTranspile, setPgState],
+  );
+
+  const toggleType = useCallback(
+    (name: string) => {
+      setPgState((prev) => {
+        const types = prev.tsconfig.types ?? [];
+        const next: PlaygroundState = {
+          ...prev,
+          tsconfig: {
+            ...prev.tsconfig,
+            types: types.includes(name) ? types.filter((t) => t !== name) : [...types, name],
+          },
+        };
+        doTranspile(prev.code, next.tsconfig);
+        return next;
+      });
+    },
+    [doTranspile, setPgState],
+  );
+
   const sidebar = (
     <div className="pg-sidebar">
-      <div className="pg-sidebar-header">Config</div>
+      <div className="pg-sidebar-header">
+        <span>Config</span>
+        <button
+          className="pg-sidebar-collapse"
+          onClick={() => setSidebarOpen(false)}
+          title="Collapse sidebar"
+        >
+          &#x2039;
+        </button>
+      </div>
+      <div className="pg-sidebar-section">
+        <div className="pg-sidebar-section-title">TypeScript</div>
+        <ConfigSelect
+          label="Target"
+          value={(tsconfig.compilerOptions?.target as string) || ""}
+          options={TS_TARGETS}
+          onChange={(v) => updateCompilerOption("target", v)}
+        />
+        <div className="pg-config-field">
+          <span className="pg-config-label">Lib</span>
+          <span className="pg-config-value">{`["${(tsconfig.compilerOptions?.target as string) || "ESNext"}"]`}</span>
+        </div>
+        <div className="pg-config-field">
+          <span className="pg-config-label">Types</span>
+          <div className="pg-types-list">
+            {AVAILABLE_TYPES.map((name) => (
+              <label key={name} className="pg-type-item">
+                <input
+                  type="checkbox"
+                  checked={(tsconfig.types ?? []).includes(name)}
+                  onChange={() => toggleType(name)}
+                />
+                <span>{name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
       <div className="pg-sidebar-section">
         <div className="pg-sidebar-section-title">tslua</div>
         <ConfigSelect
@@ -409,7 +561,7 @@ export function App() {
 
       {/* Desktop layout: sidebar + grid */}
       <div className="pg-desktop">
-        {sidebar}
+        {sidebarOpen && sidebar}
         <div
           ref={gridRef}
           className="pg-grid"
@@ -420,7 +572,18 @@ export function App() {
         >
           {/* Top-left: TypeScript editor */}
           <div className="pg-cell">
-            <div className="pg-panel-header">TypeScript</div>
+            <div className="pg-panel-header">
+              {!sidebarOpen && (
+                <button
+                  className="pg-sidebar-toggle"
+                  onClick={() => setSidebarOpen(true)}
+                  title="Show config"
+                >
+                  &#x2699;
+                </button>
+              )}
+              <span>TypeScript</span>
+            </div>
             <div className="pg-cell-content">
               <Editor
                 value={tsCode}
@@ -438,6 +601,7 @@ export function App() {
           <div className="pg-cell">
             <div className="pg-panel-header">
               <span>Lua</span>
+              {staleLua && <span className="pg-stale" />}
               {transpileMs !== null && (
                 <span className="pg-timing">{transpileMs.toFixed(1)}ms</span>
               )}
@@ -458,6 +622,7 @@ export function App() {
               output={jsResult.output}
               error={jsResult.error}
               timeMs={jsEvalMs}
+              stale={staleJs}
             />
           </div>
 
@@ -473,6 +638,7 @@ export function App() {
               toggle={luaPretty}
               onToggle={() => setLuaPretty((v) => !v)}
               toggleLabel={luaPretty ? "Pretty" : "Raw"}
+              stale={staleLuaEval}
             />
           </div>
         </div>

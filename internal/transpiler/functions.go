@@ -85,10 +85,19 @@ func (t *Transpiler) transformFunctionDeclaration(node *ast.Node) []lua.Statemen
 	paramIdents, hasRest := t.transformParamIdents(fd.Parameters, needsSelf)
 
 	isAsync := hasAsyncModifier(node)
-	if isAsync {
-		t.asyncDepth++
-	}
 	isGenerator := fd.AsteriskToken != nil
+
+	// Save and reset function-scoped depths. Each function boundary starts
+	// a fresh context: return statements in nested non-async functions must
+	// not get ____awaiter_resolve wrapping from a parent async function.
+	savedAsyncDepth := t.asyncDepth
+	savedTryDepth := t.tryDepth
+	if isAsync {
+		t.asyncDepth = 1
+	} else {
+		t.asyncDepth = 0
+	}
+	t.tryDepth = 0
 	if isGenerator {
 		t.generatorDepth++
 	}
@@ -133,13 +142,14 @@ func (t *Transpiler) transformFunctionDeclaration(node *ast.Node) []lua.Statemen
 		// available inside the coroutine.
 		innerStmts := t.wrapInAsyncAwaiter(blockStmts)
 		bodyStmts = append(preamble, innerStmts...)
-		t.asyncDepth--
 	} else {
 		bodyStmts = make([]lua.Statement, 0, len(preamble)+len(blockStmts))
 		bodyStmts = append(bodyStmts, preamble...)
 		bodyStmts = append(bodyStmts, blockStmts...)
 	}
 
+	t.asyncDepth = savedAsyncDepth
+	t.tryDepth = savedTryDepth
 	if isGenerator {
 		t.generatorDepth--
 	}
@@ -384,9 +394,16 @@ func (t *Transpiler) transformArrowFunction(node *ast.Node) lua.Expression {
 
 	isAsync := hasAsyncModifier(node)
 	t.computeOptimizedVarArgs(af.Parameters, af.Body, isAsync)
+
+	// Save and reset function-scoped depths (see transformFunctionDeclaration).
+	savedAsyncDepth := t.asyncDepth
+	savedTryDepth := t.tryDepth
 	if isAsync {
-		t.asyncDepth++
+		t.asyncDepth = 1
+	} else {
+		t.asyncDepth = 0
 	}
+	t.tryDepth = 0
 
 	if af.Body.Kind == ast.KindBlock {
 		var bodyStmts []lua.Statement
@@ -394,8 +411,9 @@ func (t *Transpiler) transformArrowFunction(node *ast.Node) lua.Expression {
 		bodyStmts = append(bodyStmts, t.transformBlock(af.Body)...)
 		if isAsync {
 			bodyStmts = t.wrapInAsyncAwaiter(bodyStmts)
-			t.asyncDepth--
 		}
+		t.asyncDepth = savedAsyncDepth
+		t.tryDepth = savedTryDepth
 		return &lua.FunctionExpression{Params: paramIdents, Dots: hasRest, Body: &lua.Block{Statements: bodyStmts}}
 	}
 
@@ -411,8 +429,9 @@ func (t *Transpiler) transformArrowFunction(node *ast.Node) lua.Expression {
 		bodyStmts = append(bodyStmts, lua.Return(exprs...))
 		if isAsync {
 			bodyStmts = t.wrapInAsyncAwaiter(bodyStmts)
-			t.asyncDepth--
 		}
+		t.asyncDepth = savedAsyncDepth
+		t.tryDepth = savedTryDepth
 		return &lua.FunctionExpression{Params: paramIdents, Dots: hasRest, Body: &lua.Block{Statements: bodyStmts}}
 	}
 	t.pushPrecedingStatements()
@@ -423,9 +442,12 @@ func (t *Transpiler) transformArrowFunction(node *ast.Node) lua.Expression {
 		bodyStmts = append(bodyStmts, prec...)
 		bodyStmts = append(bodyStmts, lua.Return(exprs...))
 		bodyStmts = t.wrapInAsyncAwaiter(bodyStmts)
-		t.asyncDepth--
+		t.asyncDepth = savedAsyncDepth
+		t.tryDepth = savedTryDepth
 		return &lua.FunctionExpression{Params: paramIdents, Dots: hasRest, Body: &lua.Block{Statements: bodyStmts}}
 	}
+	t.asyncDepth = savedAsyncDepth
+	t.tryDepth = savedTryDepth
 	if len(prec) > 0 {
 		stmts := make([]lua.Statement, 0, len(prec)+1)
 		stmts = append(stmts, prec...)
@@ -449,10 +471,17 @@ func (t *Transpiler) transformFunctionExpression(node *ast.Node) lua.Expression 
 	paramIdents, hasRest := t.transformParamIdents(fe.Parameters, needsSelf)
 
 	isAsync := hasAsyncModifier(node)
-	if isAsync {
-		t.asyncDepth++
-	}
 	isGenerator := fe.AsteriskToken != nil
+
+	// Save and reset function-scoped depths (see transformFunctionDeclaration).
+	savedAsyncDepth := t.asyncDepth
+	savedTryDepth := t.tryDepth
+	if isAsync {
+		t.asyncDepth = 1
+	} else {
+		t.asyncDepth = 0
+	}
+	t.tryDepth = 0
 	if isGenerator {
 		t.generatorDepth++
 	}
@@ -477,20 +506,18 @@ func (t *Transpiler) transformFunctionExpression(node *ast.Node) lua.Expression 
 		bodyStmts = append(bodyStmts, blockStmts...)
 		if isAsync {
 			bodyStmts = t.wrapInAsyncAwaiter(bodyStmts)
-			t.asyncDepth--
 		}
 		fe := &lua.FunctionExpression{Params: paramIdents, Dots: hasRest, Body: &lua.Block{Statements: bodyStmts}}
 		t.setNodePos(fe, node)
 		result = fe
 	} else {
-		if isAsync {
-			t.asyncDepth--
-		}
 		fe := &lua.FunctionExpression{Params: paramIdents, Dots: hasRest}
 		t.setNodePos(fe, node)
 		result = fe
 	}
 
+	t.asyncDepth = savedAsyncDepth
+	t.tryDepth = savedTryDepth
 	if isGenerator {
 		t.generatorDepth--
 	}

@@ -20,7 +20,9 @@
     "monaco-editor": "0.55.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "sharp": "^0.34.2"
+    "sharp": "^0.34.2",
+    "@typescript-to-lua/language-extensions": "1.19.0",
+    "lua-types": "2.14.1"
   },
   "overrides": {
     "dompurify": "^3.3.3"

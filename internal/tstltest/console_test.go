@@ -195,5 +195,5 @@ function ____exports.__main(self)
     assert(false, "message", "more")
 end
 return ____exports`},
-	})
+	}, WithOptions(map[string]any{"lib": []any{"esnext", "dom"}}))
 }

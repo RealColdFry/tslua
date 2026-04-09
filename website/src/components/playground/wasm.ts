@@ -27,6 +27,7 @@ export interface WasmDiagnostic {
 
 export interface TsluaOptions {
   compilerOptions?: Record<string, unknown>;
+  extraFiles?: Record<string, string>;
   tstl?: {
     luaTarget?: string;
     emitMode?: string;

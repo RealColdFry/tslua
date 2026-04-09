@@ -851,11 +851,17 @@ func (t *Transpiler) transformClassMethod(classRef lua.Expression, node *ast.Nod
 		}
 
 		isAsync := hasAsyncModifier(node)
-		if isAsync {
-			t.asyncDepth++
-		}
-
 		isGenerator := md.AsteriskToken != nil
+
+		// Save and reset function-scoped depths (see transformFunctionDeclaration).
+		savedAsyncDepth := t.asyncDepth
+		savedTryDepth := t.tryDepth
+		if isAsync {
+			t.asyncDepth = 1
+		} else {
+			t.asyncDepth = 0
+		}
+		t.tryDepth = 0
 		if isGenerator {
 			t.generatorDepth++
 		}
@@ -874,9 +880,10 @@ func (t *Transpiler) transformClassMethod(classRef lua.Expression, node *ast.Nod
 
 		if isAsync {
 			bodyStmts = t.wrapInAsyncAwaiter(bodyStmts)
-			t.asyncDepth--
 		}
 
+		t.asyncDepth = savedAsyncDepth
+		t.tryDepth = savedTryDepth
 		if isGenerator {
 			t.generatorDepth--
 		}
