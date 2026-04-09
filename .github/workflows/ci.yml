@@ -83,17 +83,11 @@ jobs:
             ./internal/transpiler/ ./internal/lua/... ./internal/luatest/ ./internal/tstltest/ \
             -skip TestCodegen_
 
-      - name: Coverage summary
-        run: |
-          echo '### Coverage' >> "$GITHUB_STEP_SUMMARY"
-          total=$(go tool cover -func=coverage.out | grep '^total:' | awk '{print $NF}')
-          echo "**Total: ${total}**" >> "$GITHUB_STEP_SUMMARY"
-          echo '' >> "$GITHUB_STEP_SUMMARY"
-          echo '| File | Coverage |' >> "$GITHUB_STEP_SUMMARY"
-          echo '|------|----------|' >> "$GITHUB_STEP_SUMMARY"
-          go tool cover -func=coverage.out | grep -oP 'internal/\S+\.go.*\d+\.\d+%' | \
-            sed 's|internal/||' | \
-            awk '{printf "| `%s` | %s |\n", $1, $NF}' >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.out
 
   golangci-lint:
     runs-on: ubuntu-latest
