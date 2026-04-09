@@ -63,8 +63,10 @@ function __TS__Promise.prototype.addCallbacks(self, fulfilledCallback, rejectedC
     if self.state == 2 then
         return rejectedCallback(nil, self.rejectionReason)
     end
-    self.fulfilledCallbacks[#self.fulfilledCallbacks + 1] = fulfilledCallback
-    self.rejectedCallbacks[#self.rejectedCallbacks + 1] = rejectedCallback
+    local ____self_fulfilledCallbacks_0 = self.fulfilledCallbacks
+    ____self_fulfilledCallbacks_0[#____self_fulfilledCallbacks_0 + 1] = fulfilledCallback
+    local ____self_rejectedCallbacks_1 = self.rejectedCallbacks
+    ____self_rejectedCallbacks_1[#____self_rejectedCallbacks_1 + 1] = rejectedCallback
 end
 function __TS__Promise.prototype.catch(self, onRejected)
     return self["then"](self, nil, onRejected)
