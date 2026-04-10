@@ -330,6 +330,7 @@ export function extractTestCases(specPath: string): {
           LuaLibImportKind: {
             None: "none",
             Require: "require",
+            RequireMinimal: "require-minimal",
             Inline: "inline",
           },
           transpileString: () => ({ diagnostics: [], file: { lua: "" } }),

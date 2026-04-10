@@ -18,16 +18,19 @@ type LuaLibImportKind string
 const (
 	// LuaLibImportRequire emits require("lualib_bundle") and expects the bundle on the Lua path.
 	LuaLibImportRequire LuaLibImportKind = "require"
+	// LuaLibImportRequireMinimal is like Require, but the emitted lualib_bundle.lua
+	// contains only features actually used by the program (plus transitive deps).
+	LuaLibImportRequireMinimal LuaLibImportKind = "require-minimal"
 	// LuaLibImportInline embeds the lualib bundle directly in the output.
 	LuaLibImportInline LuaLibImportKind = "inline"
-	// LuaLibImportNone suppresses all lualib imports — assumes features are provided externally.
+	// LuaLibImportNone suppresses all lualib imports, assumes features are provided externally.
 	LuaLibImportNone LuaLibImportKind = "none"
 )
 
 // ValidLuaLibImport returns true if s is a recognized luaLibImport value.
 func ValidLuaLibImport(s string) bool {
 	switch LuaLibImportKind(s) {
-	case LuaLibImportRequire, LuaLibImportInline, LuaLibImportNone:
+	case LuaLibImportRequire, LuaLibImportRequireMinimal, LuaLibImportInline, LuaLibImportNone:
 		return true
 	}
 	return false

@@ -130,11 +130,16 @@ export function generateGoTest(
 
   for (const tc of cases) {
     // Collect codegen assertions separately (emitted as compile-only tests)
-    // Skip codegen assertions for luaLibImport modes tslua doesn't support
-    // (tslua always uses require mode)
+    // Skip codegen assertions for luaLibImport modes whose codegen tslua does
+    // not produce (only require / require-minimal share the same per-file form)
     const specBase = path.basename(specPath, ".spec.ts");
     const skipKey = `${specBase}::${tc.name}`;
-    if (tc.codegen && (!tc.options?.luaLibImport || tc.options.luaLibImport === "require")) {
+    if (
+      tc.codegen &&
+      (!tc.options?.luaLibImport ||
+        tc.options.luaLibImport === "require" ||
+        tc.options.luaLibImport === "require-minimal")
+    ) {
       // Skip codegen assertions for tests with intentional differences
       if (codegenAssertionSkips.has(skipKey)) {
         // still push but with cleared assertions
