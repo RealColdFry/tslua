@@ -15,15 +15,16 @@ type tsluaConfig struct {
 	ClassStyle          string `json:"classStyle"`
 
 	// Options also available as CLI flags (CLI wins when explicitly set).
-	LuaTarget                 string `json:"luaTarget"`
-	NoImplicitSelf            *bool  `json:"noImplicitSelf"`
-	NoImplicitGlobalVariables *bool  `json:"noImplicitGlobalVariables"`
-	EmitMode                  string `json:"emitMode"`
-	LuaLibImport              string `json:"luaLibImport"`
-	NoHeader                  *bool  `json:"noHeader"`
-	LuaBundle                 string `json:"luaBundle"`
-	LuaBundleEntry            string `json:"luaBundleEntry"`
-	SourceMapTraceback        *bool  `json:"sourceMapTraceback"`
+	LuaTarget                 string   `json:"luaTarget"`
+	NoImplicitSelf            *bool    `json:"noImplicitSelf"`
+	NoImplicitGlobalVariables *bool    `json:"noImplicitGlobalVariables"`
+	EmitMode                  string   `json:"emitMode"`
+	LuaLibImport              string   `json:"luaLibImport"`
+	NoHeader                  *bool    `json:"noHeader"`
+	LuaBundle                 string   `json:"luaBundle"`
+	LuaBundleEntry            string   `json:"luaBundleEntry"`
+	SourceMapTraceback        *bool    `json:"sourceMapTraceback"`
+	NoResolvePaths            []string `json:"noResolvePaths"`
 }
 
 // parseTsluaConfig reads the "tstl" or "tslua" section from a tsconfig.json file.

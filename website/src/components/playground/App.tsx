@@ -58,8 +58,6 @@ const TS_TARGETS = [
   { value: "ES2022", label: "ES2022" },
   { value: "ES2023", label: "ES2023" },
   { value: "ES2024", label: "ES2024" },
-  { value: "ES2025", label: "ES2025" },
-  { value: "ESNext", label: "ESNext (ES2025)" },
 ] as const;
 
 const CLASS_STYLES = [
@@ -247,7 +245,7 @@ export function App() {
     [],
   );
 
-  const monacoRef = useRef<typeof import("monaco-editor") | null>(null);
+  const monacoRef = useRef<Awaited<ReturnType<typeof loader.init>> | null>(null);
 
   const extraLibsRef = useRef<{ dispose(): void }[]>([]);
 
@@ -452,14 +450,26 @@ export function App() {
         <div className="pg-config-field">
           <span className="pg-config-label">Types</span>
           <div className="pg-types-list">
-            {AVAILABLE_TYPES.map((name) => (
-              <label key={name} className="pg-type-item">
+            {AVAILABLE_TYPES.map((t) => (
+              <label key={t.name} className="pg-type-item">
                 <input
                   type="checkbox"
-                  checked={(tsconfig.types ?? []).includes(name)}
-                  onChange={() => toggleType(name)}
+                  checked={(tsconfig.types ?? []).includes(t.name)}
+                  onChange={() => toggleType(t.name)}
                 />
-                <span>{name}</span>
+                <span>{t.name}</span>
+                {t.url && (
+                  <a
+                    href={t.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="pg-type-link"
+                    title={t.name}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    &#x2197;
+                  </a>
+                )}
               </label>
             ))}
           </div>

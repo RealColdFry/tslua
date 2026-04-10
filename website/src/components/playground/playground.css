@@ -264,6 +264,16 @@
   cursor: pointer;
   margin: 0;
 }
+.pg-type-link {
+  color: var(--pg-text-muted);
+  font-size: 0.6875rem;
+  text-decoration: none;
+  line-height: 1;
+  margin-left: auto;
+}
+.pg-type-link:hover {
+  color: var(--pg-accent);
+}
 .pg-config-toggle {
   flex-direction: row;
   align-items: center;

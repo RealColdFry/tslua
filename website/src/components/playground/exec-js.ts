@@ -48,6 +48,7 @@ const __origConsole = { log: console.log, warn: console.warn, error: console.err
 console.log = (...args) => __output.push(args.map(String).join(" "));
 console.warn = (...args) => __output.push("[warn] " + args.map(String).join(" "));
 console.error = (...args) => __output.push("[error] " + args.map(String).join(" "));
+const print = (...args) => console.log(...args);
 try {
   ${escapeScript(code)}
   parent.postMessage({ output: __output, error: null }, "*");

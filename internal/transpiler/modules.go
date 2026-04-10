@@ -419,6 +419,11 @@ func (t *Transpiler) transformExportAssignment(node *ast.Node) []lua.Statement {
 func (t *Transpiler) resolveModulePath(moduleSpecifier *ast.Node) string {
 	specText := moduleSpecifier.AsStringLiteral().Text
 
+	// noResolvePaths: emit the specifier as-is for listed modules.
+	if t.noResolvePaths[specText] {
+		return specText
+	}
+
 	resolved := t.program.GetResolvedModuleFromModuleSpecifier(t.sourceFile, moduleSpecifier)
 	if resolved != nil && resolved.ResolvedFileName != "" {
 		// Use the shared path-to-module-name logic (also used by BundleProgram).

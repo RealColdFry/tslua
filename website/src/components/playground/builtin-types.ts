@@ -41,5 +41,11 @@ export async function getLuaTypesDts(luaTarget: string): Promise<string> {
 }
 
 // All available built-in type names for the sidebar UI
-export const AVAILABLE_TYPES = ["console", "language-extensions", "lua-types"] as const;
-export type BuiltinTypeName = (typeof AVAILABLE_TYPES)[number];
+export const AVAILABLE_TYPES: readonly { name: string; url?: string }[] = [
+  { name: "console" },
+  {
+    name: "language-extensions",
+    url: "https://typescripttolua.github.io/docs/advanced/language-extensions",
+  },
+  { name: "lua-types", url: "https://github.com/TypeScriptToLua/lua-types" },
+] as const;
