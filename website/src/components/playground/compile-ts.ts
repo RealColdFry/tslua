@@ -1,9 +1,10 @@
 // Uses Monaco's built-in TypeScript compiler to emit JS from TS source.
-// Requires a Monaco editor mounted with path="file:///main.ts".
+// Owns its own model so compilation works even when no editor is mounted
+// (e.g. on mobile when the user has switched to a non-TS tab).
 
 import { loader } from "@monaco-editor/react";
 
-const MODEL_URI = "file:///main.ts";
+const MODEL_URI = "file:///compile-ts-source.ts";
 
 // Map our target strings to Monaco's ScriptTarget enum values.
 const TARGET_MAP: Record<string, number> = {
@@ -21,7 +22,7 @@ const TARGET_MAP: Record<string, number> = {
   ESNext: 99,
 };
 
-export async function compileTs(target?: string): Promise<string> {
+export async function compileTs(source: string, target?: string): Promise<string> {
   const monaco = await loader.init();
   const uri = monaco.Uri.parse(MODEL_URI);
 
@@ -31,6 +32,14 @@ export async function compileTs(target?: string): Promise<string> {
     target: scriptTarget,
     lib: [(target || "ESNext").toLowerCase()],
   });
+
+  // Get or create our own model so compilation is independent of any editor.
+  let model = monaco.editor.getModel(uri);
+  if (!model) {
+    model = monaco.editor.createModel(source, "typescript", uri);
+  } else if (model.getValue() !== source) {
+    model.setValue(source);
+  }
 
   const worker = await monaco.languages.typescript.getTypeScriptWorker();
   const client = await worker(uri);

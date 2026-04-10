@@ -213,9 +213,9 @@ export function App() {
   }, []);
 
   const runExecution = useCallback(
-    async (_tsSource: string, lua: string, tgt: string, tsTarget?: string) => {
+    async (tsSource: string, lua: string, tgt: string, tsTarget?: string) => {
       try {
-        const js = await compileTs(tsTarget);
+        const js = await compileTs(tsSource, tsTarget);
         const t0 = performance.now();
         const result = await execJs(js);
         setJsEvalMs(performance.now() - t0);

@@ -6,12 +6,18 @@ import { visit } from "unist-util-visit";
 
 /** Mark external links with ↗ indicator and rel="noopener". */
 function rehypeExternalLinks() {
-  return (tree) => {
+  return (/** @type {import("hast").Root} */ tree) => {
     visit(tree, "element", (node) => {
       if (node.tagName !== "a") return;
       const href = node.properties?.href;
       if (typeof href !== "string" || !href.startsWith("http")) return;
-      node.properties.rel = (node.properties.rel || []).concat("noopener");
+      const existing = node.properties.rel;
+      const relList = Array.isArray(existing)
+        ? existing.map(String)
+        : existing
+          ? [String(existing)]
+          : [];
+      node.properties.rel = [...relList, "noopener"];
       node.children.push({ type: "text", value: "\u00a0↗" });
     });
   };
