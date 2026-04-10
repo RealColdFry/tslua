@@ -193,6 +193,7 @@ type buildConfig struct {
 	sourceMapTraceback        bool
 	inlineSourceMap           bool
 	classStyle                transpiler.ClassStyle
+	noResolvePaths            []string
 	stderrIsTerminal          bool
 }
 
@@ -211,6 +212,7 @@ func (cfg *buildConfig) transpileOpts() transpiler.TranspileOptions {
 		SourceMapTraceback:        cfg.sourceMapTraceback,
 		InlineSourceMap:           cfg.inlineSourceMap,
 		ClassStyle:                cfg.classStyle,
+		NoResolvePaths:            cfg.noResolvePaths,
 	}
 	if cfg.luaLibImport == transpiler.LuaLibImportInline {
 		if fd, err := lualib.FeatureDataForTarget(string(cfg.luaTarget)); err == nil {
@@ -342,6 +344,7 @@ func run(cmd *cobra.Command, args []string) error {
 	classStyle := classStyleFlag
 	noImplicitSelf := noImplicitSelfFlag
 	noImplicitGlobalVariables := noImplicitGlobalVariablesFlag
+	var noResolvePaths []string
 	if tsluaCfg != nil {
 		if !exportAsGlobal {
 			exportAsGlobal = tsluaCfg.exportAsGlobalBool
@@ -361,6 +364,7 @@ func run(cmd *cobra.Command, args []string) error {
 		if !cmd.Flags().Changed("sourceMapTraceback") && tsluaCfg.SourceMapTraceback != nil {
 			sourceMapTracebackFlag = *tsluaCfg.SourceMapTraceback
 		}
+		noResolvePaths = tsluaCfg.NoResolvePaths
 	}
 
 	// sourceMap controls internal source map generation (needed by traceback too).
@@ -389,6 +393,7 @@ func run(cmd *cobra.Command, args []string) error {
 		sourceMapTraceback:        sourceMapTracebackFlag,
 		inlineSourceMap:           inlineSourceMapFlag,
 		classStyle:                transpiler.ClassStyle(classStyle),
+		noResolvePaths:            noResolvePaths,
 		stderrIsTerminal:          stderrIsTerminal,
 	}
 

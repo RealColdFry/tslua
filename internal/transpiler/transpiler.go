@@ -120,6 +120,7 @@ type Transpiler struct {
 	traceEnabled              bool                    // when true, emit --[[trace: ...]] comments on statements
 	removeComments            bool                    // when true, strip all comments from output (removeComments tsconfig option)
 	classStyle                ClassStyle              // alternative class emit style (default: TSTL prototype chains)
+	noResolvePaths            map[string]bool         // module specifiers to emit as-is without resolving (TSTL noResolvePaths)
 	crossFileEnums            map[string]bool         // enum names declared in 2+ source files (need global scope for merging)
 
 	// Scope stack & symbol tracking (replaces scopeDepth + hoistedFunctionsStack)
@@ -353,6 +354,7 @@ type TranspileOptions struct {
 	InlineSourceMap           bool                    // embed source map as base64 data: URL in Lua output
 	Trace                     bool                    // emit --[[trace: ...]] comments showing which TS node produced each Lua statement
 	ClassStyle                ClassStyle              // alternative class emit style (default: TSTL prototype chains)
+	NoResolvePaths            []string                // module specifiers to emit as-is without resolving (TSTL noResolvePaths)
 }
 
 // TranspileProgram transpiles all user source files in the program.
@@ -400,6 +402,14 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 		exportAsGlobalRe = regexp.MustCompile(opts.ExportAsGlobalMatch)
 	}
 
+	var noResolvePathsSet map[string]bool
+	if len(opts.NoResolvePaths) > 0 {
+		noResolvePathsSet = make(map[string]bool, len(opts.NoResolvePaths))
+		for _, p := range opts.NoResolvePaths {
+			noResolvePathsSet[p] = true
+		}
+	}
+
 	var results []TranspileResult
 	var diagnostics []*ast.Diagnostic
 	for _, sf := range program.SourceFiles() {
@@ -435,6 +445,7 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 			noImplicitSelf:            opts.NoImplicitSelf,
 			noImplicitGlobalVariables: opts.NoImplicitGlobalVariables,
 			classStyle:                opts.ClassStyle,
+			noResolvePaths:            noResolvePathsSet,
 			crossFileEnums:            crossFileEnums,
 			compilerOptions:           program.Options(),
 			isModule:                  isModule,

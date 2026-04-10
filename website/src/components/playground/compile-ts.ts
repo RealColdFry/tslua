@@ -18,7 +18,6 @@ const TARGET_MAP: Record<string, number> = {
   ES2022: 9,
   ES2023: 10,
   ES2024: 11,
-  ES2025: 12,
   ESNext: 99,
 };
 

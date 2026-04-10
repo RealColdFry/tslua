@@ -74,6 +74,15 @@ print = function(...)
   end
   _origPrint(table.concat(parts, " "))
 end
+console = {
+  log = function(_, ...) print(...) end,
+  warn = function(_, ...) print(...) end,
+  error = function(_, ...) print(...) end,
+  info = function(_, ...) print(...) end,
+  debug = function(_, ...) print(...) end,
+  trace = function(_, ...) print(...) end,
+  assert = function(_, ...) print(...) end,
+}
 `;
 
 const PRETTY_PRINT_PREAMBLE = `
@@ -111,6 +120,15 @@ print = function(...)
   end
   _origPrint(table.concat(args, " "))
 end
+console = {
+  log = function(_, ...) print(...) end,
+  warn = function(_, ...) print(...) end,
+  error = function(_, ...) print(...) end,
+  info = function(_, ...) print(...) end,
+  debug = function(_, ...) print(...) end,
+  trace = function(_, ...) print(...) end,
+  assert = function(_, ...) print(...) end,
+}
 `;
 
 function getPreamble(target: string): string {

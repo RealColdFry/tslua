@@ -184,6 +184,7 @@ type Opts struct {
 	MainFileName              string                // override main file name (default "main.ts", use "main.tsx" for JSX)
 	CompilerOptions           map[string]any        // extra tsconfig compilerOptions
 	ExtraFiles                map[string]string     // additional TS files (e.g. "helper.ts" → code)
+	NoResolvePaths            []string              // module specifiers to emit as-is (TSTL noResolvePaths)
 }
 
 // ============================================================================
@@ -255,6 +256,7 @@ func TranspileTS(t *testing.T, tsCode string, opts Opts) []TranspileResult {
 		SourceMap:                 opts.SourceMap || opts.SourceMapTraceback || opts.InlineSourceMap,
 		SourceMapTraceback:        opts.SourceMapTraceback,
 		InlineSourceMap:           opts.InlineSourceMap,
+		NoResolvePaths:            opts.NoResolvePaths,
 	})
 	_ = tsDiags
 
