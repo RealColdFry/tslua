@@ -1,5 +1,8 @@
 # tslua
 
+[![CI](https://github.com/RealColdFry/tslua/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RealColdFry/tslua/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/github/RealColdFry/tslua/graph/badge.svg?token=JARA4MERJG)](https://codecov.io/github/RealColdFry/tslua)
+
 TypeScript-to-Lua transpiler built on [typescript-go](https://github.com/microsoft/typescript-go). Single binary, no Node runtime required.
 
 Built on the architecture and test suite of [TypeScriptToLua](https://github.com/TypeScriptToLua/TypeScriptToLua). For general TypeScript-to-Lua usage and caveats, see the [TSTL docs](https://typescripttolua.github.io/). Targets LuaJIT and Lua 5.0-5.5.
