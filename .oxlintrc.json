@@ -8,7 +8,7 @@
   },
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/exhaustive-deps": "warn",
+    "react/exhaustive-deps": "error",
     "react/react-in-jsx-scope": "off",
     "react/no-array-index-key": "off",
     "import/no-unassigned-import": "off",
@@ -16,7 +16,25 @@
     "promise/always-return": "off",
     "promise/no-multiple-resolved": "off",
     "jsx-a11y/no-static-element-interactions": "off",
-    "unicorn/require-post-message-target-origin": "off"
+    "unicorn/require-post-message-target-origin": "off",
+    "typescript/ban-ts-comment": [
+      "error",
+      { "ts-ignore": "allow-with-description", "ts-expect-error": "allow-with-description" }
+    ],
+    "typescript/no-misused-promises": "error",
+    "typescript/consistent-type-assertions": [
+      "warn",
+      { "assertionStyle": "as", "objectLiteralTypeAssertions": "allow-as-parameter" }
+    ],
+    "typescript/no-unnecessary-condition": "warn"
   },
+  "overrides": [
+    {
+      "files": ["website/src/**/*.{ts,tsx}"],
+      "rules": {
+        "typescript/no-explicit-any": "error"
+      }
+    }
+  ],
   "ignorePatterns": ["node_modules", "extern", "tmp", "website/src/assets/types"]
 }

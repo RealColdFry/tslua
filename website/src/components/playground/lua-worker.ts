@@ -2,34 +2,58 @@
 // Receives { code, target } messages, returns { raw, pretty } results.
 // All WASM loading and execution happens here.
 
-// @ts-ignore — CJS module
-import { createLua, createLauxLib, createLuaLib } from "lua-wasm-bindings/dist/binding-factory";
+// lua-wasm-bindings has no declarations for the binding-factory entry but
+// does export Emscripten module types we can use for the glue factories.
 
-// @ts-ignore
+// @ts-expect-error — binding-factory has no declarations upstream
+import { createLua, createLauxLib, createLuaLib } from "lua-wasm-bindings/dist/binding-factory";
+import type { LuaEmscriptenModule } from "lua-wasm-bindings/dist/glue/glue";
+
 import glueFactory50 from "lua-wasm-bindings/dist/glue/glue-lua-5.0.3.js";
-// @ts-ignore
 import glueFactory51 from "lua-wasm-bindings/dist/glue/glue-lua-5.1.5.js";
-// @ts-ignore
 import glueFactory52 from "lua-wasm-bindings/dist/glue/glue-lua-5.2.4.js";
-// @ts-ignore
 import glueFactory53 from "lua-wasm-bindings/dist/glue/glue-lua-5.3.6.js";
-// @ts-ignore
 import glueFactory54 from "lua-wasm-bindings/dist/glue/glue-lua-5.4.7.js";
-// @ts-ignore
 import glueFactory55 from "lua-wasm-bindings/dist/glue/glue-lua-5.5.0.js";
 
-// @ts-ignore
 import wasm50 from "lua-wasm-bindings/dist/glue/glue-lua-5.0.3.wasm?url";
-// @ts-ignore
 import wasm51 from "lua-wasm-bindings/dist/glue/glue-lua-5.1.5.wasm?url";
-// @ts-ignore
 import wasm52 from "lua-wasm-bindings/dist/glue/glue-lua-5.2.4.wasm?url";
-// @ts-ignore
 import wasm53 from "lua-wasm-bindings/dist/glue/glue-lua-5.3.6.wasm?url";
-// @ts-ignore
 import wasm54 from "lua-wasm-bindings/dist/glue/glue-lua-5.4.7.wasm?url";
-// @ts-ignore
 import wasm55 from "lua-wasm-bindings/dist/glue/glue-lua-5.5.0.wasm?url";
+
+// --- Narrow types for the bindings surface we use ---
+
+type LuaState = number;
+
+interface LuaLib {
+  lua_tostring(L: LuaState, idx: number): string;
+  lua_close(L: LuaState): void;
+}
+
+interface LauxLib {
+  luaL_newstate(): LuaState;
+  luaL_dostring(L: LuaState, code: string): number;
+}
+
+interface LuaStdLib {
+  luaL_openlibs(L: LuaState): void;
+}
+
+type GlueFactory = (opts: {
+  wasmBinary: Uint8Array;
+  print(text: string): void;
+  printErr(text: string): void;
+}) => LuaEmscriptenModule;
+
+const createLuaTyped = createLua as (glue: LuaEmscriptenModule, semver: string) => LuaLib;
+const createLauxLibTyped = createLauxLib as (
+  glue: LuaEmscriptenModule,
+  lua: LuaLib,
+  semver: string,
+) => LauxLib;
+const createLuaLibTyped = createLuaLib as (glue: LuaEmscriptenModule, semver: string) => LuaStdLib;
 
 interface ExecResult {
   output: string[];
@@ -149,32 +173,33 @@ const TARGET_TO_VERSION: Record<string, string> = {
 };
 
 interface VersionInfo {
-  factory: any;
+  factory: GlueFactory | { default: GlueFactory };
   wasmUrl: string;
   semver: string;
 }
 
 const VERSIONS: Record<string, VersionInfo> = {
-  "5.0": { factory: glueFactory50, wasmUrl: wasm50, semver: "5.0.3" },
-  "5.1": { factory: glueFactory51, wasmUrl: wasm51, semver: "5.1.5" },
-  "5.2": { factory: glueFactory52, wasmUrl: wasm52, semver: "5.2.4" },
-  "5.3": { factory: glueFactory53, wasmUrl: wasm53, semver: "5.3.6" },
-  "5.4": { factory: glueFactory54, wasmUrl: wasm54, semver: "5.4.7" },
-  "5.5": { factory: glueFactory55, wasmUrl: wasm55, semver: "5.5.0" },
+  "5.0": { factory: glueFactory50 as GlueFactory, wasmUrl: wasm50 as string, semver: "5.0.3" },
+  "5.1": { factory: glueFactory51 as GlueFactory, wasmUrl: wasm51 as string, semver: "5.1.5" },
+  "5.2": { factory: glueFactory52 as GlueFactory, wasmUrl: wasm52 as string, semver: "5.2.4" },
+  "5.3": { factory: glueFactory53 as GlueFactory, wasmUrl: wasm53 as string, semver: "5.3.6" },
+  "5.4": { factory: glueFactory54 as GlueFactory, wasmUrl: wasm54 as string, semver: "5.4.7" },
+  "5.5": { factory: glueFactory55 as GlueFactory, wasmUrl: wasm55 as string, semver: "5.5.0" },
 };
 
 let currentOutput: string[] = [];
 
 interface LuaModule {
-  lua: any;
-  lauxlib: any;
-  lualib: any;
+  lua: LuaLib;
+  lauxlib: LauxLib;
+  lualib: LuaStdLib;
 }
 
 const moduleCache = new Map<string, LuaModule>();
 
 async function getLuaModule(version: string): Promise<LuaModule> {
-  if (moduleCache.has(version)) return moduleCache.get(version)!;
+  const cached = moduleCache.get(version);
+  if (cached) return cached;
 
   const ver = VERSIONS[version];
   if (!ver) throw new Error(`No Lua ${version} WASM available`);
@@ -182,7 +207,10 @@ async function getLuaModule(version: string): Promise<LuaModule> {
   const wasmResponse = await fetch(ver.wasmUrl);
   const wasmBinary = new Uint8Array(await wasmResponse.arrayBuffer());
 
-  const factory = ver.factory.default ?? ver.factory;
+  const factory: GlueFactory =
+    "default" in ver.factory && typeof ver.factory.default === "function"
+      ? ver.factory.default
+      : (ver.factory as GlueFactory);
   const luaGlue = factory({
     wasmBinary,
     print: (text: string) => {
@@ -193,16 +221,16 @@ async function getLuaModule(version: string): Promise<LuaModule> {
     },
   });
 
-  const lua = createLua(luaGlue, ver.semver);
-  const lauxlib = createLauxLib(luaGlue, lua, ver.semver);
-  const lualib = createLuaLib(luaGlue, ver.semver);
+  const lua = createLuaTyped(luaGlue, ver.semver);
+  const lauxlib = createLauxLibTyped(luaGlue, lua, ver.semver);
+  const lualib = createLuaLibTyped(luaGlue, ver.semver);
 
-  const mod = { lua, lauxlib, lualib };
+  const mod: LuaModule = { lua, lauxlib, lualib };
   moduleCache.set(version, mod);
   return mod;
 }
 
-function runOnce(lua: any, lauxlib: any, lualib: any, code: string): ExecResult {
+function runOnce(lua: LuaLib, lauxlib: LauxLib, lualib: LuaStdLib, code: string): ExecResult {
   currentOutput = [];
   try {
     const L = lauxlib.luaL_newstate();

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { loader } from "@monaco-editor/react";
-import type { editor as monacoEditor } from "monaco-editor";
 import { Editor } from "./Editor";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { OutputPanel } from "./OutputPanel";
 import { loadWasm, transpile, type WasmDiagnostic } from "./wasm";
 import { execJs, type ExecResult } from "./exec-js";
@@ -141,6 +141,14 @@ function ConfigToggle({
 }
 
 export function App() {
+  return (
+    <ErrorBoundary>
+      <PlaygroundApp />
+    </ErrorBoundary>
+  );
+}
+
+function PlaygroundApp() {
   const theme = useStarlightTheme();
   const [pgState, setPgState, hashReady] = useHashState({
     code: DEFAULT_CODE,
@@ -166,13 +174,29 @@ export function App() {
   const [staleLuaEval, setStaleLuaEval] = useState(false);
   const [jsEvalMs, setJsEvalMs] = useState<number | null>(null);
   const [luaEvalMs, setLuaEvalMs] = useState<number | null>(null);
-  const tsEditorRef = useRef<monacoEditor.IStandaloneCodeEditor>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
   const execDebounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+  // Live ref to the current tsconfig so async callbacks (debounced
+  // handleTsChange) read the latest value instead of a captured snapshot.
+  const tsconfigRef = useRef(tsconfig);
+  useEffect(() => {
+    tsconfigRef.current = tsconfig;
+  }, [tsconfig]);
   // Monotonic epoch: bumped on every doTranspile entry. Async continuations
   // capture the epoch at the start of their path and check it before any
   // setState so stale results from slower prior runs can't overwrite newer ones.
   const epochRef = useRef(0);
+  // True while the component is mounted. Async callbacks check this before
+  // touching state so resolutions that arrive after unmount are no-ops.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (execDebounceRef.current) clearTimeout(execDebounceRef.current);
+    };
+  }, []);
   const [colPct, setColPct] = useState(50);
   const [rowPct, setRowPct] = useState(60);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -208,18 +232,21 @@ export function App() {
 
   useEffect(() => {
     loadWasm()
-      .then(() => setLoading(false))
-      .catch((err) => {
+      .then(() => {
+        if (mountedRef.current) setLoading(false);
+      })
+      .catch((err: Error) => {
+        if (!mountedRef.current) return;
         setErrors([`Failed to load WASM: ${err.message}`]);
         setLoading(false);
       });
   }, []);
 
   const runExecution = useCallback(
-    async (epoch: number, tsSource: string, lua: string, tgt: string, tsTarget?: string) => {
+    async (epoch: number, tsSource: string, lua: string, tgt: string) => {
       const isCurrent = () => epoch === epochRef.current;
       try {
-        const js = await compileTs(tsSource, tsTarget);
+        const js = await compileTs(tsSource);
         if (!isCurrent()) return;
         const t0 = performance.now();
         const result = await execJs(js);
@@ -259,11 +286,21 @@ export function App() {
   const monacoRef = useRef<Awaited<ReturnType<typeof loader.init>> | null>(null);
 
   const extraLibsRef = useRef<{ dispose(): void }[]>([]);
+  // Cached key of the last-applied Monaco config. Skip re-apply when the
+  // relevant inputs (TS target, enabled types, lua target) haven't changed;
+  // otherwise Monaco flashes squigglies every keystroke during the async
+  // gap between disposing old libs and adding new ones.
+  const monacoKeyRef = useRef<string>("");
 
   const syncMonacoOptions = useCallback(async (cfg: PlaygroundTsconfig) => {
     const monaco = monacoRef.current;
     if (!monaco) return;
     const target = (cfg.compilerOptions?.target as string) || "ESNext";
+    const types = (cfg.types ?? []).toSorted();
+    const tgt = cfg.tstl?.luaTarget || "JIT";
+    const key = JSON.stringify({ target, types, luaTarget: tgt });
+    if (key === monacoKeyRef.current) return;
+
     const targetMap: Record<string, number> = {
       ES5: 1,
       ES2015: 2,
@@ -279,44 +316,47 @@ export function App() {
       ES2025: 12,
       ESNext: 99,
     };
+
+    // Pre-load all lib content before touching Monaco state so the swap is
+    // atomic: Monaco's TS checker never sees a window with libs missing.
+    const libs: { content: string; name: string }[] = [];
+    if (types.includes("console")) libs.push({ content: CONSOLE_DTS, name: "console" });
+    if (types.includes("language-extensions"))
+      libs.push({ content: langExtDts, name: "language-extensions" });
+    if (types.includes("lua-types")) {
+      const dts = await getLuaTypesDts(tgt);
+      libs.push({ content: dts, name: "lua-types" });
+    }
+
+    // Bail if another sync superseded us during the await.
+    if (key === monacoKeyRef.current) return;
+    monacoKeyRef.current = key;
+
     monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
       ...monaco.languages.typescript.typescriptDefaults.getCompilerOptions(),
       target: targetMap[target] ?? 99,
       lib: [target.toLowerCase()],
       strict: true,
     });
-    // Sync extra type libs
     for (const d of extraLibsRef.current) d.dispose();
-    extraLibsRef.current = [];
-    const types = cfg.types ?? [];
-    const addLib = (content: string, name: string) => {
-      const d = monaco.languages.typescript.typescriptDefaults.addExtraLib(
-        content,
-        `file:///${name}.d.ts`,
-      );
-      extraLibsRef.current.push(d);
-    };
-    if (types.includes("console")) addLib(CONSOLE_DTS, "console");
-    if (types.includes("language-extensions")) addLib(langExtDts, "language-extensions");
-    if (types.includes("lua-types")) {
-      const tgt = cfg.tstl?.luaTarget || "JIT";
-      const dts = await getLuaTypesDts(tgt);
-      addLib(dts, "lua-types");
-    }
+    extraLibsRef.current = libs.map(({ content, name }) =>
+      monaco.languages.typescript.typescriptDefaults.addExtraLib(content, `file:///${name}.d.ts`),
+    );
   }, []);
 
   useEffect(() => {
-    loader.init().then((m) => {
-      monacoRef.current = m;
-      syncMonacoOptions(tsconfig);
+    // Only set monacoRef here. The initial doTranspile (fired from the
+    // [loading, hashReady] effect below) handles syncMonacoOptions with the
+    // restored-from-hash tsconfig, so we don't risk applying a stale snapshot.
+    void loader.init().then((m) => {
+      if (mountedRef.current) monacoRef.current = m;
     });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const setTsluaMarkers = useCallback((diagnostics: WasmDiagnostic[]) => {
-    const editor = tsEditorRef.current;
     const monaco = monacoRef.current;
-    if (!editor || !monaco) return;
-    const model = editor.getModel();
+    if (!monaco) return;
+    const model = monaco.editor.getModel(monaco.Uri.parse("file:///main.ts"));
     if (!model) return;
     const markers = diagnostics.map((d) => ({
       startLineNumber: d.startLine,
@@ -351,7 +391,7 @@ export function App() {
       const result = transpile(code, {
         compilerOptions: { ...cfg.compilerOptions, lib },
         extraFiles,
-        tstl: cfg.tstl,
+        ...(cfg.tstl ? { tstl: cfg.tstl } : {}),
       });
       if (!isCurrent()) return;
       setTranspileMs(performance.now() - t0);
@@ -362,10 +402,9 @@ export function App() {
       setStaleJs(true);
       setStaleLuaEval(true);
       if (execDebounceRef.current) clearTimeout(execDebounceRef.current);
-      const tsTarget = (cfg.compilerOptions?.target as string) || undefined;
       execDebounceRef.current = setTimeout(() => {
         if (!isCurrent()) return;
-        runExecution(epoch, code, result.lua, tgt, tsTarget);
+        runExecution(epoch, code, result.lua, tgt);
       }, 500);
     },
     [loading, runExecution, setTsluaMarkers, syncMonacoOptions],
@@ -382,60 +421,53 @@ export function App() {
       setStaleJs(true);
       setStaleLuaEval(true);
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => doTranspile(value, tsconfig), 300);
+      debounceRef.current = setTimeout(() => doTranspile(value, tsconfigRef.current), 300);
     },
-    [tsconfig, doTranspile, setPgState],
+    [doTranspile, setPgState],
   );
 
   const updateTstl = useCallback(
     (key: string, value: string | boolean) => {
-      setPgState((prev) => {
-        const tstl = { ...prev.tsconfig.tstl, [key]: value };
-        // Clean up default/falsy values
-        if (value === "" || value === false) delete (tstl as Record<string, unknown>)[key];
-        const next: PlaygroundState = {
-          ...prev,
-          tsconfig: { ...prev.tsconfig, tstl },
-        };
-        doTranspile(prev.code, next.tsconfig);
-        return next;
-      });
+      const tstl = { ...pgState.tsconfig.tstl, [key]: value };
+      if (value === "" || value === false) delete (tstl as Record<string, unknown>)[key];
+      const next: PlaygroundState = {
+        ...pgState,
+        tsconfig: { ...pgState.tsconfig, tstl },
+      };
+      setPgState(next);
+      doTranspile(next.code, next.tsconfig);
     },
-    [doTranspile, setPgState],
+    [pgState, setPgState, doTranspile],
   );
 
   const updateCompilerOption = useCallback(
     (key: string, value: string) => {
-      setPgState((prev) => {
-        const co = { ...prev.tsconfig.compilerOptions, [key]: value };
-        if (value === "") delete (co as Record<string, unknown>)[key];
-        const next: PlaygroundState = {
-          ...prev,
-          tsconfig: { ...prev.tsconfig, compilerOptions: co },
-        };
-        doTranspile(prev.code, next.tsconfig);
-        return next;
-      });
+      const co = { ...pgState.tsconfig.compilerOptions, [key]: value };
+      if (value === "") delete (co as Record<string, unknown>)[key];
+      const next: PlaygroundState = {
+        ...pgState,
+        tsconfig: { ...pgState.tsconfig, compilerOptions: co },
+      };
+      setPgState(next);
+      doTranspile(next.code, next.tsconfig);
     },
-    [doTranspile, setPgState],
+    [pgState, setPgState, doTranspile],
   );
 
   const toggleType = useCallback(
     (name: string) => {
-      setPgState((prev) => {
-        const types = prev.tsconfig.types ?? [];
-        const next: PlaygroundState = {
-          ...prev,
-          tsconfig: {
-            ...prev.tsconfig,
-            types: types.includes(name) ? types.filter((t) => t !== name) : [...types, name],
-          },
-        };
-        doTranspile(prev.code, next.tsconfig);
-        return next;
-      });
+      const types = pgState.tsconfig.types ?? [];
+      const next: PlaygroundState = {
+        ...pgState,
+        tsconfig: {
+          ...pgState.tsconfig,
+          types: types.includes(name) ? types.filter((t) => t !== name) : [...types, name],
+        },
+      };
+      setPgState(next);
+      doTranspile(next.code, next.tsconfig);
     },
-    [doTranspile, setPgState],
+    [pgState, setPgState, doTranspile],
   );
 
   const sidebar = (
@@ -566,9 +598,6 @@ export function App() {
               language="typescript"
               path="file:///main.ts"
               onChange={handleTsChange}
-              onEditorMount={(e) => {
-                tsEditorRef.current = e;
-              }}
               theme={theme}
             />
           </div>

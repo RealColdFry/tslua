@@ -43,13 +43,13 @@ export function Editor({
       <MonacoEditor
         height="100%"
         language={language}
-        path={path}
+        {...(path !== undefined && { path })}
         theme={theme === "light" ? "light" : "vs-dark"}
         value={value}
-        onChange={readOnly ? undefined : handleChange}
+        {...(readOnly ? {} : { onChange: handleChange })}
         onMount={handleMount}
         options={{
-          readOnly,
+          readOnly: readOnly ?? false,
           fixedOverflowWidgets: true,
           minimap: { enabled: false },
           fontFamily: '"JetBrains Mono", "Fira Code", monospace',

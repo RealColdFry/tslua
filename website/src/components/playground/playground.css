@@ -98,6 +98,43 @@
   color: var(--pg-text-muted);
 }
 
+.pg-crash {
+  padding: 1.5rem;
+  max-width: 48rem;
+  margin: 2rem auto;
+  font-family: system-ui, sans-serif;
+  color: var(--pg-text);
+}
+.pg-crash h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+}
+.pg-crash-msg,
+.pg-crash-stack {
+  background: var(--pg-bg-cell, #1e1e1e);
+  border: 1px solid var(--pg-border, #444);
+  border-radius: 4px;
+  padding: 0.75rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+  margin: 0.5rem 0;
+}
+.pg-crash-stack {
+  max-height: 24rem;
+}
+.pg-crash-reset {
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  background: var(--pg-accent, #3b82f6);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
 /* ---- Mobile tabs ---- */
 .pg-mobile-tabs {
   display: flex;
@@ -180,13 +217,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.75rem;
+  height: 2.625rem;
+  padding-inline: 0.75rem;
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--pg-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   border-bottom: 1px solid var(--pg-border);
+  flex-shrink: 0;
 }
 .pg-sidebar-collapse {
   background: none;
@@ -317,7 +356,8 @@
   display: none;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem;
+  height: 2.625rem;
+  padding-inline: 0.75rem;
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--pg-text-muted);
