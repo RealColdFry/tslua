@@ -474,31 +474,7 @@ function ____exports.__main(self)
     __TS__Delete(tbl, "test")
 end
 return ____exports`},
-		{name: "Binary expressions ordering parentheses (\"1+1\")", tsCode: `export const __result = 1+1;`, refLua: `local ____exports = {}
-____exports.__result = 1 + 1
-return ____exports`},
-		{name: "Binary expressions ordering parentheses (\"-1+1\")", tsCode: `export const __result = -1+1;`, refLua: `local ____exports = {}
-____exports.__result = -1 + 1
-return ____exports`},
-		{name: "Binary expressions ordering parentheses (\"1*30+4\")", tsCode: `export const __result = 1*30+4;`, refLua: `local ____exports = {}
-____exports.__result = 1 * 30 + 4
-return ____exports`},
-		{name: "Binary expressions ordering parentheses (\"1*(3+4)\")", tsCode: `export const __result = 1*(3+4);`, refLua: `local ____exports = {}
-____exports.__result = 1 * (3 + 4)
-return ____exports`},
-		{name: "Binary expressions ordering parentheses (\"1*(3+4*2)\")", tsCode: `export const __result = 1*(3+4*2);`, refLua: `local ____exports = {}
-____exports.__result = 1 * (3 + 4 * 2)
-return ____exports`},
-		{name: "Binary expressions ordering parentheses (\"10-(4+5)\")", tsCode: `export const __result = 10-(4+5);`, refLua: `local ____exports = {}
-____exports.__result = 10 - (4 + 5)
-return ____exports`},
-		{name: "Null Expression", tsCode: `export const __result = null;`, refLua: `local ____exports = {}
-____exports.__result = nil
-return ____exports`},
-		{name: "Undefined Expression", tsCode: `export const __result = undefined;`, refLua: `local ____exports = {}
-____exports.__result = nil
-return ____exports`},
-	})
+	}, WithAllowDiagnostics())
 
 	batchCompareCodegen(t, []batchTestCase{
 		{name: "Bitop [JIT] (\"~a\")", tsCode: `export const __result = ~a;`, refLua: `local ____exports = {}
@@ -546,7 +522,7 @@ return ____exports`},
 a = bit.arshift(a, b)
 ____exports.__result = a
 return ____exports`},
-	}, WithLuaTarget(transpiler.LuaTargetLuaJIT))
+	}, WithAllowDiagnostics(), WithLuaTarget(transpiler.LuaTargetLuaJIT), WithOptions(map[string]any{"luaLibImport": "none"}))
 
 	batchCompareCodegen(t, []batchTestCase{
 		{name: "Bitop [5.2] (\"~a\")", tsCode: `export const __result = ~a;`, refLua: `local ____exports = {}
@@ -594,7 +570,7 @@ return ____exports`},
 a = bit32.arshift(a, b)
 ____exports.__result = a
 return ____exports`},
-	}, WithLuaTarget(transpiler.LuaTargetLua52))
+	}, WithAllowDiagnostics(), WithLuaTarget(transpiler.LuaTargetLua52), WithOptions(map[string]any{"luaLibImport": "none"}))
 
 	batchCompareCodegen(t, []batchTestCase{
 		{name: "Bitop [5.3] (\"~a\")", tsCode: `export const __result = ~a;`, refLua: `local ____exports = {}
@@ -635,7 +611,7 @@ return ____exports`, tstlBug: `tslua-improvement: hex mask literal`},
 a = (a & 4294967295) >> b
 ____exports.__result = a
 return ____exports`, tstlBug: `tslua-improvement: hex mask literal`},
-	}, WithLuaTarget(transpiler.LuaTargetLua53))
+	}, WithAllowDiagnostics(), WithLuaTarget(transpiler.LuaTargetLua53), WithOptions(map[string]any{"luaLibImport": "none"}))
 
 	batchCompareCodegen(t, []batchTestCase{
 		{name: "Bitop [5.4] (\"~a\")", tsCode: `export const __result = ~a;`, refLua: `local ____exports = {}
@@ -676,7 +652,7 @@ return ____exports`, tstlBug: `tslua-improvement: hex mask literal`},
 a = (a & 4294967295) >> b
 ____exports.__result = a
 return ____exports`, tstlBug: `tslua-improvement: hex mask literal`},
-	}, WithLuaTarget(transpiler.LuaTargetLua54))
+	}, WithAllowDiagnostics(), WithLuaTarget(transpiler.LuaTargetLua54), WithOptions(map[string]any{"luaLibImport": "none"}))
 
 	batchCompareCodegen(t, []batchTestCase{
 		{name: "Bitop [5.5] (\"~a\")", tsCode: `export const __result = ~a;`, refLua: `local ____exports = {}
@@ -717,7 +693,34 @@ return ____exports`, tstlBug: `tslua-improvement: hex mask literal`},
 a = (a & 4294967295) >> b
 ____exports.__result = a
 return ____exports`, tstlBug: `tslua-improvement: hex mask literal`},
-	}, WithLuaTarget(transpiler.LuaTargetLua55))
+	}, WithAllowDiagnostics(), WithLuaTarget(transpiler.LuaTargetLua55), WithOptions(map[string]any{"luaLibImport": "none"}))
+
+	batchCompareCodegen(t, []batchTestCase{
+		{name: "Binary expressions ordering parentheses (\"1+1\")", tsCode: `export const __result = 1+1;`, refLua: `local ____exports = {}
+____exports.__result = 1 + 1
+return ____exports`},
+		{name: "Binary expressions ordering parentheses (\"-1+1\")", tsCode: `export const __result = -1+1;`, refLua: `local ____exports = {}
+____exports.__result = -1 + 1
+return ____exports`},
+		{name: "Binary expressions ordering parentheses (\"1*30+4\")", tsCode: `export const __result = 1*30+4;`, refLua: `local ____exports = {}
+____exports.__result = 1 * 30 + 4
+return ____exports`},
+		{name: "Binary expressions ordering parentheses (\"1*(3+4)\")", tsCode: `export const __result = 1*(3+4);`, refLua: `local ____exports = {}
+____exports.__result = 1 * (3 + 4)
+return ____exports`},
+		{name: "Binary expressions ordering parentheses (\"1*(3+4*2)\")", tsCode: `export const __result = 1*(3+4*2);`, refLua: `local ____exports = {}
+____exports.__result = 1 * (3 + 4 * 2)
+return ____exports`},
+		{name: "Binary expressions ordering parentheses (\"10-(4+5)\")", tsCode: `export const __result = 10-(4+5);`, refLua: `local ____exports = {}
+____exports.__result = 10 - (4 + 5)
+return ____exports`},
+		{name: "Null Expression", tsCode: `export const __result = null;`, refLua: `local ____exports = {}
+____exports.__result = nil
+return ____exports`},
+		{name: "Undefined Expression", tsCode: `export const __result = undefined;`, refLua: `local ____exports = {}
+____exports.__result = nil
+return ____exports`},
+	})
 
 	t.Run("Binary expressions basic numeric (3+4) [JIT]", func(t *testing.T) {
 		t.Parallel()

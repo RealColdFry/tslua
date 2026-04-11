@@ -58,6 +58,8 @@ export interface CacheMiss {
   code: string;
   luaTarget: string;
   lib?: string[];
+  types?: string[];
+  languageExtensions?: boolean;
 }
 
 export interface SandboxRef {

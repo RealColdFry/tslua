@@ -228,9 +228,11 @@ function classifyError(message: string): string {
       }
       const luaTarget = (tc.options?.luaTarget as string) ?? "5.5";
       const lib = tc.options?.lib as string[] | undefined;
-      const key = refLuaCacheKey(fullCode!, luaTarget, lib);
+      const types = tc.options?.types as string[] | undefined;
+      const languageExtensions = tc.languageExtensions === true;
+      const key = refLuaCacheKey(fullCode!, luaTarget, lib, languageExtensions);
       if (!(key in refLuaCache)) {
-        cacheMisses.push({ key, code: fullCode!, luaTarget, lib });
+        cacheMisses.push({ key, code: fullCode!, luaTarget, lib, types, languageExtensions });
       }
     }
   }

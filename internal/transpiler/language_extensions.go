@@ -541,12 +541,14 @@ func (t *Transpiler) checkExtensionIdentifier(node *ast.Node, text string) lua.E
 		extKind, hasExtKind = t.getExtensionKindForNode(node)
 	}
 	// Fallback: detect $multi/$range/$vararg by name when type info is unavailable
-	// (e.g., language-extensions types not loaded). Emits TL1010 to guide the user,
-	// but does not change codegen — the identifier is renamed normally.
+	// (e.g., language-extensions types not loaded). Emit the extension-specific
+	// diagnostic and return a placeholder so the generic invalidAmbientIdentifierName
+	// diagnostic doesn't fire on top of it.
 	if !hasExtKind {
 		if nameKind, ok := extensionKindByName(text); ok {
 			if t.isExtensionValueIdentifier(node, nameKind) {
 				t.reportInvalidExtensionValue(node, nameKind)
+				return lua.Ident("____")
 			}
 		}
 		return nil

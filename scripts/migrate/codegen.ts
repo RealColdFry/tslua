@@ -12,12 +12,16 @@ import { serialize } from "./serialize.ts";
 import { fullTsCode } from "./tstl-ref.ts";
 
 export function goString(s: string): string {
-  if (!s.includes("`") && !s.includes("\0") && !s.includes("\uFEFF")) return "`" + s + "`";
+  // Raw backtick strings cannot preserve CR (goimports strips bare \r from
+  // Go source) or other control characters, so fall back to escaped form.
+  if (!s.includes("`") && !s.includes("\0") && !s.includes("\r") && !s.includes("\uFEFF"))
+    return "`" + s + "`";
   return (
     '"' +
     s
       .replace(/\\/g, "\\\\")
       .replace(/"/g, '\\"')
+      .replace(/\r/g, "\\r")
       .replace(/\n/g, "\\n")
       .replace(/\t/g, "\\t")
       // eslint-disable-next-line no-control-regex

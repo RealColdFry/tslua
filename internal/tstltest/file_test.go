@@ -35,9 +35,6 @@ return ____exports`, extraFiles: map[string]string{"jsonModule.json": `{ "jsonFi
 
             const foo = true;`, refLua: `#!/usr/bin/env lua
 foo = true`},
-		{name: "shebang CRLF", tsCode: `#!/usr/bin/env lua
-
-            const foo = true;`, refLua: `#!/usr/bin/env lua
-foo = true`},
+		{name: "shebang CRLF", tsCode: "#!/usr/bin/env lua\r\n\n            const foo = true;", refLua: "#!/usr/bin/env lua\r\nfoo = true"},
 	})
 }

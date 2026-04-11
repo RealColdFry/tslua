@@ -100,7 +100,7 @@ func (t *Transpiler) transformLeftWithThisCapture(tsLeftExpression *ast.Node) (l
 		leftExpr = lua.Index(objExpr, lua.Str(pa.Name().AsIdentifier().Text))
 	case ast.KindElementAccessExpression:
 		ea := tsLeftExpression.AsElementAccessExpression()
-		leftExpr = lua.Index(objExpr, t.transformElementIndex(ea))
+		leftExpr = lua.Index(objExpr, t.transformElementAccessIndex(ea))
 	}
 	prec := t.popPrecedingStatements()
 	return leftExpr, prec, objExpr
@@ -297,7 +297,7 @@ func (t *Transpiler) buildChainRight(base *lua.Identifier, chain []*ast.Node, in
 		case ast.KindElementAccessExpression:
 			lastObjBeforeAccess = result
 			ea := link.AsElementAccessExpression()
-			index := t.transformElementIndex(ea)
+			index := t.transformElementAccessIndex(ea)
 			result = lua.Index(result, index)
 
 			// Capture this-value for outer chain if this is the last PA/EA
