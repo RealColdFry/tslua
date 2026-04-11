@@ -51,6 +51,7 @@ type serverResponse struct {
 
 type serverDiagnostic struct {
 	Code      int32  `json:"code"`
+	Category  string `json:"category"`
 	Message   string `json:"message"`
 	File      string `json:"file,omitempty"`
 	Line      int    `json:"line,omitempty"`
@@ -64,7 +65,7 @@ func convertDiagnostics(diags []*ast.Diagnostic, baseDir string) []serverDiagnos
 	out := make([]serverDiagnostic, len(diags))
 	for i, d := range diags {
 		code, msg := dw.DiagnosticInfo(d)
-		sd := serverDiagnostic{Code: code, Message: msg}
+		sd := serverDiagnostic{Code: code, Category: dw.DiagnosticCategory(d), Message: msg}
 		if file, line, character, ok := dw.DiagnosticLocation(d); ok {
 			if rel, err := filepath.Rel(baseDir, file); err == nil {
 				file = rel

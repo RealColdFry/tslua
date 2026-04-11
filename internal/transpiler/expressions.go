@@ -447,6 +447,13 @@ func (t *Transpiler) transformPropertyAccessExpression(node *ast.Node) lua.Expre
 		return lua.Nil()
 	}
 
+	// Optional chaining: delegate to chain-flattening algorithm.
+	// Must come before @compileMembersOnly and builtin-property shortcuts so that
+	// the chain handler sees the optional semantics and can emit its own diagnostics.
+	if ast.IsOptionalChain(node) {
+		return t.transformOptionalChain(node)
+	}
+
 	// @compileMembersOnly: skip the enum table in the access path
 	if t.hasTypeAnnotation(pa.Expression, AnnotCompileMembersOnly) {
 		prop := pa.Name().AsIdentifier().Text
@@ -469,12 +476,6 @@ func (t *Transpiler) transformPropertyAccessExpression(node *ast.Node) lua.Expre
 	// Built-in property access: Math.PI, Number.MAX_SAFE_INTEGER, etc.
 	if result := t.tryTransformPropertyAccess(pa); result != nil {
 		return result
-	}
-
-	// Optional chaining: delegate to chain-flattening algorithm.
-	// Skip if the base expression is overridden — we're inside a chain build.
-	if ast.IsOptionalChain(node) {
-		return t.transformOptionalChain(node)
 	}
 
 	prop := t.resolvePropertyName(pa)
