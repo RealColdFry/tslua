@@ -19,8 +19,31 @@ function getIframe(): HTMLIFrameElement {
   return iframe;
 }
 
+// User-provided code runs via eval inside the iframe and can postMessage to
+// parent with arbitrary shapes. We tag our wrapper's message with a per-call
+// nonce so the handler can distinguish it from user-origin messages.
+function coerceExecResult(data: unknown): ExecResult {
+  if (typeof data !== "object" || data === null) {
+    return { output: [], error: "Invalid iframe response" };
+  }
+  const d = data as { output?: unknown; error?: unknown };
+  const output = Array.isArray(d.output) ? d.output.map((v) => String(v)) : [];
+  const error = typeof d.error === "string" ? d.error : d.error == null ? null : String(d.error);
+  return { output, error };
+}
+
+let nonceCounter = 0;
+function makeNonce(): string {
+  // Per-call unique token to distinguish our wrapper's messages from anything
+  // the user's code might postMessage. Not a security primitive, so plain
+  // Math.random is fine (and avoids crypto.randomUUID availability issues).
+  nonceCounter++;
+  return `${Date.now().toString(36)}-${nonceCounter}-${Math.random().toString(36).slice(2)}`;
+}
+
 export function execJs(code: string): Promise<ExecResult> {
   return new Promise((resolve) => {
+    const nonce = makeNonce();
     let settled = false;
     const settle = (result: ExecResult) => {
       if (settled) return;
@@ -36,7 +59,9 @@ export function execJs(code: string): Promise<ExecResult> {
 
     const handler = (e: MessageEvent) => {
       if (e.source !== getIframe().contentWindow) return;
-      settle(e.data as ExecResult);
+      const d = e.data as { __nonce?: unknown } | null | undefined;
+      if (!d || d.__nonce !== nonce) return;
+      settle(coerceExecResult(e.data));
     };
     window.addEventListener("message", handler);
 
@@ -49,6 +74,7 @@ export function execJs(code: string): Promise<ExecResult> {
 </head>
 <body>
 <script>
+const __nonce = ${JSON.stringify(nonce)};
 const __output = [];
 const __origConsole = { log: console.log, warn: console.warn, error: console.error };
 console.log = (...args) => __output.push(args.map(String).join(" "));
@@ -57,9 +83,9 @@ console.error = (...args) => __output.push("[error] " + args.map(String).join(" 
 const print = (...args) => console.log(...args);
 try {
   ${escapeScript(code)}
-  parent.postMessage({ output: __output, error: null }, "*");
+  parent.postMessage({ __nonce: __nonce, output: __output, error: null }, "*");
 } catch (e) {
-  parent.postMessage({ output: __output, error: String(e) }, "*");
+  parent.postMessage({ __nonce: __nonce, output: __output, error: String(e) }, "*");
 }
 </script>
 </body>

@@ -6,14 +6,7 @@ declare class Go {
   run(instance: WebAssembly.Instance): void;
 }
 
-declare function tslua_transpile(
-  code: string,
-  optionsJson: string,
-): {
-  lua: string;
-  errors: { length: number; [i: number]: string };
-  diagnostics: { length: number; [i: number]: WasmDiagnostic } | null;
-};
+declare function tslua_transpile(code: string, optionsJson: string): unknown;
 
 export interface WasmDiagnostic {
   startLine: number; // 1-based
@@ -63,14 +56,27 @@ export interface TranspileResult {
 export function transpile(code: string, options: TsluaOptions): TranspileResult {
   if (!ready) return { lua: "", errors: ["WASM not loaded"], diagnostics: [] };
 
-  const result = tslua_transpile(code, JSON.stringify(options));
-  return {
-    lua: result.lua || "",
-    errors: Array.from(result.errors as ArrayLike<string>),
-    diagnostics: result.diagnostics
-      ? Array.from(result.diagnostics as ArrayLike<WasmDiagnostic>)
-      : [],
-  };
+  const raw = tslua_transpile(code, JSON.stringify(options)) as
+    | { lua?: unknown; errors?: unknown; diagnostics?: unknown }
+    | null
+    | undefined;
+  if (!raw || typeof raw !== "object") {
+    return { lua: "", errors: ["WASM returned invalid result"], diagnostics: [] };
+  }
+  const lua = typeof raw.lua === "string" ? raw.lua : "";
+  const errors = isArrayLike(raw.errors)
+    ? Array.from(raw.errors as ArrayLike<unknown>, (v) => String(v))
+    : [];
+  const diagnostics = isArrayLike(raw.diagnostics)
+    ? Array.from(raw.diagnostics as ArrayLike<WasmDiagnostic>)
+    : [];
+  return { lua, errors, diagnostics };
+}
+
+function isArrayLike(v: unknown): v is ArrayLike<unknown> {
+  return (
+    v != null && typeof v === "object" && typeof (v as { length?: unknown }).length === "number"
+  );
 }
 
 function loadScript(src: string): Promise<void> {
