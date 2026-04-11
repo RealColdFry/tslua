@@ -330,9 +330,20 @@ func (t *Transpiler) buildChainRight(base *lua.Identifier, chain []*ast.Node, in
 func (t *Transpiler) transformCallInChain(callNode *ast.Node, calleeExpr lua.Expression, thisValue lua.Expression) lua.Expression {
 	ce := callNode.AsCallExpression()
 
-	// Language extension calls (uses original node)
+	// Language extension calls. TSTL splits optional chains: when ?. is on the call
+	// itself (e.g. new LuaTable().has?.(3)), the inner call expression becomes a
+	// bare temp identifier, which trips getNaryCallExtensionArgs's "must be a method"
+	// check and emits invalidMethodCallExtensionUse alongside the builtin-optional
+	// diagnostic. We mirror that up front: only when ?. is on the call (not when ?.
+	// is on the property access, e.g. foo?.add(x) which transforms normally).
+	if kind, ok := t.getExtensionKindForNode(ce.Expression); ok && isMethodExtension(kind) && hasQuestionDotToken(callNode) {
+		t.addError(callNode, dw.UnsupportedBuiltinOptionalCall,
+			"Optional calls are not supported for builtin or language extension functions.")
+		t.addError(ce.Expression, dw.InvalidMethodCallExtensionUse,
+			"This language extension must be called as a method.")
+		return lua.Nil()
+	}
 	if result := t.tryTransformLanguageExtensionCallExpression(callNode); result != nil {
-		// Only diagnose if the call itself is optional (has ?.), not just part of an optional chain
 		if hasQuestionDotToken(callNode) {
 			t.addError(callNode, dw.UnsupportedBuiltinOptionalCall,
 				"Optional calls are not supported for builtin or language extension functions.")
@@ -357,16 +368,27 @@ func (t *Transpiler) transformCallInChain(callNode *ast.Node, calleeExpr lua.Exp
 	// Transform arguments
 	argExprs, argPrec := t.transformArgsInScope(ce.Arguments)
 
-	// Builtin calls: use original node for type detection, chain-built receiver
+	// Builtin calls: use original node for type detection, chain-built receiver.
+	// TSTL: global method path (tryTransformBuiltinGlobalMethodCall) emits
+	// UnsupportedBuiltinOptionalCall when `calledMethod.questionDotToken` is set;
+	// the prototype method path does not. So the diagnostic fires for optional
+	// access on global methods (console?.log, Math?.floor) but not on prototype
+	// methods (arr?.push, str?.includes).
 	if calleeOriginal.Kind == ast.KindPropertyAccessExpression {
+		paHasQuestionDot := hasQuestionDotToken(calleeOriginal)
 		if idx, ok := calleeExpr.(*lua.TableIndexExpression); ok {
 			obj := idx.Table
 			if len(argPrec) > 0 && t.shouldMoveToTemp(obj) {
 				obj = t.moveToPrecedingTemp(obj)
 			}
-			if result := t.tryTransformBuiltinCallWithArgs(ce, argExprs, obj); result != nil {
-				// Only diagnose if the call itself is optional (has ?.), not just part of an optional chain
-				if hasQuestionDotToken(callNode) {
+			if result, isGlobal := t.tryTransformBuiltinCallWithArgsKind(ce, argExprs, obj); result != nil {
+				switch {
+				case hasQuestionDotToken(callNode):
+					// ?. on the call itself (arr.push?.(1)): always diagnose.
+					t.addError(callNode, dw.UnsupportedBuiltinOptionalCall,
+						"Optional calls are not supported for builtin or language extension functions.")
+				case isGlobal && paHasQuestionDot:
+					// console?.log("3"), Math?.floor(1.5): diagnose on global only.
 					t.addError(callNode, dw.UnsupportedBuiltinOptionalCall,
 						"Optional calls are not supported for builtin or language extension functions.")
 				}

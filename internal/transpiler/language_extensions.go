@@ -205,7 +205,7 @@ func (t *Transpiler) getNaryCallExtensionArgs(ce *ast.CallExpression, kind Exten
 	if isMethodExtension(kind) {
 		expr := ce.Expression
 		if expr.Kind != ast.KindPropertyAccessExpression && expr.Kind != ast.KindElementAccessExpression {
-			t.addError(ce.Expression, dw.InvalidMethodCallExtensionUse, "Language extension method must be called as a method (obj.method())")
+			t.addError(ce.Expression, dw.InvalidMethodCallExtensionUse, "This language extension must be called as a method.")
 			return nil
 		}
 		if len(ce.Arguments.Nodes) < numArgs-1 {

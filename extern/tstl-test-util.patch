@@ -27,7 +27,7 @@ index 2871f6e..219208c 100644
          const program = this.getProgram();
          const preEmitDiagnostics = ts.getPreEmitDiagnostics(program);
          const collector = createEmitOutputCollector(this.options.extension);
-@@ -256,6 +267,229 @@ export abstract class TestBuilder {
+@@ -256,6 +267,236 @@ export abstract class TestBuilder {
          return { diagnostics: [...diagnostics], transpiledFiles: collector.files };
      }
  
@@ -149,7 +149,7 @@ index 2871f6e..219208c 100644
 +        }
 +
 +        // Convert tslua diagnostics to TSTL-compatible format
-+        const diagnostics: ts.Diagnostic[] = (resp.diagnostics ?? []).map((d: { code: number; message: string; file?: string; line?: number; character?: number }) => {
++        const diagnostics: ts.Diagnostic[] = (resp.diagnostics ?? []).map((d: { code: number; category?: string; message: string; file?: string; line?: number; character?: number }) => {
 +            let file: ts.SourceFile | undefined;
 +            let start: number | undefined;
 +            if (d.file) {
@@ -168,11 +168,18 @@ index 2871f6e..219208c 100644
 +                }
 +                file = { fileName: d.file, getLineStarts: () => lineStarts, text } as any;
 +            }
++            let category: ts.DiagnosticCategory;
++            switch (d.category) {
++                case "warning": category = ts.DiagnosticCategory.Warning; break;
++                case "suggestion": category = ts.DiagnosticCategory.Suggestion; break;
++                case "message": category = ts.DiagnosticCategory.Message; break;
++                default: category = ts.DiagnosticCategory.Error;
++            }
 +            return {
 +                file,
 +                start,
 +                length: 1,
-+                category: ts.DiagnosticCategory.Error,
++                category,
 +                code: d.code,
 +                messageText: d.message,
 +                source: d.code >= 100000 ? "typescript-to-lua" : undefined,
@@ -257,7 +264,7 @@ index 2871f6e..219208c 100644
      @memoize
      public getMainLuaFileResult(): ExecutableTranspiledFile {
          const { transpiledFiles } = this.getLuaResult();
-@@ -454,16 +681,18 @@ export abstract class TestBuilder {
+@@ -454,16 +688,18 @@ export abstract class TestBuilder {
          // Load modules
          // Json
          this.injectLuaFile(L, lua, lauxlib, "json", jsonLib(luaTarget));

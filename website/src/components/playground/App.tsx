@@ -173,35 +173,34 @@ export function App() {
   const [rowPct, setRowPct] = useState(60);
   const gridRef = useRef<HTMLDivElement>(null);
 
-  const useDrag = (axis: "col" | "row") =>
-    useCallback((e: React.MouseEvent) => {
-      e.preventDefault();
-      const grid = gridRef.current;
-      if (!grid) return;
-      const onMove = (ev: MouseEvent) => {
-        const rect = grid.getBoundingClientRect();
-        if (axis === "col") {
-          const pct = ((ev.clientX - rect.left) / rect.width) * 100;
-          setColPct(Math.max(20, Math.min(80, pct)));
-        } else {
-          const pct = ((ev.clientY - rect.top) / rect.height) * 100;
-          setRowPct(Math.max(20, Math.min(80, pct)));
-        }
-      };
-      const onUp = () => {
-        document.removeEventListener("mousemove", onMove);
-        document.removeEventListener("mouseup", onUp);
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
-      };
-      document.addEventListener("mousemove", onMove);
-      document.addEventListener("mouseup", onUp);
-      document.body.style.cursor = axis === "col" ? "col-resize" : "row-resize";
-      document.body.style.userSelect = "none";
-    }, []);
+  const startDrag = useCallback((axis: "col" | "row", e: React.MouseEvent) => {
+    e.preventDefault();
+    const grid = gridRef.current;
+    if (!grid) return;
+    const onMove = (ev: MouseEvent) => {
+      const rect = grid.getBoundingClientRect();
+      if (axis === "col") {
+        const pct = ((ev.clientX - rect.left) / rect.width) * 100;
+        setColPct(Math.max(20, Math.min(80, pct)));
+      } else {
+        const pct = ((ev.clientY - rect.top) / rect.height) * 100;
+        setRowPct(Math.max(20, Math.min(80, pct)));
+      }
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    document.body.style.cursor = axis === "col" ? "col-resize" : "row-resize";
+    document.body.style.userSelect = "none";
+  }, []);
 
-  const onColDrag = useDrag("col");
-  const onRowDrag = useDrag("row");
+  const onColDrag = useCallback((e: React.MouseEvent) => startDrag("col", e), [startDrag]);
+  const onRowDrag = useCallback((e: React.MouseEvent) => startDrag("row", e), [startDrag]);
 
   useEffect(() => {
     loadWasm()

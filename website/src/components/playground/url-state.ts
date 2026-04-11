@@ -162,13 +162,30 @@ export function useHashState(
   const [ready, setReady] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
-  // On mount: read hash -> state
+  // On mount: read hash -> state. Merge onto defaults so fields that were
+  // stripped during serialization (because they matched defaults) are restored.
   useEffect(() => {
     decodeHash().then((restored) => {
-      if (restored) setState(restored);
+      if (restored) {
+        setState({
+          code: restored.code,
+          tsconfig: {
+            ...defaultState.tsconfig,
+            ...restored.tsconfig,
+            compilerOptions: {
+              ...defaultState.tsconfig.compilerOptions,
+              ...restored.tsconfig.compilerOptions,
+            },
+            tstl: {
+              ...defaultState.tsconfig.tstl,
+              ...restored.tsconfig.tstl,
+            },
+          },
+        });
+      }
       setReady(true);
     });
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounced hash write
   const setStateAndHash = useCallback(

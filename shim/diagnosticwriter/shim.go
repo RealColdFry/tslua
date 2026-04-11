@@ -208,6 +208,11 @@ func DiagnosticInfo(d *ast.Diagnostic) (code int32, message string) {
 	return wrapped.Code(), wrapped.Localize(zeroLocale)
 }
 
+// DiagnosticCategory returns the category name ("error", "warning", "suggestion", "message").
+func DiagnosticCategory(d *ast.Diagnostic) string {
+	return diagnosticwriter.WrapASTDiagnostic(d).Category().Name()
+}
+
 // DiagnosticLocation extracts the file name, line, and character from a diagnostic.
 // Returns ok=false if the diagnostic has no file location.
 func DiagnosticLocation(d *ast.Diagnostic) (file string, line int, character int, ok bool) {

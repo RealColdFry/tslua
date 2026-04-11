@@ -16,12 +16,21 @@ import (
 // tryTransformBuiltinCallWithArgs checks if a property access call is a known builtin,
 // using pre-transformed arguments and receiver. Returns nil if not a builtin.
 func (t *Transpiler) tryTransformBuiltinCallWithArgs(ce *ast.CallExpression, argExprs []lua.Expression, objExpr lua.Expression) lua.Expression {
+	result, _ := t.tryTransformBuiltinCallWithArgsKind(ce, argExprs, objExpr)
+	return result
+}
+
+// tryTransformBuiltinCallWithArgsKind is like tryTransformBuiltinCallWithArgs but
+// also reports whether the match came from the global path (Math.*, console.*, etc.)
+// vs the instance/prototype path (arr.push, str.substr, etc.). Callers that want
+// different diagnostic behavior for global vs prototype builtins use this variant.
+func (t *Transpiler) tryTransformBuiltinCallWithArgsKind(ce *ast.CallExpression, argExprs []lua.Expression, objExpr lua.Expression) (lua.Expression, bool) {
 	if ce.Expression.Kind != ast.KindPropertyAccessExpression {
-		return nil
+		return nil, false
 	}
 	pa := ce.Expression.AsPropertyAccessExpression()
 	if pa.Name().Kind != ast.KindIdentifier {
-		return nil
+		return nil, false
 	}
 	method := pa.Name().AsIdentifier().Text
 
@@ -32,16 +41,16 @@ func (t *Transpiler) tryTransformBuiltinCallWithArgs(ce *ast.CallExpression, arg
 		if obj == "console" && !t.isStandardLibraryType(pa.Expression, "Console") {
 			// Not the standard library Console - fall through to normal transpilation.
 		} else if result := t.tryTransformGlobalCall(obj, method, argExprs, ce.Arguments); result != nil {
-			return result
+			return result, true
 		}
 	}
 
 	// Instance method calls
 	if result := t.tryTransformMethodCall(pa, objExpr, method, argExprs, ce.Arguments, ce.AsNode()); result != nil {
-		return result
+		return result, false
 	}
 
-	return nil
+	return nil, false
 }
 
 // isBuiltinCall returns true if the call expression would be handled as a builtin transform.

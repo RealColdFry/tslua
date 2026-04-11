@@ -1,9 +1,21 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "import", "promise", "jsx-a11y", "typescript", "unicorn", "oxc"],
   "categories": {
-    "suspicious": "error"
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "error"
   },
   "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
+    "react/react-in-jsx-scope": "off",
+    "react/no-array-index-key": "off",
+    "import/no-unassigned-import": "off",
+    "no-await-in-loop": "off",
+    "promise/always-return": "off",
+    "promise/no-multiple-resolved": "off",
+    "jsx-a11y/no-static-element-interactions": "off",
     "unicorn/require-post-message-target-origin": "off"
   },
   "ignorePatterns": ["node_modules", "extern", "tmp", "website/src/assets/types"]
