@@ -97,6 +97,7 @@ fmt-check:
 lint:
     golangci-lint run
     npm run typecheck
+    cd website && npx astro check
     npx oxlint scripts/ website/
 
 # Migrate TSTL spec file(s) to Go tests

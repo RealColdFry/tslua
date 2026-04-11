@@ -19,8 +19,9 @@ export { langExtDts };
 
 // Lua target -> bundled lua-types .d.ts content
 const luaTypesCache = new Map<string, string>();
+const loadJit = () => import("../../assets/types/lua-types-jit.d.ts?raw");
 const LUA_TYPES_FILES: Record<string, () => Promise<{ default: string }>> = {
-  JIT: () => import("../../assets/types/lua-types-jit.d.ts?raw"),
+  JIT: loadJit,
   "5.0": () => import("../../assets/types/lua-types-5.0.d.ts?raw"),
   "5.1": () => import("../../assets/types/lua-types-5.1.d.ts?raw"),
   "5.2": () => import("../../assets/types/lua-types-5.2.d.ts?raw"),
@@ -34,7 +35,7 @@ export async function getLuaTypesDts(luaTarget: string): Promise<string> {
   const target = luaTarget || "JIT";
   const cached = luaTypesCache.get(target);
   if (cached) return cached;
-  const loader = LUA_TYPES_FILES[target] ?? LUA_TYPES_FILES["JIT"];
+  const loader = LUA_TYPES_FILES[target] ?? loadJit;
   const mod = await loader();
   luaTypesCache.set(target, mod.default);
   return mod.default;

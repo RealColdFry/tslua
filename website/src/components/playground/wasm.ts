@@ -64,17 +64,13 @@ export function transpile(code: string, options: TsluaOptions): TranspileResult 
   if (!ready) return { lua: "", errors: ["WASM not loaded"], diagnostics: [] };
 
   const result = tslua_transpile(code, JSON.stringify(options));
-  const errors: string[] = [];
-  for (let i = 0; i < result.errors.length; i++) {
-    errors.push(result.errors[i]);
-  }
-  const diagnostics: WasmDiagnostic[] = [];
-  if (result.diagnostics) {
-    for (let i = 0; i < result.diagnostics.length; i++) {
-      diagnostics.push(result.diagnostics[i]);
-    }
-  }
-  return { lua: result.lua || "", errors, diagnostics };
+  return {
+    lua: result.lua || "",
+    errors: Array.from(result.errors as ArrayLike<string>),
+    diagnostics: result.diagnostics
+      ? Array.from(result.diagnostics as ArrayLike<WasmDiagnostic>)
+      : [],
+  };
 }
 
 function loadScript(src: string): Promise<void> {

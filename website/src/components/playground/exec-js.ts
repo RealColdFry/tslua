@@ -21,16 +21,22 @@ function getIframe(): HTMLIFrameElement {
 
 export function execJs(code: string): Promise<ExecResult> {
   return new Promise((resolve) => {
+    let settled = false;
+    const settle = (result: ExecResult) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      window.removeEventListener("message", handler);
+      resolve(result);
+    };
     const timeout = setTimeout(() => {
       cleanup();
-      resolve({ output: [], error: "Execution timed out (3s)" });
+      settle({ output: [], error: "Execution timed out (3s)" });
     }, TIMEOUT_MS);
 
     const handler = (e: MessageEvent) => {
       if (e.source !== getIframe().contentWindow) return;
-      clearTimeout(timeout);
-      window.removeEventListener("message", handler);
-      resolve(e.data as ExecResult);
+      settle(e.data as ExecResult);
     };
     window.addEventListener("message", handler);
 
