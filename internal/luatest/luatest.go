@@ -174,6 +174,7 @@ func FindRepoFile(rel string) string {
 type Opts struct {
 	LuaTarget                 transpiler.LuaTarget
 	EmitMode                  transpiler.EmitMode
+	LuaLibImport              transpiler.LuaLibImportKind // how lualib features are included (default: require)
 	ExportAsGlobal            bool
 	NoImplicitGlobalVariables bool
 	ClassStyle                transpiler.ClassStyle // alternative class emit style
@@ -197,6 +198,7 @@ type TranspileResult struct {
 	Lua        string
 	SourceMap  string // V3 source map JSON (empty if source maps disabled)
 	UsesLualib bool
+	LualibDeps []string // lualib exports referenced (populated for None and RequireMinimal modes)
 }
 
 // TranspileTS compiles TypeScript source to Lua using the full compiler pipeline.
@@ -250,6 +252,7 @@ func TranspileTS(t *testing.T, tsCode string, opts Opts) []TranspileResult {
 
 	rawResults, tsDiags := transpiler.TranspileProgramWithOptions(program, tmpDir, luaTarget, nil, transpiler.TranspileOptions{
 		EmitMode:                  opts.EmitMode,
+		LuaLibImport:              opts.LuaLibImport,
 		ExportAsGlobal:            opts.ExportAsGlobal,
 		NoImplicitGlobalVariables: opts.NoImplicitGlobalVariables,
 		ClassStyle:                opts.ClassStyle,
@@ -268,6 +271,7 @@ func TranspileTS(t *testing.T, tsCode string, opts Opts) []TranspileResult {
 			Lua:        r.Lua,
 			SourceMap:  r.SourceMap,
 			UsesLualib: r.UsesLualib,
+			LualibDeps: r.LualibDeps,
 		})
 	}
 	return results

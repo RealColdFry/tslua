@@ -169,6 +169,10 @@ export function App() {
   const tsEditorRef = useRef<monacoEditor.IStandaloneCodeEditor>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
   const execDebounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+  // Monotonic epoch: bumped on every doTranspile entry. Async continuations
+  // capture the epoch at the start of their path and check it before any
+  // setState so stale results from slower prior runs can't overwrite newer ones.
+  const epochRef = useRef(0);
   const [colPct, setColPct] = useState(50);
   const [rowPct, setRowPct] = useState(60);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -212,25 +216,32 @@ export function App() {
   }, []);
 
   const runExecution = useCallback(
-    async (tsSource: string, lua: string, tgt: string, tsTarget?: string) => {
+    async (epoch: number, tsSource: string, lua: string, tgt: string, tsTarget?: string) => {
+      const isCurrent = () => epoch === epochRef.current;
       try {
         const js = await compileTs(tsSource, tsTarget);
+        if (!isCurrent()) return;
         const t0 = performance.now();
         const result = await execJs(js);
+        if (!isCurrent()) return;
         setJsEvalMs(performance.now() - t0);
         setJsResult(result);
       } catch (e) {
+        if (!isCurrent()) return;
         setJsEvalMs(null);
         setJsResult({ output: [], error: String(e) });
       }
+      if (!isCurrent()) return;
       setStaleJs(false);
       if (lua.trim()) {
         try {
           const t0 = performance.now();
           const result = await execLua(lua, tgt);
+          if (!isCurrent()) return;
           setLuaEvalMs(performance.now() - t0);
           setLuaDualResult(result);
         } catch (e) {
+          if (!isCurrent()) return;
           setLuaEvalMs(null);
           const errResult = { output: [], error: String(e) };
           setLuaDualResult({ raw: errResult, pretty: errResult });
@@ -239,6 +250,7 @@ export function App() {
         setLuaEvalMs(null);
         setLuaDualResult({ raw: EMPTY_EXEC, pretty: EMPTY_EXEC });
       }
+      if (!isCurrent()) return;
       setStaleLuaEval(false);
     },
     [],
@@ -322,6 +334,8 @@ export function App() {
   const doTranspile = useCallback(
     async (code: string, cfg: PlaygroundTsconfig) => {
       if (loading) return;
+      const epoch = ++epochRef.current;
+      const isCurrent = () => epoch === epochRef.current;
       syncMonacoOptions(cfg);
       const tgt = cfg.tstl?.luaTarget || "JIT";
       // Build extra .d.ts files from enabled types
@@ -331,6 +345,7 @@ export function App() {
       if (types.includes("language-extensions"))
         extraFiles["language-extensions.d.ts"] = langExtDts;
       if (types.includes("lua-types")) extraFiles["lua-types.d.ts"] = await getLuaTypesDts(tgt);
+      if (!isCurrent()) return;
       const t0 = performance.now();
       const lib = [(cfg.compilerOptions?.target as string) || "ESNext"];
       const result = transpile(code, {
@@ -338,6 +353,7 @@ export function App() {
         extraFiles,
         tstl: cfg.tstl,
       });
+      if (!isCurrent()) return;
       setTranspileMs(performance.now() - t0);
       setLuaCode(result.lua);
       setErrors(result.errors);
@@ -347,10 +363,10 @@ export function App() {
       setStaleLuaEval(true);
       if (execDebounceRef.current) clearTimeout(execDebounceRef.current);
       const tsTarget = (cfg.compilerOptions?.target as string) || undefined;
-      execDebounceRef.current = setTimeout(
-        () => runExecution(code, result.lua, tgt, tsTarget),
-        500,
-      );
+      execDebounceRef.current = setTimeout(() => {
+        if (!isCurrent()) return;
+        runExecution(epoch, code, result.lua, tgt, tsTarget);
+      }, 500);
     },
     [loading, runExecution, setTsluaMarkers, syncMonacoOptions],
   );

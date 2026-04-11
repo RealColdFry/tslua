@@ -1,5 +1,5 @@
 diff --git a/test/util.ts b/test/util.ts
-index 2871f6e..219208c 100644
+index 3488572..b24965f 100644
 --- a/test/util.ts
 +++ b/test/util.ts
 @@ -13,6 +13,13 @@ import { EmitHost, getEmitOutDir, transpileProject } from "../src";
@@ -16,7 +16,7 @@ index 2871f6e..219208c 100644
  function readLuaLib(target: tstl.LuaTarget) {
      return fs.readFileSync(path.join(resolveLuaLibDir(target), "lualib_bundle.lua"), "utf8");
  }
-@@ -242,6 +249,10 @@ export abstract class TestBuilder {
+@@ -240,6 +247,10 @@ export abstract class TestBuilder {
  
      @memoize
      public getLuaResult(): tstl.TranspileVirtualProjectResult {
@@ -27,7 +27,7 @@ index 2871f6e..219208c 100644
          const program = this.getProgram();
          const preEmitDiagnostics = ts.getPreEmitDiagnostics(program);
          const collector = createEmitOutputCollector(this.options.extension);
-@@ -256,6 +267,236 @@ export abstract class TestBuilder {
+@@ -254,6 +265,252 @@ export abstract class TestBuilder {
          return { diagnostics: [...diagnostics], transpiledFiles: collector.files };
      }
  
@@ -148,6 +148,22 @@ index 2871f6e..219208c 100644
 +            } as any);
 +        }
 +
++        // Pass through raw .lua extras (e.g. addExtraFile("a.lua", "return ...")):
++        // the server writes them to disk but doesn't return them in resp.files, so we
++        // add them here so executeLua() can inject them into package.preload.
++        for (const [fileName, content] of Object.entries(this.extraFiles)) {
++            if (fileName.endsWith(".lua")) {
++                transpiledFiles.push({
++                    outPath: fileName,
++                    lua: content,
++                    luaSourceMap: "",
++                    sourceFiles: [{ fileName } as any],
++                    declaration: undefined,
++                    declarationMap: undefined,
++                } as any);
++            }
++        }
++
 +        // Convert tslua diagnostics to TSTL-compatible format
 +        const diagnostics: ts.Diagnostic[] = (resp.diagnostics ?? []).map((d: { code: number; category?: string; message: string; file?: string; line?: number; character?: number }) => {
 +            let file: ts.SourceFile | undefined;
@@ -264,7 +280,7 @@ index 2871f6e..219208c 100644
      @memoize
      public getMainLuaFileResult(): ExecutableTranspiledFile {
          const { transpiledFiles } = this.getLuaResult();
-@@ -454,16 +688,18 @@ export abstract class TestBuilder {
+@@ -452,16 +709,18 @@ export abstract class TestBuilder {
          // Load modules
          // Json
          this.injectLuaFile(L, lua, lauxlib, "json", jsonLib(luaTarget));

@@ -1,0 +1,155 @@
+package luatest
+
+import (
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+
+	"github.com/realcoldfry/tslua/internal/lualib"
+	"github.com/realcoldfry/tslua/internal/transpiler"
+)
+
+// buildMinimalBundleForTS transpiles tsCode in require-minimal mode, aggregates
+// LualibDeps across results, and returns the slim bundle bytes. Mirrors the
+// aggregation done by cmd/tslua/main.go:aggregateLualibExports.
+func buildMinimalBundleForTS(t *testing.T, tsCode string) (bundle string, exports []string) {
+	t.Helper()
+	results := TranspileTS(t, tsCode, Opts{
+		LuaLibImport: transpiler.LuaLibImportRequireMinimal,
+	})
+	seen := make(map[string]bool)
+	for _, r := range results {
+		for _, exp := range r.LualibDeps {
+			if !seen[exp] {
+				seen[exp] = true
+				exports = append(exports, exp)
+			}
+		}
+	}
+	slices.Sort(exports)
+	b, err := lualib.MinimalBundleForTarget(string(transpiler.LuaTargetLua55), exports)
+	if err != nil {
+		t.Fatalf("MinimalBundleForTarget: %v", err)
+	}
+	return string(b), exports
+}
+
+func TestRequireMinimal_SlimBundleExcludesUnusedFeatures(t *testing.T) {
+	t.Parallel()
+	bundle, exports := buildMinimalBundleForTS(t, `export const r = [0, 1, 2].indexOf(1);`)
+
+	if !slices.Contains(exports, "__TS__ArrayIndexOf") {
+		t.Fatalf("expected __TS__ArrayIndexOf in exports, got %v", exports)
+	}
+	if !strings.Contains(bundle, "local function __TS__ArrayIndexOf") {
+		t.Errorf("bundle missing __TS__ArrayIndexOf definition, got:\n%s", bundle)
+	}
+	// Features we know are NOT used — slim bundle must omit them.
+	for _, excluded := range []string{
+		"__TS__ArrayConcat",
+		"__TS__StringStartsWith",
+		"RangeError",
+	} {
+		if strings.Contains(bundle, excluded) {
+			t.Errorf("slim bundle should not contain %q", excluded)
+		}
+	}
+	// Footer should export only the directly-used feature.
+	footerIdx := strings.LastIndex(bundle, "return {")
+	if footerIdx < 0 {
+		t.Fatalf("bundle has no return footer, got:\n%s", bundle)
+	}
+	footer := bundle[footerIdx:]
+	if !strings.Contains(footer, "__TS__ArrayIndexOf = __TS__ArrayIndexOf") {
+		t.Errorf("footer missing __TS__ArrayIndexOf export, got footer:\n%s", footer)
+	}
+}
+
+// TestRequireMinimal_TransitiveDepsBodyNotFooter verifies that transitive lualib
+// dependencies appear as file-local definitions in the slim bundle body (so
+// directly-used features can reference them at load time) but are NOT listed in
+// the return-table footer (which is the public API surface the bundle exposes).
+//
+// ArrayFlat depends on ArrayIsArray in the current lualib_module_info.json.
+// If that manifest changes, this test needs to be updated.
+func TestRequireMinimal_TransitiveDepsBodyNotFooter(t *testing.T) {
+	t.Parallel()
+	bundle, exports := buildMinimalBundleForTS(t, `export const r = [[1], [2]].flat();`)
+
+	if !slices.Contains(exports, "__TS__ArrayFlat") {
+		t.Fatalf("expected __TS__ArrayFlat in exports, got %v", exports)
+	}
+	// Transitive dep should appear in body as a local function.
+	if !strings.Contains(bundle, "__TS__ArrayIsArray") {
+		t.Errorf("expected transitive dep __TS__ArrayIsArray in bundle body, got:\n%s", bundle)
+	}
+	// But NOT in the return-table footer.
+	footerIdx := strings.LastIndex(bundle, "return {")
+	if footerIdx < 0 {
+		t.Fatalf("bundle has no return footer")
+	}
+	footer := bundle[footerIdx:]
+	if !strings.Contains(footer, "__TS__ArrayFlat") {
+		t.Errorf("footer missing __TS__ArrayFlat, got footer:\n%s", footer)
+	}
+	if strings.Contains(footer, "__TS__ArrayIsArray") {
+		t.Errorf("footer must not re-export transitive dep __TS__ArrayIsArray, got footer:\n%s", footer)
+	}
+}
+
+// TestRequireMinimal_BundleIsExecutable writes the slim bundle to disk and runs
+// the transpiled TS through a real Lua interpreter, verifying the bundle is
+// loadable and that require("lualib_bundle") returns a working table.
+func TestRequireMinimal_BundleIsExecutable(t *testing.T) {
+	t.Parallel()
+	const tsCode = `export const r = [0, 1, 2].indexOf(1);`
+
+	results := TranspileTS(t, tsCode, Opts{
+		LuaLibImport: transpiler.LuaLibImportRequireMinimal,
+	})
+
+	tmpDir := t.TempDir()
+	// Write transpiled main.lua.
+	var mainLua string
+	for _, r := range results {
+		luaName := strings.TrimSuffix(strings.TrimSuffix(r.FileName, ".tsx"), ".ts") + ".lua"
+		outPath := filepath.Join(tmpDir, luaName)
+		if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(outPath, []byte(r.Lua), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if strings.HasSuffix(r.FileName, "main.ts") {
+			mainLua = r.Lua
+		}
+	}
+
+	// Build + write the slim lualib bundle.
+	bundle, exports := buildMinimalBundleForTS(t, tsCode)
+	if len(exports) == 0 {
+		t.Fatal("expected at least one used export; got none")
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "lualib_bundle.lua"), []byte(bundle), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	luaTarget := transpiler.LuaTargetLua55
+	luaRuntime := luaTarget.Runtime()
+	runner := BuildRunner(luaTarget, tmpDir, "main", "mod.r")
+
+	e, ok := Evaluators[luaRuntime]
+	if !ok {
+		t.Skipf("%s not available", luaRuntime)
+	}
+	got, err := e.Eval(runner)
+	if err != nil {
+		t.Fatalf("%s error: %v\nbundle:\n%s\nmain:\n%s", luaRuntime, err, bundle, mainLua)
+	}
+	// [0,1,2].indexOf(1) === 1 in JS. Lua serialization: "1".
+	if got != "1" {
+		t.Errorf("got %q, want %q", got, "1")
+	}
+}

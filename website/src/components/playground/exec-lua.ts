@@ -22,16 +22,30 @@ const pending = new Map<
   { resolve: (r: DualExecResult) => void; timer: ReturnType<typeof setTimeout> }
 >();
 
+function coerceExecResult(data: unknown): ExecResult {
+  if (typeof data !== "object" || data === null) {
+    return { output: [], error: "Invalid worker response" };
+  }
+  const d = data as { output?: unknown; error?: unknown };
+  const output = Array.isArray(d.output) ? d.output.map((v) => String(v)) : [];
+  const error = typeof d.error === "string" ? d.error : d.error == null ? null : String(d.error);
+  return { output, error };
+}
+
 function getWorker(): Worker {
   if (worker) return worker;
   worker = new Worker(new URL("./lua-worker.ts", import.meta.url), { type: "module" });
   worker.addEventListener("message", (e: MessageEvent<LuaWorkerResponse>) => {
-    const { id, raw, pretty } = e.data;
-    const entry = pending.get(id);
+    const data = e.data as { id?: unknown; raw?: unknown; pretty?: unknown } | null | undefined;
+    if (!data || typeof data.id !== "number") return;
+    const entry = pending.get(data.id);
     if (entry) {
       clearTimeout(entry.timer);
-      pending.delete(id);
-      entry.resolve({ raw, pretty });
+      pending.delete(data.id);
+      entry.resolve({
+        raw: coerceExecResult(data.raw),
+        pretty: coerceExecResult(data.pretty),
+      });
     }
   });
   return worker;
