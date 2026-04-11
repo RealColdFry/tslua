@@ -12,12 +12,16 @@ import { serialize } from "./serialize.ts";
 import { fullTsCode } from "./tstl-ref.ts";
 
 export function goString(s: string): string {
-  if (!s.includes("`") && !s.includes("\0") && !s.includes("\uFEFF")) return "`" + s + "`";
+  // Raw backtick strings cannot preserve CR (goimports strips bare \r from
+  // Go source) or other control characters, so fall back to escaped form.
+  if (!s.includes("`") && !s.includes("\0") && !s.includes("\r") && !s.includes("\uFEFF"))
+    return "`" + s + "`";
   return (
     '"' +
     s
       .replace(/\\/g, "\\\\")
       .replace(/"/g, '\\"')
+      .replace(/\r/g, "\\r")
       .replace(/\n/g, "\\n")
       .replace(/\t/g, "\\t")
       // eslint-disable-next-line no-control-regex
@@ -130,11 +134,16 @@ export function generateGoTest(
 
   for (const tc of cases) {
     // Collect codegen assertions separately (emitted as compile-only tests)
-    // Skip codegen assertions for luaLibImport modes tslua doesn't support
-    // (tslua always uses require mode)
+    // Skip codegen assertions for luaLibImport modes whose codegen tslua does
+    // not produce (only require / require-minimal share the same per-file form)
     const specBase = path.basename(specPath, ".spec.ts");
     const skipKey = `${specBase}::${tc.name}`;
-    if (tc.codegen && (!tc.options?.luaLibImport || tc.options.luaLibImport === "require")) {
+    if (
+      tc.codegen &&
+      (!tc.options?.luaLibImport ||
+        tc.options.luaLibImport === "require" ||
+        tc.options.luaLibImport === "require-minimal")
+    ) {
       // Skip codegen assertions for tests with intentional differences
       if (codegenAssertionSkips.has(skipKey)) {
         // still push but with cleared assertions

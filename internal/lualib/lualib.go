@@ -35,6 +35,17 @@ func BundleForTarget(target string) []byte {
 	return Bundle
 }
 
+// MinimalBundleForTarget returns a slim lualib_bundle.lua containing only the
+// features needed by usedExports (plus their transitive deps), matching TSTL's
+// luaLibImport=require-minimal output.
+func MinimalBundleForTarget(target string, usedExports []string) ([]byte, error) {
+	data, err := FeatureDataForTarget(target)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(data.ResolveMinimalBundle(usedExports)), nil
+}
+
 var (
 	featureDataOnce   sync.Once
 	featureData       *FeatureData

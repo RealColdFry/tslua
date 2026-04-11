@@ -537,15 +537,18 @@ return ____exports`, false, false},
             return test("a" ,"b", "c");}`, refLua: `local ____exports = {}
 function ____exports.__main(self)
     local function multi(self, ...)
-        return _____24multi(nil, ...)
+        return ...
     end
     local function test(self, ...)
-        return multi(nil, ...)[1]
+        return select(
+            2,
+            multi(nil, ...)
+        )
     end
     return test(nil, "a", "b", "c")
 end
 return ____exports`},
-	})
+	}, WithLanguageExtensions())
 
 	t.Run("in function call", func(t *testing.T) {
 		t.Parallel()

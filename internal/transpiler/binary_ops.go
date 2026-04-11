@@ -2,7 +2,6 @@ package transpiler
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	dw "github.com/microsoft/typescript-go/shim/diagnosticwriter"
@@ -333,7 +332,7 @@ func (t *Transpiler) compoundRHS(op ast.Kind, left, right lua.Expression, be *as
 		bitwiseOp = ast.KindGreaterThanGreaterThanGreaterThanToken
 	}
 	if bitwiseOp != 0 {
-		return t.transformBitwiseBinaryOp(be.OperatorToken, bitwiseOp, left, right)
+		return t.transformBitwiseBinaryOp(be.AsNode(), bitwiseOp, left, right)
 	}
 	var luaOp lua.Operator
 	switch op {
@@ -362,23 +361,12 @@ func (t *Transpiler) compoundRHS(op ast.Kind, left, right lua.Expression, be *as
 }
 
 // transformElementAccessIndex transforms the index of an element access, adding +1 for array types.
-// Mirrors TSTL's transformElementAccessArgument.
+// Mirrors TSTL's transformElementAccessArgument in access.ts.
 func (t *Transpiler) transformElementAccessIndex(ea *ast.ElementAccessExpression) lua.Expression {
-	// For array access with numeric literal index, add 1
-	if t.isArrayType(ea.Expression) && ea.ArgumentExpression.Kind == ast.KindNumericLiteral {
-		n, err := strconv.Atoi(ea.ArgumentExpression.AsNumericLiteral().Text)
-		if err == nil {
-			return lua.Num(fmt.Sprintf("%d", n+1))
-		}
-	}
-
 	index := t.transformExpression(ea.ArgumentExpression)
-
-	// For array access with non-literal numeric index, add 1
 	if t.isArrayType(ea.Expression) && t.isNumericExpression(ea.ArgumentExpression) {
 		return addToNumericExpression(index, 1)
 	}
-
 	return index
 }
 

@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -196,6 +197,30 @@ func getLualibBundle(target transpiler.LuaTarget) []byte {
 		return tsluaLualibBundle
 	}
 	return lualib.BundleForTarget(string(target))
+}
+
+// bundleForResults returns the lualib bundle bytes appropriate to the test
+// options: a slim bundle when luaLibImport is require-minimal, otherwise the
+// full bundle. usedExports is aggregated across all results' LualibDeps.
+func bundleForResults(o testOpts, target transpiler.LuaTarget, results []transpileResult) []byte {
+	if mode, _ := o.compilerOptions["luaLibImport"].(string); mode == string(transpiler.LuaLibImportRequireMinimal) {
+		seen := make(map[string]bool)
+		var usedExports []string
+		for _, r := range results {
+			for _, exp := range r.lualibDeps {
+				if !seen[exp] {
+					seen[exp] = true
+					usedExports = append(usedExports, exp)
+				}
+			}
+		}
+		sort.Strings(usedExports)
+		content, err := lualib.MinimalBundleForTarget(string(target), usedExports)
+		if err == nil {
+			return content
+		}
+	}
+	return getLualibBundle(target)
 }
 
 // tslua-built lualib bundles when TSLUA_LUALIB=tslua is set.
@@ -444,6 +469,18 @@ func transpileOpts(o testOpts) transpiler.TranspileOptions {
 	if v, ok := o.compilerOptions["noImplicitGlobalVariables"].(bool); ok && v {
 		opts.NoImplicitGlobalVariables = true
 	}
+	if v, ok := o.compilerOptions["luaLibImport"].(string); ok && v != "" {
+		opts.LuaLibImport = transpiler.LuaLibImportKind(v)
+		if opts.LuaLibImport == transpiler.LuaLibImportInline {
+			target := o.luaTarget
+			if target == "" {
+				target = transpiler.LuaTargetLua55
+			}
+			if fd, err := lualib.FeatureDataForTarget(string(target)); err == nil {
+				opts.LualibFeatureData = fd
+			}
+		}
+	}
 	return opts
 }
 
@@ -452,6 +489,7 @@ type transpileResult struct {
 	fileName   string
 	lua        string
 	usesLualib bool
+	lualibDeps []string
 }
 
 // transpileTS compiles TypeScript source to Lua using the full compiler pipeline.
@@ -530,11 +568,23 @@ func transpileTS(t *testing.T, tsCode string, opts ...TestOpt) []transpileResult
 		entryModule := transpiler.ModuleNameFromPath(filepath.Join(tmpDir, entryPath), sourceRoot)
 
 		var lualibContent []byte
+		usesLualib := false
 		for _, r := range rawResults {
 			if r.UsesLualib {
-				lualibContent = getLualibBundle(luaTarget)
+				usesLualib = true
 				break
 			}
+		}
+		if usesLualib {
+			// Build a transpileResult slice so bundleForResults can read LualibDeps.
+			var resultSlice []transpileResult
+			for _, r := range rawResults {
+				resultSlice = append(resultSlice, transpileResult{
+					usesLualib: r.UsesLualib,
+					lualibDeps: r.LualibDeps,
+				})
+			}
+			lualibContent = bundleForResults(o, luaTarget, resultSlice)
 		}
 
 		bundled, err := transpiler.BundleProgram(rawResults, sourceRoot, lualibContent, transpiler.BundleOptions{
@@ -554,6 +604,7 @@ func transpileTS(t *testing.T, tsCode string, opts ...TestOpt) []transpileResult
 			fileName:   rel,
 			lua:        r.Lua,
 			usesLualib: r.UsesLualib,
+			lualibDeps: r.LualibDeps,
 		})
 	}
 	return results
@@ -598,7 +649,7 @@ func runLua(t *testing.T, results []transpileResult, accessor string, opts ...Te
 		luaTarget = transpiler.LuaTargetLua55
 	}
 	if usesLualib {
-		if err := os.WriteFile(filepath.Join(tmpDir, "lualib_bundle.lua"), getLualibBundle(luaTarget), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, "lualib_bundle.lua"), bundleForResults(o, luaTarget, results), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}

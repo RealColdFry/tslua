@@ -142,5 +142,5 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`},
-	})
+	}, WithAllowDiagnostics())
 }

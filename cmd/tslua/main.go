@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/pprof"
+	"sort"
 	"strings"
 	"time"
 
@@ -322,7 +323,7 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 	luaLibImport := transpiler.LuaLibImportKind(luaLibImportStr)
 	if !transpiler.ValidLuaLibImport(luaLibImportStr) {
-		return fmt.Errorf("unsupported luaLibImport: %s (supported: require, inline, none)", luaLibImportStr)
+		return fmt.Errorf("unsupported luaLibImport: %s (supported: require, require-minimal, inline, none)", luaLibImportStr)
 	}
 
 	// Resolve bundle options from CLI or tsconfig.
@@ -495,12 +496,22 @@ func writeBundle(cfg *buildConfig, results []transpiler.TranspileResult) error {
 	entryModule := transpiler.ModuleNameFromPath(string(entryPath), cfg.sourceRoot)
 
 	var lualibContent []byte
-	if cfg.luaLibImport == transpiler.LuaLibImportRequire {
+	switch cfg.luaLibImport {
+	case transpiler.LuaLibImportRequire:
 		for _, r := range results {
 			if r.UsesLualib {
 				lualibContent = lualib.BundleForTarget(string(cfg.luaTarget))
 				break
 			}
+		}
+	case transpiler.LuaLibImportRequireMinimal:
+		usedExports := aggregateLualibExports(results)
+		if len(usedExports) > 0 {
+			content, err := lualib.MinimalBundleForTarget(string(cfg.luaTarget), usedExports)
+			if err != nil {
+				return fmt.Errorf("error building minimal lualib bundle: %w", err)
+			}
+			lualibContent = content
 		}
 	}
 
@@ -563,15 +574,50 @@ func writeResults(cfg *buildConfig, results []transpiler.TranspileResult) {
 			needsLualib = true
 		}
 	}
-	if needsLualib && cfg.luaLibImport == transpiler.LuaLibImportRequire {
-		bundlePath := filepath.Join(cfg.outdir, "lualib_bundle.lua")
-		if err := os.WriteFile(bundlePath, lualib.BundleForTarget(string(cfg.luaTarget)), 0o644); err != nil {
-			fmt.Fprintf(os.Stderr, "error writing %s: %v\n", bundlePath, err)
+	if needsLualib {
+		var bundleContent []byte
+		switch cfg.luaLibImport {
+		case transpiler.LuaLibImportRequire:
+			bundleContent = lualib.BundleForTarget(string(cfg.luaTarget))
+		case transpiler.LuaLibImportRequireMinimal:
+			usedExports := aggregateLualibExports(results)
+			if len(usedExports) > 0 {
+				content, err := lualib.MinimalBundleForTarget(string(cfg.luaTarget), usedExports)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "error building minimal lualib bundle: %v\n", err)
+				} else {
+					bundleContent = content
+				}
+			}
 		}
-		if verboseFlag {
-			fmt.Printf("  %s\n", bundlePath)
+		if bundleContent != nil {
+			bundlePath := filepath.Join(cfg.outdir, "lualib_bundle.lua")
+			if err := os.WriteFile(bundlePath, bundleContent, 0o644); err != nil {
+				fmt.Fprintf(os.Stderr, "error writing %s: %v\n", bundlePath, err)
+			}
+			if verboseFlag {
+				fmt.Printf("  %s\n", bundlePath)
+			}
 		}
 	}
+}
+
+// aggregateLualibExports collects a deduplicated, sorted list of lualib export
+// names used across all transpile results. Requires TranspileResult.LualibDeps
+// to be populated (only for LuaLibImportNone and LuaLibImportRequireMinimal).
+func aggregateLualibExports(results []transpiler.TranspileResult) []string {
+	seen := make(map[string]bool)
+	var out []string
+	for _, r := range results {
+		for _, exp := range r.LualibDeps {
+			if !seen[exp] {
+				seen[exp] = true
+				out = append(out, exp)
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // lualibInlineContent returns the lualib bundle with the trailing return table

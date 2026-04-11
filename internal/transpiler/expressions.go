@@ -2,7 +2,6 @@ package transpiler
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
@@ -540,22 +539,13 @@ func (t *Transpiler) transformElementAccessExpression(node *ast.Node) lua.Expres
 		// foo()[n] → select(n+1, foo()) — only valid for numeric indices
 		index := t.transformExpression(ea.ArgumentExpression)
 		if t.isNumericExpression(ea.ArgumentExpression) {
-			selectArg := lua.Binary(index, lua.OpAdd, lua.Num("1"))
-			return lua.Call(lua.Ident("select"), selectArg, obj)
+			return lua.Call(lua.Ident("select"), addToNumericExpression(index, 1), obj)
 		}
 		// Non-numeric index on multi-return (already diagnosed above): emit select without offset
 		return lua.Call(lua.Ident("select"), index, obj)
 	}
 
 	obj := t.transformExpression(ea.Expression)
-
-	// For array access with numeric literal index, add 1
-	if t.isArrayType(ea.Expression) && ea.ArgumentExpression.Kind == ast.KindNumericLiteral {
-		n, err := strconv.Atoi(ea.ArgumentExpression.AsNumericLiteral().Text)
-		if err == nil {
-			return lua.Index(obj, lua.Num(fmt.Sprintf("%d", n+1)))
-		}
-	}
 
 	index, indexPrec := t.transformExprInScope(ea.ArgumentExpression)
 	// Preserve evaluation order: if index has side effects, cache object first.
@@ -578,28 +568,6 @@ func (t *Transpiler) transformElementAccessExpression(node *ast.Node) lua.Expres
 	}
 
 	return lua.Index(obj, index)
-}
-
-// transformElementIndex computes the Lua index for an element access, handling array +1 offset.
-func (t *Transpiler) transformElementIndex(ea *ast.ElementAccessExpression) lua.Expression {
-	// For array access with numeric literal index, add 1
-	if t.isArrayType(ea.Expression) && ea.ArgumentExpression.Kind == ast.KindNumericLiteral {
-		n, err := strconv.Atoi(ea.ArgumentExpression.AsNumericLiteral().Text)
-		if err == nil {
-			return lua.Num(fmt.Sprintf("%d", n+1))
-		}
-	}
-	index := t.transformExpression(ea.ArgumentExpression)
-	// For array access with non-literal numeric index, add 1
-	if t.isArrayType(ea.Expression) && t.isNumericExpression(ea.ArgumentExpression) {
-		return addToNumericExpression(index, 1)
-	}
-	// String index access
-	if t.isStringExpression(ea.Expression) && t.isNumericExpression(ea.ArgumentExpression) { //nolint:staticcheck // TODO: implement string index access
-		// Note: for optional chaining on strings this would need __TS__StringAccess,
-		// but that's an edge case. Return the raw index for now.
-	}
-	return index
 }
 
 func (t *Transpiler) transformVoidExpression(node *ast.Node) lua.Expression {

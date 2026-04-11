@@ -89,7 +89,7 @@ func runEval(source string) error {
 
 	luaLibImport := transpiler.LuaLibImportKind(luaLibImportFlag)
 	if !transpiler.ValidLuaLibImport(luaLibImportFlag) {
-		return fmt.Errorf("unsupported luaLibImport: %s (supported: require, inline, none)", luaLibImportFlag)
+		return fmt.Errorf("unsupported luaLibImport: %s (supported: require, require-minimal, inline, none)", luaLibImportFlag)
 	}
 	opts := transpiler.TranspileOptions{
 		EmitMode:                  transpiler.EmitMode(emitModeFlag),

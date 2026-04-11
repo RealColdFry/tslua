@@ -93,3 +93,54 @@ func (d *FeatureData) ExportFeatureMap() map[string]string {
 	}
 	return m
 }
+
+// ResolveMinimalBundle returns a slim lualib_bundle.lua body containing only the
+// features whose exports are in usedExports, their transitive dependencies, and
+// a trailing `return { ... }` table listing only the directly-used features'
+// exports (matching TSTL's buildMinimalLualibBundle behavior).
+//
+// Transitive deps live as file-scope locals inside the bundle, so features can
+// still reference each other, but they are not re-exported through the table.
+func (d *FeatureData) ResolveMinimalBundle(usedExports []string) string {
+	body := d.ResolveInlineCode(usedExports)
+
+	exportToFeature := d.ExportFeatureMap()
+	directFeatures := make(map[string]bool)
+	for _, exp := range usedExports {
+		if feature, ok := exportToFeature[exp]; ok {
+			directFeatures[feature] = true
+		}
+	}
+
+	var footerExports []string
+	seen := make(map[string]bool)
+	sortedFeatures := make([]string, 0, len(directFeatures))
+	for feature := range directFeatures {
+		sortedFeatures = append(sortedFeatures, feature)
+	}
+	slices.Sort(sortedFeatures)
+	for _, feature := range sortedFeatures {
+		for _, exp := range d.ModuleInfo[feature].Exports {
+			if !seen[exp] {
+				seen[exp] = true
+				footerExports = append(footerExports, exp)
+			}
+		}
+	}
+
+	var sb strings.Builder
+	sb.WriteString(body)
+	sb.WriteString("\nreturn {\n")
+	for i, exp := range footerExports {
+		sb.WriteString("  ")
+		sb.WriteString(exp)
+		sb.WriteString(" = ")
+		sb.WriteString(exp)
+		if i < len(footerExports)-1 {
+			sb.WriteByte(',')
+		}
+		sb.WriteByte('\n')
+	}
+	sb.WriteString("}\n")
+	return sb.String()
+}

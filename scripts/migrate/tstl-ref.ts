@@ -35,10 +35,26 @@ export function setCacheEntry(key: string, lua: string): void {
   refLuaCacheDirty = true;
 }
 
-export function refLuaCacheKey(fullCode: string, luaTarget: string, lib?: string[]): string {
+export function refLuaCacheKey(
+  fullCode: string,
+  luaTarget: string,
+  lib?: string[],
+  languageExtensions?: boolean,
+): string {
   const libKey = lib ? lib.join(",") : "";
-  return crypto.createHash("sha256").update(`${luaTarget}\0${libKey}\0${fullCode}`).digest("hex");
+  // Append LE marker only when enabled so non-LE keys stay identical to
+  // existing cache entries (backward compatible, no mass re-fetch).
+  const leKey = languageExtensions ? "\0le" : "";
+  return crypto
+    .createHash("sha256")
+    .update(`${luaTarget}\0${libKey}\0${fullCode}${leKey}`)
+    .digest("hex");
 }
+
+// Absolute path to TSTL's language-extensions types directory. Mirrors
+// extern/tstl/test/util.ts:175, which does path.resolve(__dirname, "..",
+// "language-extensions"). The migration script runs from repo root.
+const langExtTypesPath = path.resolve("extern/tstl/language-extensions");
 
 // Transpile a test case's TS code with TSTL and return the reference Lua output.
 export function getTstlRefLua(tc: TestCase): string {
@@ -60,11 +76,17 @@ export function getTstlRefLua(tc: TestCase): string {
   // Per-test lib override (e.g., console tests need lib.dom.d.ts).
   // Default matches TSTL test helper (test/util.ts:172).
   const lib = (tc.options?.lib as string[]) ?? ["lib.esnext.d.ts"];
-  const key = refLuaCacheKey(fullCode, luaTarget, lib);
+  const languageExtensions = tc.languageExtensions === true;
+  const key = refLuaCacheKey(fullCode, luaTarget, lib, languageExtensions);
 
   if (key in refLuaCache) {
     return refLuaCache[key];
   }
+
+  // When LE is enabled, mirror TSTL's test util by appending the
+  // language-extensions types path to compiler options.
+  const existingTypes = (tc.options?.types as string[] | undefined) ?? [];
+  const types = languageExtensions ? [...existingTypes, langExtTypesPath] : existingTypes;
 
   try {
     const result = transpileVirtualProject(
@@ -75,6 +97,7 @@ export function getTstlRefLua(tc: TestCase): string {
         noHeader: true,
         target: ts.ScriptTarget.ES2017, // Match TSTL test helper default
         lib,
+        ...(types.length > 0 ? { types } : {}),
       },
     );
     const mainFile = result.transpiledFiles.find((f) => f.outPath === "main.lua");

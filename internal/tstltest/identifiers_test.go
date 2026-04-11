@@ -3461,7 +3461,7 @@ export function __main() {const print = "foobar";
             result = ""
             print = function(s)
                 result = result .. s
-            end`), WithOptions(map[string]any{"lib": nil}))
+            end`), WithOptions(map[string]any{"lib": []any{"es2015", "dom"}}))
 	})
 
 	t.Run("lua keyword as identifier doesn't interfere with lua's value variable (bit32)", func(t *testing.T) {

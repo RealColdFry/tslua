@@ -43,6 +43,6 @@ return ____exports`}},
 
 	t.Run("luaLibImport require-minimal", func(t *testing.T) {
 		t.Parallel()
-		expectExpression(t, `[0].indexOf(1)`, `-1`, WithOptions(map[string]any{"luaLibImport": nil}))
+		expectExpression(t, `[0].indexOf(1)`, `-1`, WithOptions(map[string]any{"luaLibImport": "require-minimal"}))
 	})
 }

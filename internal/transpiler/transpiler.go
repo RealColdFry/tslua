@@ -502,7 +502,8 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 			slices.Sort(exportNames)
 		}
 		var lualibDeps []string
-		if opts.LuaLibImport == LuaLibImportNone && len(t.lualibs) > 0 {
+		if len(t.lualibs) > 0 &&
+			(opts.LuaLibImport == LuaLibImportNone || opts.LuaLibImport == LuaLibImportRequireMinimal) {
 			lualibDeps = append([]string{}, t.lualibs...)
 		}
 		results = append(results, TranspileResult{
@@ -844,7 +845,7 @@ func (t *Transpiler) transformSourceFileAST(sf *ast.SourceFile) []lua.Statement 
 			header = append(header,
 				lua.RawStmt("-- Lua Library inline imports\n"+inlineCode+"\n-- End of Lua Library inline imports"),
 			)
-		default: // LuaLibImportRequire (and default)
+		default: // LuaLibImportRequire, LuaLibImportRequireMinimal (and default)
 			header = append(header, lua.LocalDecl(
 				[]*lua.Identifier{lua.Ident("____lualib")},
 				[]lua.Expression{lua.Call(lua.Ident("require"), lua.Str("lualib_bundle"))},
