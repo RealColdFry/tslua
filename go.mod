@@ -42,10 +42,9 @@ require (
 )
 
 require (
-	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
-	github.com/microsoft/typescript-go v0.0.0-20260309214900-4a59cd78390d // indirect
+	github.com/microsoft/typescript-go v0.0.0-20260407210245-9c19dee6ab88 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/zeebo/xxh3 v1.1.0 // indirect
 	golang.org/x/mod v0.34.0 // indirect
