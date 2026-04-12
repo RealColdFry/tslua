@@ -505,7 +505,7 @@ func writeBundle(cfg *buildConfig, results []transpiler.TranspileResult) error {
 			}
 		}
 	case transpiler.LuaLibImportRequireMinimal:
-		usedExports := aggregateLualibExports(results)
+		usedExports := aggregateLualibExportsWithLuaFiles(results, cfg.sourceRoot)
 		if len(usedExports) > 0 {
 			content, err := lualib.MinimalBundleForTarget(string(cfg.luaTarget), usedExports)
 			if err != nil {
@@ -580,7 +580,7 @@ func writeResults(cfg *buildConfig, results []transpiler.TranspileResult) {
 		case transpiler.LuaLibImportRequire:
 			bundleContent = lualib.BundleForTarget(string(cfg.luaTarget))
 		case transpiler.LuaLibImportRequireMinimal:
-			usedExports := aggregateLualibExports(results)
+			usedExports := aggregateLualibExportsWithLuaFiles(results, cfg.sourceRoot)
 			if len(usedExports) > 0 {
 				content, err := lualib.MinimalBundleForTarget(string(cfg.luaTarget), usedExports)
 				if err != nil {
@@ -616,6 +616,44 @@ func aggregateLualibExports(results []transpiler.TranspileResult) []string {
 			}
 		}
 	}
+	sort.Strings(out)
+	return out
+}
+
+// aggregateLualibExportsWithLuaFiles extends aggregateLualibExports by also
+// scanning .lua source files in sourceRoot for ____lualib references.
+func aggregateLualibExportsWithLuaFiles(results []transpiler.TranspileResult, sourceRoot string) []string {
+	seen := make(map[string]bool)
+	var out []string
+	for _, r := range results {
+		for _, exp := range r.LualibDeps {
+			if !seen[exp] {
+				seen[exp] = true
+				out = append(out, exp)
+			}
+		}
+	}
+
+	// Walk sourceRoot for .lua files and scan for lualib deps
+	if sourceRoot != "" {
+		_ = filepath.Walk(sourceRoot, func(path string, info os.FileInfo, err error) error {
+			if err != nil || info.IsDir() || !strings.HasSuffix(path, ".lua") {
+				return nil
+			}
+			data, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return nil
+			}
+			for _, dep := range transpiler.ScanLuaForLualibDeps(string(data)) {
+				if !seen[dep] {
+					seen[dep] = true
+					out = append(out, dep)
+				}
+			}
+			return nil
+		})
+	}
+
 	sort.Strings(out)
 	return out
 }

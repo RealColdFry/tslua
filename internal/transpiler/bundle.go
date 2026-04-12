@@ -68,6 +68,7 @@ func ModuleNameFromPath(filePath, sourceRoot string) string {
 	if err != nil {
 		rel = filepath.Base(filePath)
 	}
+	rel = strings.TrimSuffix(rel, ".d.ts")
 	rel = strings.TrimSuffix(rel, ".ts")
 	rel = strings.TrimSuffix(rel, ".tsx")
 	rel = strings.TrimSuffix(rel, ".json")

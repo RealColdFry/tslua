@@ -250,7 +250,7 @@ func TranspileTS(t *testing.T, tsCode string, opts Opts) []TranspileResult {
 		luaTarget = transpiler.LuaTargetLua55
 	}
 
-	rawResults, tsDiags := transpiler.TranspileProgramWithOptions(program, tmpDir, luaTarget, nil, transpiler.TranspileOptions{
+	transpileOpts := transpiler.TranspileOptions{
 		EmitMode:                  opts.EmitMode,
 		LuaLibImport:              opts.LuaLibImport,
 		ExportAsGlobal:            opts.ExportAsGlobal,
@@ -260,7 +260,13 @@ func TranspileTS(t *testing.T, tsCode string, opts Opts) []TranspileResult {
 		SourceMapTraceback:        opts.SourceMapTraceback,
 		InlineSourceMap:           opts.InlineSourceMap,
 		NoResolvePaths:            opts.NoResolvePaths,
-	})
+	}
+	if transpileOpts.LuaLibImport == transpiler.LuaLibImportInline {
+		if fd, err := lualib.FeatureDataForTarget(string(luaTarget)); err == nil {
+			transpileOpts.LualibFeatureData = fd
+		}
+	}
+	rawResults, tsDiags := transpiler.TranspileProgramWithOptions(program, tmpDir, luaTarget, nil, transpileOpts)
 	_ = tsDiags
 
 	var results []TranspileResult

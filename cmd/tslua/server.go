@@ -275,8 +275,19 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 		return serverResponse{Error: fmt.Sprintf("write source: %v", err)}
 	}
 
+	mainDir := filepath.Dir(mainPath)
 	for name, content := range req.ExtraFiles {
-		fpath := filepath.Join(projectDir, name)
+		// Extra-file paths are interpreted relative to the main file's directory,
+		// not the project root, so tests can use "../Module.ts" to mean a sibling
+		// of the main file's parent (matching TSTL's virtual project semantics).
+		// Absolute paths are mapped into the project directory by stripping
+		// the leading slash (same as mainFileName handling).
+		var fpath string
+		if filepath.IsAbs(name) {
+			fpath = filepath.Join(projectDir, strings.TrimPrefix(filepath.Clean(name), string(filepath.Separator)))
+		} else {
+			fpath = filepath.Clean(filepath.Join(mainDir, name))
+		}
 		if !isInsideDir(fpath, projectDir) {
 			return serverResponse{Error: fmt.Sprintf("extraFiles path escapes project directory: %s", name)}
 		}
@@ -336,18 +347,53 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 		if len(req.Types) > 0 {
 			compilerOpts["types"] = req.Types
 		}
+		// When configFilePath is provided (e.g. "/virtual/tsconfig.json"),
+		// place the tsconfig at the equivalent mapped location so that
+		// relative paths in "paths" resolve correctly.
+		tsconfigDir := projectDir
+		if cfp, ok := compilerOpts["configFilePath"].(string); ok && cfp != "" {
+			delete(compilerOpts, "configFilePath")
+			if filepath.IsAbs(cfp) {
+				cfp = strings.TrimPrefix(filepath.Clean(cfp), string(filepath.Separator))
+			}
+			tsconfigDir = filepath.Dir(filepath.Join(projectDir, cfp))
+		}
+		// Make file paths relative to tsconfig directory
+		relFiles := make([]string, len(files))
+		for i, f := range files {
+			abs := filepath.Join(projectDir, f)
+			rel, err := filepath.Rel(tsconfigDir, abs)
+			if err != nil {
+				rel = f
+			}
+			relFiles[i] = filepath.ToSlash(rel)
+		}
+		// Also make rootDir/outDir relative to tsconfig directory
+		for _, key := range []string{"outDir", "rootDir"} {
+			if s, ok := compilerOpts[key].(string); ok && s != "" {
+				abs := filepath.Join(projectDir, s)
+				rel, err := filepath.Rel(tsconfigDir, abs)
+				if err == nil {
+					compilerOpts[key] = filepath.ToSlash(rel)
+				}
+			}
+		}
 		tsconfigObj := map[string]any{
 			"compilerOptions": compilerOpts,
-			"files":           files,
+			"files":           relFiles,
 		}
 		tsconfigBytes, _ := json.Marshal(tsconfigObj)
 		tsconfig := string(tsconfigBytes)
-		if err := os.WriteFile(filepath.Join(projectDir, "tsconfig.json"), []byte(tsconfig), 0o644); err != nil {
+		tsconfigPath := filepath.Join(tsconfigDir, "tsconfig.json")
+		if err := os.MkdirAll(tsconfigDir, 0o755); err != nil {
+			return serverResponse{Error: fmt.Sprintf("mkdir tsconfig: %v", err)}
+		}
+		if err := os.WriteFile(tsconfigPath, []byte(tsconfig), 0o644); err != nil {
 			return serverResponse{Error: fmt.Sprintf("write tsconfig: %v", err)}
 		}
 
 		coldTranspileOpts := transpileOptsFromRequest(req)
-		coldProgram, results, coldDiags, err := transpileProjectReturnProgram(filepath.Join(projectDir, "tsconfig.json"), luaTarget, coldTranspileOpts)
+		coldProgram, results, coldDiags, err := transpileProjectReturnProgram(tsconfigPath, luaTarget, coldTranspileOpts)
 		if err != nil {
 			return serverResponse{Error: err.Error()}
 		}
@@ -371,6 +417,7 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 				sourceMaps[key] = r.SourceMap
 			}
 		}
+		addMinimalLualib(luaFiles, results, coldTranspileOpts, luaTarget)
 		return serverResponse{OK: true, Files: luaFiles, SourceMaps: sourceMaps, Diagnostics: convertDiagnostics(coldDiags, projectDir)}
 	}
 
@@ -397,6 +444,7 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 			sourceMaps[key] = r.SourceMap
 		}
 	}
+	addMinimalLualib(luaFiles, results, transpileOpts, luaTarget)
 	return serverResponse{OK: true, Files: luaFiles, SourceMaps: sourceMaps, Diagnostics: convertDiagnostics(allDiags, projectDir)}
 }
 
@@ -553,11 +601,35 @@ func transpileOptsFromRequest(req serverRequest) transpiler.TranspileOptions {
 	}
 	if v, ok := req.CompilerOptions["luaLibImport"].(string); ok && v != "" {
 		opts.LuaLibImport = transpiler.LuaLibImportKind(v)
+		if opts.LuaLibImport == transpiler.LuaLibImportInline {
+			if fd, err := lualib.FeatureDataForTarget(req.LuaTarget); err == nil {
+				opts.LualibFeatureData = fd
+			} else {
+				opts.LualibInlineContent = lualibInlineContent(transpiler.LuaTarget(req.LuaTarget))
+			}
+		}
 	}
 	if v, ok := req.CompilerOptions["exportAsGlobal"].(bool); ok && v {
 		opts.ExportAsGlobal = true
 	}
 	return opts
+}
+
+// addMinimalLualib adds a tree-shaken lualib_bundle.lua to the file map when
+// LuaLibImport is RequireMinimal. Mirrors the logic in main.go's emit step.
+func addMinimalLualib(luaFiles map[string]string, results []transpiler.TranspileResult, opts transpiler.TranspileOptions, luaTarget transpiler.LuaTarget) {
+	if opts.LuaLibImport != transpiler.LuaLibImportRequireMinimal {
+		return
+	}
+	usedExports := aggregateLualibExports(results)
+	if len(usedExports) == 0 {
+		return
+	}
+	content, err := lualib.MinimalBundleForTarget(string(luaTarget), usedExports)
+	if err != nil {
+		return
+	}
+	luaFiles["lualib_bundle.lua"] = string(content)
 }
 
 func ms(d time.Duration) float64 {

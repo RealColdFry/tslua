@@ -3,10 +3,12 @@ package transpiler
 import (
 	"fmt"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
+	dw "github.com/microsoft/typescript-go/shim/diagnosticwriter"
 	"github.com/realcoldfry/tslua/internal/lua"
 )
 
@@ -426,8 +428,17 @@ func (t *Transpiler) resolveModulePath(moduleSpecifier *ast.Node) string {
 
 	resolved := t.program.GetResolvedModuleFromModuleSpecifier(t.sourceFile, moduleSpecifier)
 	if resolved != nil && resolved.ResolvedFileName != "" {
-		// Use the shared path-to-module-name logic (also used by BundleProgram).
-		return ModuleNameFromPath(resolved.ResolvedFileName, t.sourceRoot)
+		moduleName := ModuleNameFromPath(resolved.ResolvedFileName, t.sourceRoot)
+
+		// Validate that the resolved path stays within sourceRoot (rootDir).
+		// A relative path with ".." segments means it escaped.
+		rel, err := filepath.Rel(t.sourceRoot, resolved.ResolvedFileName)
+		if err != nil || strings.HasPrefix(rel, "..") {
+			t.addError(moduleSpecifier, dw.CouldNotResolveRequire,
+				fmt.Sprintf("Could not resolve lua source files for require path '%s'.", specText))
+		}
+
+		return moduleName
 	}
 
 	p := specText
