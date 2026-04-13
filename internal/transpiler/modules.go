@@ -401,8 +401,10 @@ func (t *Transpiler) transformExportAssignment(node *ast.Node) []lua.Statement {
 	result := make([]lua.Statement, 0, len(prec)+1)
 	result = append(result, prec...)
 	if ea.IsExportEquals {
-		result = append(result, lua.Assign(
-			[]lua.Expression{lua.Ident("____exports")},
+		// Emit `local ____exports = expr` (the module init skips the empty
+		// table when hasExportEquals is true).
+		result = append(result, lua.LocalDecl(
+			[]*lua.Identifier{lua.Ident("____exports")},
 			[]lua.Expression{expr},
 		))
 	} else {
@@ -499,13 +501,6 @@ func (t *Transpiler) transformImportExpression(ce *ast.CallExpression) lua.Expre
 	return lua.Call(lua.Index(lua.Ident(promiseName), lua.Str("resolve")), moduleRequire)
 }
 
-func normalizeModulePath(p string) string {
-	if strings.HasPrefix(p, "./") {
-		return p[2:]
-	}
-	return p
-}
-
 func safeModuleVarName(modulePath string) string {
 	base := path.Base(modulePath)
 	base = strings.Trim(base, `"'`)
@@ -565,6 +560,27 @@ func (t *Transpiler) createModuleLocalName(module *ast.Node) lua.Expression {
 		return lua.Index(parentExpr, lua.Str(name))
 	}
 	return lua.Ident(t.createModuleLocalNameIdentifier(module))
+}
+
+// moduleHasEmittedBody returns true if the module body has statements that
+// produce Lua output (excluding type-only declarations like interfaces and type aliases).
+// Ported from: src/transformation/visitors/namespace.ts (moduleHasEmittedBody)
+func moduleHasEmittedBody(md *ast.ModuleDeclaration) bool {
+	if md.Body == nil {
+		return false
+	}
+	if md.Body.Kind == ast.KindModuleBlock {
+		for _, s := range md.Body.AsModuleBlock().Statements.Nodes {
+			if s.Kind != ast.KindInterfaceDeclaration && s.Kind != ast.KindTypeAliasDeclaration {
+				return true
+			}
+		}
+		return false
+	}
+	if md.Body.Kind == ast.KindModuleDeclaration {
+		return true
+	}
+	return false
 }
 
 func (t *Transpiler) transformModuleDeclaration(node *ast.Node) []lua.Statement {
@@ -652,18 +668,24 @@ func (t *Transpiler) transformModuleDeclaration(node *ast.Node) []lua.Statement 
 				[]lua.Expression{lua.Index(exportTarget, lua.Str(origNameStr))},
 				[]lua.Expression{lua.Table()},
 			))
-			// Local alias — register for hoisting
-			decl := lua.LocalDecl(
-				[]*lua.Identifier{nsIdent()},
-				[]lua.Expression{lua.Index(exportTarget, lua.Str(origNameStr))},
-			)
-			if t.inScope() {
-				if sym := t.checker.GetSymbolAtLocation(md.Name()); sym != nil {
-					symID := t.getOrCreateSymbolID(sym)
-					t.addScopeVariableDeclaration(decl, symID)
+			// Local alias only when the namespace has exported members and
+			// body has emittable statements. Matches TSTL's gating.
+			// Ported from: src/transformation/visitors/namespace.ts (line 103)
+			sym := t.checker.GetSymbolAtLocation(md.Name())
+			hasExports := sym != nil && len(t.checker.GetExportsOfModule(sym)) > 0
+			if hasExports && moduleHasEmittedBody(md) {
+				decl := lua.LocalDecl(
+					[]*lua.Identifier{nsIdent()},
+					[]lua.Expression{lua.Index(exportTarget, lua.Str(origNameStr))},
+				)
+				if t.inScope() {
+					if sym := t.checker.GetSymbolAtLocation(md.Name()); sym != nil {
+						symID := t.getOrCreateSymbolID(sym)
+						t.addScopeVariableDeclaration(decl, symID)
+					}
 				}
+				result = append(result, decl)
 			}
-			result = append(result, decl)
 		} else {
 			decl := lua.LocalDecl(
 				[]*lua.Identifier{nsIdent()},

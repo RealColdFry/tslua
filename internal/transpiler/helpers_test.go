@@ -80,27 +80,6 @@ func TestSafeModuleVarName(t *testing.T) {
 	}
 }
 
-func TestNormalizeModulePath(t *testing.T) {
-	tests := []struct {
-		input string
-		want  string
-	}{
-		{"./foo", "foo"},
-		{"./a/b/c", "a/b/c"},
-		{"foo", "foo"},
-		{"../bar", "../bar"},
-		{"./", ""},
-	}
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got := normalizeModulePath(tt.input)
-			if got != tt.want {
-				t.Errorf("normalizeModulePath(%q) = %q, want %q", tt.input, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestFormatConstantValue(t *testing.T) {
 	tests := []struct {
 		name   string

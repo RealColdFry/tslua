@@ -43,9 +43,7 @@ const (
 	KindParenthesizedExpression
 	// Comments as AST nodes
 	KindCommentExpression
-	KindCommentStatement
-	// Escape hatch for incremental migration (deprecated — use Comment nodes)
-	KindRawExpression
+	// Escape hatch for incremental migration (deprecated)
 	KindRawStatement
 )
 
@@ -297,14 +295,6 @@ type CommentExpression struct {
 
 func (n *CommentExpression) Kind() SyntaxKind { return KindCommentExpression }
 
-// RawExpression holds pre-formatted Lua code during incremental migration.
-type RawExpression struct {
-	baseExpr
-	Code string
-}
-
-func (n *RawExpression) Kind() SyntaxKind { return KindRawExpression }
-
 // IsAssignmentTarget reports whether expr is a valid Lua assignment target
 // (identifier or table index expression).
 func IsAssignmentTarget(expr Expression) bool {
@@ -451,14 +441,6 @@ type ExpressionStatement struct {
 func (n *ExpressionStatement) Kind() SyntaxKind { return KindExpressionStatement }
 
 // RawStatement holds pre-formatted Lua code during incremental migration.
-// CommentStatement emits `-- text` as a standalone comment line.
-type CommentStatement struct {
-	baseStmt
-	Comments
-	Text string
-}
-
-func (n *CommentStatement) Kind() SyntaxKind { return KindCommentStatement }
 
 type RawStatement struct {
 	baseStmt
@@ -479,8 +461,6 @@ func Bool(value bool) *BooleanLiteral                        { return &BooleanLi
 func Nil() *NilLiteral                                       { return &NilLiteral{} }
 func Dots() *DotsLiteral                                     { return &DotsLiteral{} }
 func Comment(text string) *CommentExpression                 { return &CommentExpression{Text: text} }
-func CommentStmt(text string) *CommentStatement              { return &CommentStatement{Text: text} }
-func Raw(code string) *RawExpression                         { return &RawExpression{Code: code} }
 func RawStmt(code string) *RawStatement                      { return &RawStatement{Code: code} }
 func Table(fields ...*TableFieldExpression) *TableExpression { return &TableExpression{Fields: fields} }
 

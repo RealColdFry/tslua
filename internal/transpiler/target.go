@@ -220,21 +220,6 @@ func (t LuaTarget) Runtime() string {
 	}
 }
 
-// AllTargets returns all supported LuaTarget values.
-func AllTargets() []LuaTarget {
-	return []LuaTarget{
-		LuaTargetUniversal,
-		LuaTargetLua50,
-		LuaTargetLua51,
-		LuaTargetLua52,
-		LuaTargetLua53,
-		LuaTargetLua54,
-		LuaTargetLua55,
-		LuaTargetLuaJIT,
-		LuaTargetLuau,
-	}
-}
-
 // ValidTarget returns whether the given string is a valid LuaTarget.
 func ValidTarget(s string) bool {
 	switch LuaTarget(s) {

@@ -105,12 +105,6 @@ func WithLuaTarget(target transpiler.LuaTarget) TestOpt {
 	}
 }
 
-func WithEmitMode(mode transpiler.EmitMode) TestOpt {
-	return func(o *testOpts) {
-		o.emitMode = mode
-	}
-}
-
 func WithLuaHeader(header string) TestOpt {
 	return func(o *testOpts) {
 		o.luaHeader = header
