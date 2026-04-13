@@ -203,6 +203,7 @@ type buildConfig struct {
 	inlineSourceMap           bool
 	classStyle                transpiler.ClassStyle
 	buildMode                 string
+	trace                     bool
 	noResolvePaths            []string
 	stderrIsTerminal          bool
 }
@@ -222,6 +223,7 @@ func (cfg *buildConfig) transpileOpts() transpiler.TranspileOptions {
 		SourceMapTraceback:        cfg.sourceMapTraceback,
 		InlineSourceMap:           cfg.inlineSourceMap,
 		ClassStyle:                cfg.classStyle,
+		Trace:                     cfg.trace,
 		NoResolvePaths:            cfg.noResolvePaths,
 	}
 	if cfg.luaLibImport == transpiler.LuaLibImportInline {
@@ -232,6 +234,18 @@ func (cfg *buildConfig) transpileOpts() transpiler.TranspileOptions {
 		}
 	}
 	return opts
+}
+
+// transpile is the single transpilation chokepoint. Every entry point that
+// produces Lua output calls this method. It wraps TranspileProgramWithOptions
+// and centralizes validation (e.g. bundle+library mode conflict).
+func (cfg *buildConfig) transpile(program *compiler.Program, onlyFiles map[string]bool) ([]transpiler.TranspileResult, []*ast.Diagnostic) {
+	results, diags := transpiler.TranspileProgramWithOptions(program, cfg.sourceRoot, cfg.luaTarget, onlyFiles, cfg.transpileOpts())
+	if cfg.luaBundle != "" && cfg.buildMode == "library" {
+		diags = append(diags, dw.NewConfigError(dw.CannotBundleLibrary,
+			`Cannot bundle projects with "buildMode": "library". Projects including the library can still bundle (which will include external library files).`))
+	}
+	return results, diags
 }
 
 func run(cmd *cobra.Command, args []string) error {
@@ -272,19 +286,34 @@ func run(cmd *cobra.Command, args []string) error {
 		os.Exit(1)
 	}
 
-	// Parse tslua-specific config from tsconfig.json.
-	tsluaCfg, err := parseTsluaConfig(string(resolvedConfigPath))
+	cfg, err := buildConfigFromCLI(cmd, configParseResult, string(resolvedConfigPath), string(configDir), cwd, stderrIsTerminal)
 	if err != nil {
 		return err
 	}
-	sourceRoot := string(configDir)
+
+	if watchFlag {
+		return runWatch(cfg, host)
+	}
+
+	return runOnce(cfg, host)
+}
+
+// buildConfigFromCLI constructs a buildConfig by merging CLI flags with
+// tsconfig values. CLI flags take priority when explicitly set.
+func buildConfigFromCLI(cmd *cobra.Command, configParseResult *tsoptions.ParsedCommandLine, configPath, configDir, cwd string, stderrIsTerminal bool) (*buildConfig, error) {
+	tsluaCfg, err := parseTsluaConfig(configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	sourceRoot := configDir
 	if configParseResult.CompilerOptions().RootDir != "" {
-		sourceRoot = tspath.ResolvePath(string(configDir), string(configParseResult.CompilerOptions().RootDir))
+		sourceRoot = tspath.ResolvePath(configDir, string(configParseResult.CompilerOptions().RootDir))
 	}
 
 	outdir := outdirFlag
 	if outdir == "" && configParseResult.CompilerOptions().OutDir != "" {
-		outdir = tspath.ResolvePath(string(configDir), configParseResult.CompilerOptions().OutDir)
+		outdir = tspath.ResolvePath(configDir, configParseResult.CompilerOptions().OutDir)
 	}
 	// Default to writing .lua files next to sources (matches TSTL behavior).
 	if outdir == "" {
@@ -298,7 +327,7 @@ func run(cmd *cobra.Command, args []string) error {
 	case "native":
 		diagFormat = dw.DiagFormatNative
 	default:
-		return fmt.Errorf("unsupported diagnosticFormat: %s (supported: tstl, native)", diagFormatFlag)
+		return nil, fmt.Errorf("unsupported diagnosticFormat: %s (supported: tstl, native)", diagFormatFlag)
 	}
 
 	// Resolve options: CLI flag wins when explicitly set, otherwise fall back to tsconfig.
@@ -309,10 +338,8 @@ func run(cmd *cobra.Command, args []string) error {
 	luaTarget := transpiler.LuaTarget(luaTargetStr)
 	if !transpiler.ValidTarget(luaTargetStr) {
 		if cmd.Flags().Changed("luaTarget") {
-			// Explicit CLI flag: hard error.
-			return fmt.Errorf("unsupported luaTarget: %s (supported: JIT, 5.0, 5.1, 5.2, 5.3, 5.4, 5.5, Luau, universal)", luaTarget)
+			return nil, fmt.Errorf("unsupported luaTarget: %s (supported: JIT, 5.0, 5.1, 5.2, 5.3, 5.4, 5.5, Luau, universal)", luaTarget)
 		}
-		// From tsconfig: warn and fall back to universal.
 		fmt.Fprintf(os.Stderr, "warning: unknown luaTarget %q from tsconfig, falling back to universal\n", luaTargetStr)
 		luaTarget = transpiler.LuaTargetUniversal
 	}
@@ -323,7 +350,7 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 	emitMode := transpiler.EmitMode(emitModeStr)
 	if emitMode != transpiler.EmitModeTSTL && emitMode != transpiler.EmitModeOptimized {
-		return fmt.Errorf("unsupported emitMode: %s (supported: tstl, optimized)", emitMode)
+		return nil, fmt.Errorf("unsupported emitMode: %s (supported: tstl, optimized)", emitMode)
 	}
 
 	luaLibImportStr := luaLibImportFlag
@@ -332,7 +359,7 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 	luaLibImport := transpiler.LuaLibImportKind(luaLibImportStr)
 	if !transpiler.ValidLuaLibImport(luaLibImportStr) {
-		return fmt.Errorf("unsupported luaLibImport: %s (supported: require, require-minimal, inline, none)", luaLibImportStr)
+		return nil, fmt.Errorf("unsupported luaLibImport: %s (supported: require, require-minimal, inline, none)", luaLibImportStr)
 	}
 
 	// Resolve bundle options from CLI or tsconfig.
@@ -345,7 +372,7 @@ func run(cmd *cobra.Command, args []string) error {
 		luaBundleEntry = tsluaCfg.LuaBundleEntry
 	}
 	if (luaBundle != "") != (luaBundleEntry != "") {
-		return fmt.Errorf("luaBundle and luaBundleEntry must both be specified")
+		return nil, fmt.Errorf("luaBundle and luaBundleEntry must both be specified")
 	}
 
 	// Merge tslua tsconfig options with CLI flags (CLI wins).
@@ -386,7 +413,7 @@ func run(cmd *cobra.Command, args []string) error {
 		buildMode = "default"
 	}
 	if buildMode != "default" && buildMode != "library" {
-		return fmt.Errorf("unsupported buildMode: %s (supported: default, library)", buildMode)
+		return nil, fmt.Errorf("unsupported buildMode: %s (supported: default, library)", buildMode)
 	}
 
 	// sourceMap controls internal source map generation (needed by traceback too).
@@ -394,9 +421,9 @@ func run(cmd *cobra.Command, args []string) error {
 	sourceMap := sourceMapFlag || sourceMapTracebackFlag || inlineSourceMapFlag || configParseResult.CompilerOptions().SourceMap.IsTrue()
 	emitSourceMapFiles := sourceMapFlag || configParseResult.CompilerOptions().SourceMap.IsTrue()
 
-	cfg := &buildConfig{
+	return &buildConfig{
 		cwd:                       cwd,
-		configDir:                 string(configDir),
+		configDir:                 configDir,
 		configParseResult:         configParseResult,
 		sourceRoot:                sourceRoot,
 		outdir:                    outdir,
@@ -418,13 +445,7 @@ func run(cmd *cobra.Command, args []string) error {
 		buildMode:                 buildMode,
 		noResolvePaths:            noResolvePaths,
 		stderrIsTerminal:          stderrIsTerminal,
-	}
-
-	if watchFlag {
-		return runWatch(cfg, host)
-	}
-
-	return runOnce(cfg, host)
+	}, nil
 }
 
 func runOnce(cfg *buildConfig, host compiler.CompilerHost) error {
@@ -445,13 +466,7 @@ func runOnce(cfg *buildConfig, host compiler.CompilerHost) error {
 
 	tCheck := time.Now()
 
-	results, transpileDiags := transpiler.TranspileProgramWithOptions(program, cfg.sourceRoot, cfg.luaTarget, nil, cfg.transpileOpts())
-
-	// Validate: cannot bundle in library mode.
-	if cfg.luaBundle != "" && cfg.buildMode == "library" {
-		transpileDiags = append(transpileDiags, dw.NewConfigError(dw.CannotBundleLibrary,
-			`Cannot bundle projects with "buildMode": "library". Projects including the library can still bundle (which will include external library files).`))
-	}
+	results, transpileDiags := cfg.transpile(program, nil)
 
 	hasErrors := reportDiagnostics(cfg, semanticDiags, transpileDiags)
 

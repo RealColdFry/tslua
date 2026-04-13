@@ -405,8 +405,8 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 			return serverResponse{Error: fmt.Sprintf("write tsconfig: %v", err)}
 		}
 
-		coldTranspileOpts := transpileOptsFromRequest(req)
-		coldProgram, results, coldDiags, err := transpileProjectReturnProgram(tsconfigPath, luaTarget, coldTranspileOpts)
+		coldCfg := buildConfigFromRequest(req, "", luaTarget)
+		coldProgram, results, coldDiags, err := transpileProjectReturnProgram(tsconfigPath, luaTarget, coldCfg.transpileOpts())
 		if err != nil {
 			return serverResponse{Error: err.Error()}
 		}
@@ -430,9 +430,9 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 				sourceMaps[key] = r.SourceMap
 			}
 		}
-		addMinimalLualib(luaFiles, results, coldTranspileOpts, luaTarget)
+		addMinimalLualib(luaFiles, results, coldCfg.transpileOpts(), luaTarget)
 		if req.LuaBundle != "" {
-			bundledFiles, bundleDiags := bundleInlineResults(req, luaFiles, results, projectDir, origOutDir, luaTarget, coldTranspileOpts)
+			bundledFiles, bundleDiags := bundleInlineResults(req, luaFiles, results, projectDir, origOutDir, luaTarget, coldCfg.transpileOpts())
 			coldDiags = append(coldDiags, bundleDiags...)
 			if bundledFiles != nil {
 				luaFiles = bundledFiles
@@ -448,8 +448,8 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 	preEmitDiags := compiler.SortAndDeduplicateDiagnostics(append(syntacticDiags, semanticDiags...))
 
 	// Transpile using the updated program
-	transpileOpts := transpileOptsFromRequest(req)
-	results, diags := transpiler.TranspileProgramWithOptions(program, sourceRoot, luaTarget, nil, transpileOpts)
+	cfg := buildConfigFromRequest(req, sourceRoot, luaTarget)
+	results, diags := cfg.transpile(program, nil)
 
 	// Cache program for next request
 	inlineOldProgram = program
@@ -468,10 +468,10 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 			sourceMaps[key] = r.SourceMap
 		}
 	}
-	addMinimalLualib(luaFiles, results, transpileOpts, luaTarget)
+	addMinimalLualib(luaFiles, results, cfg.transpileOpts(), luaTarget)
 	if req.LuaBundle != "" {
 		hotOutDir, _ := req.CompilerOptions["outDir"].(string)
-		bundledFiles, bundleDiags := bundleInlineResults(req, luaFiles, results, projectDir, hotOutDir, luaTarget, transpileOpts)
+		bundledFiles, bundleDiags := bundleInlineResults(req, luaFiles, results, projectDir, hotOutDir, luaTarget, cfg.transpileOpts())
 		allDiags = append(allDiags, bundleDiags...)
 		if bundledFiles != nil {
 			luaFiles = bundledFiles
@@ -482,25 +482,27 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 }
 
 func handleProjectRequest(req serverRequest, luaTarget transpiler.LuaTarget) serverResponse {
-	results, err := transpileProject(req.Project, luaTarget, false)
-	if err != nil {
-		return serverResponse{Error: err.Error()}
-	}
-
 	configPath := tspath.ResolvePath("", req.Project)
 	configDir := string(tspath.GetDirectoryPath(configPath))
 
-	// Resolve external dependencies.
-	buildMode := resolve.BuildModeDefault
-	if bm, ok := req.CompilerOptions["buildMode"].(string); ok && bm == "library" {
-		buildMode = resolve.BuildModeLibrary
+	cfg := buildConfigFromRequest(req, configDir, luaTarget)
+	if req.Outdir != "" {
+		cfg.outdir = req.Outdir
 	}
+
+	// Create program from tsconfig.
+	program, results, projectDiags, err := transpileProjectReturnProgram(string(configPath), luaTarget, cfg.transpileOpts())
+	if err != nil {
+		return serverResponse{Error: err.Error()}
+	}
+	_ = program // not cached for project mode
+
+	// Resolve external dependencies and write output.
 	resolved := resolve.ResolveDependencies(results, resolve.Options{
-		SourceRoot: configDir,
-		BuildMode:  buildMode,
+		SourceRoot: cfg.sourceRoot,
+		BuildMode:  resolve.BuildMode(cfg.buildMode),
 	})
 
-	outdir := req.Outdir
 	needsLualib := false
 	for _, r := range results {
 		if r.UsesLualib {
@@ -509,7 +511,7 @@ func handleProjectRequest(req serverRequest, luaTarget transpiler.LuaTarget) ser
 		}
 	}
 	for _, f := range resolved.Files {
-		outPath := emitpath.OutputPath(f.FileName, configDir, outdir, "")
+		outPath := emitpath.OutputPath(f.FileName, cfg.sourceRoot, cfg.outdir, "")
 		if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
 			return serverResponse{Error: fmt.Sprintf("mkdir: %v", err)}
 		}
@@ -518,13 +520,13 @@ func handleProjectRequest(req serverRequest, luaTarget transpiler.LuaTarget) ser
 		}
 	}
 	if needsLualib {
-		bundlePath := filepath.Join(outdir, "lualib_bundle.lua")
+		bundlePath := filepath.Join(cfg.outdir, "lualib_bundle.lua")
 		if err := os.WriteFile(bundlePath, lualib.BundleForTarget(string(luaTarget)), 0o644); err != nil {
 			return serverResponse{Error: fmt.Sprintf("write lualib: %v", err)}
 		}
 	}
 
-	return serverResponse{OK: true}
+	return serverResponse{OK: true, Diagnostics: convertDiagnostics(projectDiags, configDir)}
 }
 
 var serverDebugTiming bool
@@ -546,10 +548,6 @@ func transpileProjectReturnProgram(tsconfigPath string, luaTarget transpiler.Lua
 	return program, results, diags, err
 }
 
-func transpileProject(tsconfigPath string, luaTarget transpiler.LuaTarget, useCache bool) ([]transpiler.TranspileResult, error) {
-	_, results, _, err := transpileProjectInner(tsconfigPath, luaTarget, useCache)
-	return results, err
-}
 
 func transpileProjectInner(tsconfigPath string, luaTarget transpiler.LuaTarget, useCache bool, extraOpts ...transpiler.TranspileOptions) (*compiler.Program, []transpiler.TranspileResult, []*ast.Diagnostic, error) {
 	t0 := time.Now()
@@ -715,45 +713,50 @@ func bundleInlineResults(req serverRequest, luaFiles map[string]string, results 
 	return bundleFiles, diags
 }
 
-func transpileOptsFromRequest(req serverRequest) transpiler.TranspileOptions {
-	opts := transpiler.TranspileOptions{}
-	if v, ok := req.CompilerOptions["noImplicitSelf"].(bool); ok && v {
-		opts.NoImplicitSelf = true
+// buildConfigFromRequest constructs a buildConfig from a server request.
+// This is the server-side equivalent of buildConfigFromCLI.
+func buildConfigFromRequest(req serverRequest, sourceRoot string, luaTarget transpiler.LuaTarget) *buildConfig {
+	cfg := &buildConfig{
+		sourceRoot: sourceRoot,
+		luaTarget:  luaTarget,
+		buildMode:  "default",
 	}
-	if v, ok := req.CompilerOptions["noImplicitGlobalVariables"].(bool); ok && v {
-		opts.NoImplicitGlobalVariables = true
+	if v, ok := req.CompilerOptions["noImplicitSelf"].(bool); ok {
+		cfg.noImplicitSelf = v
 	}
-	if v, ok := req.CompilerOptions["sourceMap"].(bool); ok && v {
-		opts.SourceMap = true
+	if v, ok := req.CompilerOptions["noImplicitGlobalVariables"].(bool); ok {
+		cfg.noImplicitGlobalVariables = v
+	}
+	if v, ok := req.CompilerOptions["sourceMap"].(bool); ok {
+		cfg.sourceMap = v
 	}
 	if v, ok := req.CompilerOptions["sourceMapTraceback"].(bool); ok && v {
-		opts.SourceMapTraceback = true
-		opts.SourceMap = true // traceback requires source map generation
+		cfg.sourceMapTraceback = true
+		cfg.sourceMap = true
 	}
 	if v, ok := req.CompilerOptions["inlineSourceMap"].(bool); ok && v {
-		opts.InlineSourceMap = true
-		opts.SourceMap = true // inline requires source map generation
+		cfg.inlineSourceMap = true
+		cfg.sourceMap = true
 	}
 	if v, ok := req.CompilerOptions["emitMode"].(string); ok && v != "" {
-		opts.EmitMode = transpiler.EmitMode(v)
+		cfg.emitMode = transpiler.EmitMode(v)
 	}
 	if v, ok := req.CompilerOptions["classStyle"].(string); ok && v != "" {
-		opts.ClassStyle = transpiler.ClassStyle(v)
+		cfg.classStyle = transpiler.ClassStyle(v)
 	}
 	if v, ok := req.CompilerOptions["luaLibImport"].(string); ok && v != "" {
-		opts.LuaLibImport = transpiler.LuaLibImportKind(v)
-		if opts.LuaLibImport == transpiler.LuaLibImportInline {
-			if fd, err := lualib.FeatureDataForTarget(req.LuaTarget); err == nil {
-				opts.LualibFeatureData = fd
-			} else {
-				opts.LualibInlineContent = lualibInlineContent(transpiler.LuaTarget(req.LuaTarget))
-			}
-		}
+		cfg.luaLibImport = transpiler.LuaLibImportKind(v)
 	}
-	if v, ok := req.CompilerOptions["exportAsGlobal"].(bool); ok && v {
-		opts.ExportAsGlobal = true
+	if v, ok := req.CompilerOptions["exportAsGlobal"].(bool); ok {
+		cfg.exportAsGlobal = v
 	}
-	return opts
+	if v, ok := req.CompilerOptions["buildMode"].(string); ok && v != "" {
+		cfg.buildMode = v
+	}
+	if v, ok := req.CompilerOptions["outDir"].(string); ok && v != "" {
+		cfg.outdir = v
+	}
+	return cfg
 }
 
 // addMinimalLualib adds a tree-shaken lualib_bundle.lua to the file map when
