@@ -19,7 +19,9 @@ import (
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/microsoft/typescript-go/shim/vfs/cachedvfs"
 	"github.com/microsoft/typescript-go/shim/vfs/osvfs"
+	"github.com/realcoldfry/tslua/internal/emitpath"
 	"github.com/realcoldfry/tslua/internal/lualib"
+	"github.com/realcoldfry/tslua/internal/resolve"
 	"github.com/realcoldfry/tslua/internal/transpiler"
 	"github.com/spf13/cobra"
 )
@@ -52,7 +54,10 @@ var (
 	noImplicitSelfFlag            bool
 	noImplicitGlobalVariablesFlag bool
 	classStyleFlag                string
+	buildModeFlag                 string
 	traceFlag                     bool
+	noEmitFlag                    bool
+	noEmitOnErrorFlag             bool
 )
 
 func main() {
@@ -76,6 +81,7 @@ func main() {
 	rootCmd.PersistentFlags().BoolVar(&noImplicitSelfFlag, "noImplicitSelf", false, "default functions to no-self unless annotated")
 	rootCmd.PersistentFlags().BoolVar(&noImplicitGlobalVariablesFlag, "noImplicitGlobalVariables", false, "force local declarations in script-mode top-level scope")
 	rootCmd.PersistentFlags().StringVar(&classStyleFlag, "classStyle", "", "class emit style (tstl, luabind, middleclass, inline)")
+	rootCmd.PersistentFlags().StringVar(&buildModeFlag, "buildMode", "", "build mode: default or library")
 
 	// Root-only flags: project build mode.
 	rootCmd.Flags().StringVarP(&projectFlag, "project", "p", "", "path to tsconfig.json")
@@ -88,11 +94,13 @@ func main() {
 	rootCmd.Flags().BoolVar(&inlineSourceMapFlag, "inlineSourceMap", false, "embed source map as base64 data URL in Lua output")
 	rootCmd.Flags().BoolVar(&verboseFlag, "verbose", false, "print each output file path")
 	rootCmd.Flags().BoolVarP(&watchFlag, "watch", "w", false, "watch for file changes and rebuild")
+	rootCmd.Flags().BoolVar(&noEmitFlag, "noEmit", false, "type-check without emitting Lua files")
+	rootCmd.Flags().BoolVar(&noEmitOnErrorFlag, "noEmitOnError", false, "skip emit when diagnostics contain errors")
 
-	// project is required for root command
+	// default to current directory if --project not specified (matches TSTL behavior)
 	rootCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		if projectFlag == "" {
-			return fmt.Errorf("required flag \"project\" not set")
+			projectFlag = "."
 		}
 		return nil
 	}
@@ -194,6 +202,7 @@ type buildConfig struct {
 	sourceMapTraceback        bool
 	inlineSourceMap           bool
 	classStyle                transpiler.ClassStyle
+	buildMode                 string
 	noResolvePaths            []string
 	stderrIsTerminal          bool
 }
@@ -368,6 +377,18 @@ func run(cmd *cobra.Command, args []string) error {
 		noResolvePaths = tsluaCfg.NoResolvePaths
 	}
 
+	// Resolve buildMode: CLI flag wins, then tsconfig, then default.
+	buildMode := buildModeFlag
+	if buildMode == "" && tsluaCfg != nil && tsluaCfg.BuildMode != "" {
+		buildMode = tsluaCfg.BuildMode
+	}
+	if buildMode == "" {
+		buildMode = "default"
+	}
+	if buildMode != "default" && buildMode != "library" {
+		return fmt.Errorf("unsupported buildMode: %s (supported: default, library)", buildMode)
+	}
+
 	// sourceMap controls internal source map generation (needed by traceback too).
 	// emitSourceMapFiles controls writing .map files and sourceMappingURL comments.
 	sourceMap := sourceMapFlag || sourceMapTracebackFlag || inlineSourceMapFlag || configParseResult.CompilerOptions().SourceMap.IsTrue()
@@ -394,6 +415,7 @@ func run(cmd *cobra.Command, args []string) error {
 		sourceMapTraceback:        sourceMapTracebackFlag,
 		inlineSourceMap:           inlineSourceMapFlag,
 		classStyle:                transpiler.ClassStyle(classStyle),
+		buildMode:                 buildMode,
 		noResolvePaths:            noResolvePaths,
 		stderrIsTerminal:          stderrIsTerminal,
 	}
@@ -425,18 +447,19 @@ func runOnce(cfg *buildConfig, host compiler.CompilerHost) error {
 
 	results, transpileDiags := transpiler.TranspileProgramWithOptions(program, cfg.sourceRoot, cfg.luaTarget, nil, cfg.transpileOpts())
 
+	// Validate: cannot bundle in library mode.
+	if cfg.luaBundle != "" && cfg.buildMode == "library" {
+		transpileDiags = append(transpileDiags, dw.NewConfigError(dw.CannotBundleLibrary,
+			`Cannot bundle projects with "buildMode": "library". Projects including the library can still bundle (which will include external library files).`))
+	}
+
 	hasErrors := reportDiagnostics(cfg, semanticDiags, transpileDiags)
 
-	noEmitOnError := program.Options().NoEmitOnError.IsTrue()
+	noEmit := noEmitFlag || program.Options().NoEmit.IsTrue()
+	noEmitOnError := noEmitOnErrorFlag || program.Options().NoEmitOnError.IsTrue()
 	tWrite := time.Now()
-	if !noEmitOnError || !hasErrors {
-		if cfg.luaBundle != "" {
-			if err := writeBundle(cfg, results); err != nil {
-				fmt.Fprintln(os.Stderr, err)
-			}
-		} else {
-			writeResults(cfg, results)
-		}
+	if !noEmit && (!noEmitOnError || !hasErrors) {
+		emitResults(cfg, results)
 	}
 
 	if timingFlag {
@@ -542,7 +565,7 @@ func writeBundle(cfg *buildConfig, results []transpiler.TranspileResult) error {
 func writeResults(cfg *buildConfig, results []transpiler.TranspileResult) {
 	needsLualib := false
 	for _, r := range results {
-		outPath := luaOutputPath(r.FileName, cfg.outdir, cfg.sourceRoot)
+		outPath := emitpath.OutputPath(r.FileName, cfg.sourceRoot, cfg.outdir, "")
 		if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
 			fmt.Fprintf(os.Stderr, "error creating directory: %v\n", err)
 			continue
@@ -598,6 +621,50 @@ func writeResults(cfg *buildConfig, results []transpiler.TranspileResult) {
 			if verboseFlag {
 				fmt.Printf("  %s\n", bundlePath)
 			}
+		}
+	}
+}
+
+// emitResults is the shared post-transpilation pipeline: resolve external
+// dependencies, then write (or bundle) all output files. Every code path
+// that produces project output (runOnce, watch, handleProjectRequest) must
+// go through this function.
+func emitResults(cfg *buildConfig, results []transpiler.TranspileResult) {
+	resolved := resolve.ResolveDependencies(results, resolve.Options{
+		SourceRoot: cfg.sourceRoot,
+		BuildMode:  resolve.BuildMode(cfg.buildMode),
+	})
+	for _, e := range resolved.Errors {
+		fmt.Fprintln(os.Stderr, "resolve:", e)
+	}
+
+	if cfg.luaBundle != "" {
+		if err := writeBundle(cfg, results); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+	} else {
+		writeResults(cfg, results)
+		writeExternalFiles(cfg, resolved)
+	}
+}
+
+// writeExternalFiles writes discovered external .lua dependencies to the output directory.
+func writeExternalFiles(cfg *buildConfig, resolved resolve.Result) {
+	for _, f := range resolved.Files {
+		if f.IsTranspiled {
+			continue // already written by writeResults
+		}
+		outPath := emitpath.OutputPath(f.FileName, cfg.sourceRoot, cfg.outdir, "")
+		if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+			fmt.Fprintf(os.Stderr, "error creating directory: %v\n", err)
+			continue
+		}
+		if err := os.WriteFile(outPath, []byte(f.Lua), 0o644); err != nil {
+			fmt.Fprintf(os.Stderr, "error writing %s: %v\n", outPath, err)
+			continue
+		}
+		if verboseFlag {
+			fmt.Printf("  %s\n", outPath)
 		}
 	}
 }
@@ -666,17 +733,4 @@ func lualibInlineContent(target transpiler.LuaTarget) string {
 		content = content[:idx+1] // keep up to (and including) the newline before "return {"
 	}
 	return content
-}
-
-// luaOutputPath converts a .ts source path to a .lua output path,
-// preserving directory structure relative to sourceRoot.
-func luaOutputPath(tsPath string, outdir string, sourceRoot string) string {
-	rel, err := filepath.Rel(sourceRoot, tsPath)
-	if err != nil {
-		// Fallback: just use basename
-		rel = filepath.Base(tsPath)
-	}
-	rel = strings.TrimSuffix(rel, ".ts")
-	rel = strings.TrimSuffix(rel, ".tsx")
-	return filepath.Join(outdir, rel+".lua")
 }

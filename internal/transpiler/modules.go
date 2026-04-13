@@ -423,6 +423,7 @@ func (t *Transpiler) resolveModulePath(moduleSpecifier *ast.Node) string {
 
 	// noResolvePaths: emit the specifier as-is for listed modules.
 	if t.noResolvePaths[specText] {
+		t.addDependency(ModuleDependency{RequirePath: specText})
 		return specText
 	}
 
@@ -438,6 +439,13 @@ func (t *Transpiler) resolveModulePath(moduleSpecifier *ast.Node) string {
 				fmt.Sprintf("Could not resolve lua source files for require path '%s'.", specText))
 		}
 
+		t.addDependency(ModuleDependency{
+			RequirePath:  moduleName,
+			ResolvedPath: resolved.ResolvedFileName,
+			IsExternal:   resolved.IsExternalLibraryImport,
+			IsLuaSource:  isLuaSourceExtension(resolved.ResolvedFileName, resolved.Extension),
+		})
+
 		return moduleName
 	}
 
@@ -449,7 +457,28 @@ func (t *Transpiler) resolveModulePath(moduleSpecifier *ast.Node) string {
 			p = p[3:]
 		}
 	}
-	return strings.ReplaceAll(p, "/", ".")
+	requirePath := strings.ReplaceAll(p, "/", ".")
+	t.addDependency(ModuleDependency{RequirePath: requirePath})
+	return requirePath
+}
+
+// addDependency records a module dependency discovered during transformation.
+func (t *Transpiler) addDependency(dep ModuleDependency) {
+	t.dependencies = append(t.dependencies, dep)
+}
+
+// isLuaSourceExtension returns true when the resolved file is a .lua source
+// (not a TS/JS file we transpile, and not a .d.ts type declaration).
+func isLuaSourceExtension(fileName, ext string) bool {
+	if strings.HasSuffix(fileName, ".lua") {
+		return true
+	}
+	// .d.ts, .d.mts, .d.cts are type declarations, not Lua sources
+	if strings.Contains(ext, ".d.") {
+		return false
+	}
+	// .ts, .tsx, .js, .jsx, .json, .mts, .cts, .mjs, .cjs are transpilable
+	return false
 }
 
 // transformImportExpression handles dynamic import() expressions.

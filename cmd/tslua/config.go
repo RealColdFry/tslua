@@ -24,6 +24,7 @@ type tsluaConfig struct {
 	LuaBundle                 string   `json:"luaBundle"`
 	LuaBundleEntry            string   `json:"luaBundleEntry"`
 	SourceMapTraceback        *bool    `json:"sourceMapTraceback"`
+	BuildMode                 string   `json:"buildMode"`
 	NoResolvePaths            []string `json:"noResolvePaths"`
 }
 

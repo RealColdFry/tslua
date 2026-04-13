@@ -35,7 +35,8 @@ func runWatch(cfg *buildConfig, host compiler.CompilerHost) error {
 	program.BindSourceFiles()
 	incrProg = incremental.NewProgram(program, incrProg, nil, false)
 
-	noEmitOnError := program.Options().NoEmitOnError.IsTrue()
+	noEmit := noEmitFlag || program.Options().NoEmit.IsTrue()
+	noEmitOnError := noEmitOnErrorFlag || program.Options().NoEmitOnError.IsTrue()
 	var diagWg sync.WaitGroup
 
 	t0 := time.Now()
@@ -49,8 +50,8 @@ func runWatch(cfg *buildConfig, host compiler.CompilerHost) error {
 		cachedResults[r.FileName] = r
 	}
 	hasErrors := reportDiagnostics(cfg, semanticDiags, transpileDiags)
-	if !noEmitOnError || !hasErrors {
-		writeResults(cfg, results)
+	if !noEmit && (!noEmitOnError || !hasErrors) {
+		emitResults(cfg, results)
 	}
 
 	fmt.Fprintf(os.Stderr, "build finished in %.2fms\n", msf(time.Since(t0)))
@@ -161,8 +162,8 @@ func runWatch(cfg *buildConfig, host compiler.CompilerHost) error {
 
 		tProgram := time.Now()
 
-		if noEmitOnError {
-			// Synchronous path: check first, skip emit if errors.
+		if noEmit || noEmitOnError {
+			// Synchronous path: check first, skip emit if noEmit or errors.
 			incrProg = incremental.NewProgram(program, incrProg, nil, false)
 
 			tIncr := time.Now()
@@ -192,9 +193,9 @@ func runWatch(cfg *buildConfig, host compiler.CompilerHost) error {
 			tTranspile := time.Now()
 
 			hasErrors := reportDiagnostics(cfg, semanticDiags, transpileDiags)
-			if !hasErrors {
+			if !noEmit && !hasErrors {
 				if changedFiles != nil {
-					writeResults(cfg, freshResults)
+					emitResults(cfg, freshResults)
 				} else {
 					var allResults []transpiler.TranspileResult
 					for _, sf := range program.SourceFiles() {
@@ -202,7 +203,7 @@ func runWatch(cfg *buildConfig, host compiler.CompilerHost) error {
 							allResults = append(allResults, r)
 						}
 					}
-					writeResults(cfg, allResults)
+					emitResults(cfg, allResults)
 				}
 			}
 
@@ -236,7 +237,7 @@ func runWatch(cfg *buildConfig, host compiler.CompilerHost) error {
 			tTranspile := time.Now()
 
 			if changedFiles != nil {
-				writeResults(cfg, freshResults)
+				emitResults(cfg, freshResults)
 			} else {
 				var allResults []transpiler.TranspileResult
 				for _, sf := range program.SourceFiles() {
@@ -244,7 +245,7 @@ func runWatch(cfg *buildConfig, host compiler.CompilerHost) error {
 						allResults = append(allResults, r)
 					}
 				}
-				writeResults(cfg, allResults)
+				emitResults(cfg, allResults)
 			}
 
 			tWrite := time.Now()

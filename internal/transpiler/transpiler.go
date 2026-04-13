@@ -122,6 +122,7 @@ type Transpiler struct {
 	classStyle                ClassStyle              // alternative class emit style (default: TSTL prototype chains)
 	noResolvePaths            map[string]bool         // module specifiers to emit as-is without resolving (TSTL noResolvePaths)
 	crossFileEnums            map[string]bool         // enum names declared in 2+ source files (need global scope for merging)
+	dependencies              []ModuleDependency      // module dependencies discovered during transformation
 
 	// Scope stack & symbol tracking (replaces scopeDepth + hoistedFunctionsStack)
 	scopeStack    []*Scope
@@ -327,16 +328,33 @@ func collectCrossFileEnums(program *compiler.Program) map[string]bool {
 	return result
 }
 
+// ModuleDependency describes a single require() emitted by a transpiled file.
+// Populated during transformation by resolveModulePath.
+type ModuleDependency struct {
+	// RequirePath is the dot-separated path in the emitted require("...").
+	RequirePath string
+	// ResolvedPath is the absolute filesystem path of the resolved module.
+	// Empty if resolution failed or the specifier was in noResolvePaths.
+	ResolvedPath string
+	// IsExternal is true when the resolved file lives outside the project
+	// source root (e.g. node_modules).
+	IsExternal bool
+	// IsLuaSource is true when the resolved file is a .lua file (not
+	// transpiled from .ts/.tsx).
+	IsLuaSource bool
+}
+
 // TranspileResult contains the Lua output for a single source file.
 type TranspileResult struct {
 	FileName      string
 	Lua           string
-	SourceMap     string // V3 source map JSON (empty if source maps disabled)
+	SourceMap     string             // V3 source map JSON (empty if source maps disabled)
 	UsesLualib    bool
-	ExportedNames []string      // names exported by this file (populated when ExportAsGlobal is set)
-	LualibDeps    []string      // lualib features used by this file (populated when NoLualibImport is set)
-	TransformDur  time.Duration // time spent transforming TS AST → Lua AST
-	PrintDur      time.Duration // time spent printing Lua AST → string
+	ExportedNames []string           // names exported by this file (populated when ExportAsGlobal is set)
+	LualibDeps    []string           // lualib features used by this file (populated when NoLualibImport is set)
+	Dependencies  []ModuleDependency // module dependencies discovered during transformation
+	TransformDur  time.Duration      // time spent transforming TS AST → Lua AST
+	PrintDur      time.Duration      // time spent printing Lua AST → string
 }
 
 // TranspileOptions holds configuration for transpilation.
@@ -519,6 +537,7 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 			UsesLualib:    len(t.lualibs) > 0,
 			ExportedNames: exportNames,
 			LualibDeps:    lualibDeps,
+			Dependencies:  t.dependencies,
 			TransformDur:  transformDur,
 			PrintDur:      printDur,
 		})

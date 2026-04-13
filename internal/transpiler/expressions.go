@@ -722,8 +722,19 @@ func (t *Transpiler) transformPostfixUnaryExpression(node *ast.Node) lua.Express
 
 // cond ? a : b → cond and a or b (simple case)
 // cond ? a : b → local temp; if cond then temp = a else temp = b end (when branches have setup or a could be falsy)
+// Ported from: src/transformation/visitors/conditional.ts
 func (t *Transpiler) transformConditionalExpression(node *ast.Node) lua.Expression {
 	ce := node.AsConditionalExpression()
+
+	// Luau has a native ternary expression that handles falsy values correctly.
+	if t.luaTarget.HasConditionalExpression() {
+		return lua.Conditional(
+			t.transformExpression(ce.Condition),
+			t.transformExpression(ce.WhenTrue),
+			t.transformExpression(ce.WhenFalse),
+		)
+	}
+
 	t.checkOnlyTruthyCondition(ce.Condition)
 
 	// Transform each part in its own scope, capturing any preceding statements

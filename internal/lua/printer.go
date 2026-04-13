@@ -532,6 +532,8 @@ func (p *Printer) printExpression(expr Expression) {
 		p.write(e.Text)
 	case *BinaryExpression:
 		p.printBinaryExpression(e)
+	case *ConditionalExpression:
+		p.printConditionalExpression(e)
 	case *UnaryExpression:
 		p.printUnaryExpression(e)
 	case *CallExpression:
@@ -573,6 +575,16 @@ func (p *Printer) printBinaryExpression(e *BinaryExpression) {
 	p.printExprInParensIfNeeded(e.Left, leftMinPrec)
 	p.write(" " + OperatorString(e.Operator) + " ")
 	p.printExprInParensIfNeeded(e.Right, rightMinPrec)
+}
+
+// printConditionalExpression prints Luau's ternary: if cond then expr else expr
+func (p *Printer) printConditionalExpression(e *ConditionalExpression) {
+	p.write("if ")
+	p.printExpression(e.Condition)
+	p.write(" then ")
+	p.printExpression(e.WhenTrue)
+	p.write(" else ")
+	p.printExpression(e.WhenFalse)
 }
 
 func (p *Printer) printUnaryExpression(e *UnaryExpression) {
@@ -834,6 +846,8 @@ func (p *Printer) needsParens(expr Expression, minPrec int) bool {
 	case *UnaryExpression:
 		prec, ok := operatorPrecedence[e.Operator]
 		return ok && prec < minPrec
+	case *ConditionalExpression:
+		return true // Luau ternary has lowest precedence
 	case *FunctionExpression, *TableExpression:
 		return true
 	}
@@ -844,7 +858,7 @@ func (p *Printer) prefixNeedsParens(expr Expression) bool {
 	switch expr.(type) {
 	case *StringLiteral, *FunctionExpression, *TableExpression:
 		return true
-	case *BinaryExpression, *UnaryExpression:
+	case *BinaryExpression, *UnaryExpression, *ConditionalExpression:
 		// Binary/unary expressions are not valid Lua prefixes.
 		// Without parens, `x + 1.foo` parses as `x + (1.foo)`.
 		return true
@@ -878,6 +892,8 @@ func IsSimpleExpression(expr Expression) bool {
 		return IsSimpleExpression(e.Operand)
 	case *BinaryExpression:
 		return IsSimpleExpression(e.Left) && IsSimpleExpression(e.Right)
+	case *ConditionalExpression:
+		return IsSimpleExpression(e.Condition) && IsSimpleExpression(e.WhenTrue) && IsSimpleExpression(e.WhenFalse)
 	case *RawExpression:
 		// Conservative: treat raw code as not simple since we can't inspect it
 		return false
@@ -948,6 +964,8 @@ func (p *Printer) exprStartsWithParen(expr Expression) bool {
 		return p.exprStartsWithParen(e.Prefix)
 	case *BinaryExpression:
 		return p.exprStartsWithParen(e.Left)
+	case *ConditionalExpression:
+		return false // starts with "if" keyword
 	case *TableIndexExpression:
 		if p.prefixNeedsParens(e.Table) {
 			return true

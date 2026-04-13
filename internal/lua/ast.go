@@ -35,6 +35,7 @@ const (
 	KindTableExpression
 	KindUnaryExpression
 	KindBinaryExpression
+	KindConditionalExpression // Luau: if cond then expr else expr
 	KindCallExpression
 	KindMethodCallExpression
 	KindIdentifier
@@ -207,6 +208,16 @@ type BinaryExpression struct {
 }
 
 func (n *BinaryExpression) Kind() SyntaxKind { return KindBinaryExpression }
+
+// ConditionalExpression is Luau's ternary: if cond then expr else expr
+type ConditionalExpression struct {
+	baseExpr
+	Condition Expression
+	WhenTrue  Expression
+	WhenFalse Expression
+}
+
+func (n *ConditionalExpression) Kind() SyntaxKind { return KindConditionalExpression }
 
 type UnaryExpression struct {
 	baseExpr
@@ -495,6 +506,11 @@ func MethodCall(prefix Expression, name string, params ...Expression) *MethodCal
 
 func Binary(left Expression, op Operator, right Expression) *BinaryExpression {
 	return &BinaryExpression{Left: left, Operator: op, Right: right}
+}
+
+// Conditional creates a Luau conditional expression: if cond then whenTrue else whenFalse
+func Conditional(cond, whenTrue, whenFalse Expression) *ConditionalExpression {
+	return &ConditionalExpression{Condition: cond, WhenTrue: whenTrue, WhenFalse: whenFalse}
 }
 
 func Unary(op Operator, operand Expression) *UnaryExpression {

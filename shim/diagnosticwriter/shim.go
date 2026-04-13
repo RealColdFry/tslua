@@ -187,6 +187,10 @@ const (
 	UnsupportedArrayWithLengthConstructor    DiagCode = 100047
 	CouldNotResolveRequire                   DiagCode = 100048
 	UnsupportedJsxEmit                       DiagCode = 100010
+	CouldNotFindBundleEntryPoint             DiagCode = 100006
+	LuaBundleEntryIsRequired                 DiagCode = 100007
+	UsingLuaBundleWithInlineMightDuplicate   DiagCode = 100008
+	CannotBundleLibrary                      DiagCode = 100009
 )
 
 // diagHelp maps error codes to help text shown below the diagnostic.
@@ -240,6 +244,18 @@ func NewErrorForNode(sourceFile *ast.SourceFile, node *ast.Node, code DiagCode, 
 // NewWarningForNode creates a warning-level diagnostic at the given node's error range.
 func NewWarningForNode(sourceFile *ast.SourceFile, node *ast.Node, code DiagCode, message string) *ast.Diagnostic {
 	return newForNode(sourceFile, node, diagnostics.CategoryWarning, code, message)
+}
+
+// NewConfigError creates an error-level diagnostic with no file location (for config-level issues).
+func NewConfigError(code DiagCode, message string) *ast.Diagnostic {
+	msg := newTSTLMessage(diagnostics.CategoryError, code, message)
+	return ast.NewDiagnostic(nil, core.NewTextRange(0, 0), msg)
+}
+
+// NewConfigWarning creates a warning-level diagnostic with no file location (for config-level issues).
+func NewConfigWarning(code DiagCode, message string) *ast.Diagnostic {
+	msg := newTSTLMessage(diagnostics.CategoryWarning, code, message)
+	return ast.NewDiagnostic(nil, core.NewTextRange(0, 0), msg)
 }
 
 func newForNode(sourceFile *ast.SourceFile, node *ast.Node, category diagnostics.Category, code DiagCode, message string) *ast.Diagnostic {
