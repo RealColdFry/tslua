@@ -1,6 +1,6 @@
 import? 'justfile.local'
 
-set positional-arguments
+set positional-arguments := true
 
 export PATH := absolute_path(".lua-runtimes/bin") + ":" + env("PATH")
 
@@ -53,7 +53,8 @@ tstlgen:
 #        just tstltest -run TestEval_        (runtime only)
 #        just tstltest -run TestCodegen_     (codegen only)
 #        just tstltest -run _Loops           (one suite, both modes)
-#        just tstltest -run TestEval_Loops   (one suite, eval only)
+
+# just tstltest -run TestEval_Loops   (one suite, eval only)
 tstltest *ARGS: tstlgen
     FORCE_COLOR=1 gotestsum --format short ./internal/tstltest/ {{ ARGS }}
 
@@ -71,7 +72,12 @@ bench-lua:
 
 # Run all 100%-passing Go tests
 testall: tstlgen
-    FORCE_COLOR=1 gotestsum --format short ./internal/transpiler/ ./internal/lua/... ./internal/luatest/ ./internal/tstltest/ -skip TestCodegen_
+    FORCE_COLOR=1 gotestsum --format short \
+        ./internal/transpiler/ \
+        ./internal/lua/... \
+        ./internal/luatest/ \
+        ./internal/resolve/ \
+        ./internal/tstltest/ -skip TestCodegen_
 
 # Run tests with coverage profiling
 coverage:
@@ -102,7 +108,8 @@ lint:
 
 # Migrate TSTL spec file(s) to Go tests
 # Usage: just migrate extern/tstl/test/unit/builtins/math.spec.ts
-#        just migrate-all    (regenerate all existing test files)
+
+# just migrate-all    (regenerate all existing test files)
 migrate SPEC:
     node --require tsx/cjs scripts/migrate/cli.ts {{ SPEC }}
 
@@ -119,7 +126,7 @@ tstl-setup:
     #!/usr/bin/env bash
     set -euo pipefail
     cd extern/tstl && npm ci && npm run build
-    cd "{{justfile_directory()}}"
+    cd "{{ justfile_directory() }}"
     # tsver=$(node -p "require('./extern/tstl/package.json').devDependencies.typescript")
     # npm pkg set "devDependencies.typescript=$tsver"
     # npm install
@@ -128,7 +135,7 @@ tstl-setup:
 tstl-test *ARGS: build
     #!/usr/bin/env bash
     set -e
-    ROOT="{{justfile_directory()}}"
+    ROOT="{{ justfile_directory() }}"
     go build -o "$ROOT/tslua-client" "$ROOT/cmd/tslua-client/"
     cd "$ROOT/extern/tstl" && git apply "$ROOT/extern/tstl-test-util.patch"
     mkdir -p "$ROOT/tmp"
@@ -146,7 +153,7 @@ tstl-test *ARGS: build
 tstl-test-save FILE *ARGS: build
     #!/usr/bin/env bash
     set -e
-    ROOT="{{justfile_directory()}}"
+    ROOT="{{ justfile_directory() }}"
     go build -o "$ROOT/tslua-client" "$ROOT/cmd/tslua-client/"
     cd "$ROOT/extern/tstl" && git apply "$ROOT/extern/tstl-test-util.patch"
     mkdir -p "$ROOT/tmp"

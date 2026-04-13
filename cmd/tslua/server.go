@@ -26,15 +26,10 @@ import (
 	"github.com/microsoft/typescript-go/shim/vfs/osvfs"
 	"github.com/realcoldfry/tslua/internal/emitpath"
 	"github.com/realcoldfry/tslua/internal/lualib"
-	"github.com/realcoldfry/tslua/internal/resolve"
 	"github.com/realcoldfry/tslua/internal/transpiler"
 )
 
 type serverRequest struct {
-	// File-based mode: point to a tsconfig on disk
-	Project string `json:"project,omitempty"`
-	Outdir  string `json:"outdir,omitempty"`
-	// Inline mode: send source directly, get Lua back in response
 	Source          string            `json:"source,omitempty"`
 	MainFileName    string            `json:"mainFileName,omitempty"` // override main file name (e.g. "main.tsx" for JSX)
 	ExtraFiles      map[string]string `json:"extraFiles,omitempty"`
@@ -220,9 +215,6 @@ func handleServerRequest(req serverRequest) serverResponse {
 		return serverResponse{Error: fmt.Sprintf("unsupported luaTarget: %s", req.LuaTarget)}
 	}
 
-	if req.Project != "" {
-		return handleProjectRequest(req, luaTarget)
-	}
 	return handleInlineRequest(req, luaTarget)
 }
 
@@ -479,54 +471,6 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 		}
 	}
 	return serverResponse{OK: true, Files: luaFiles, SourceMaps: sourceMaps, Diagnostics: convertDiagnostics(allDiags, projectDir)}
-}
-
-func handleProjectRequest(req serverRequest, luaTarget transpiler.LuaTarget) serverResponse {
-	configPath := tspath.ResolvePath("", req.Project)
-	configDir := string(tspath.GetDirectoryPath(configPath))
-
-	cfg := buildConfigFromRequest(req, configDir, luaTarget)
-	if req.Outdir != "" {
-		cfg.outdir = req.Outdir
-	}
-
-	// Create program from tsconfig.
-	program, results, projectDiags, err := transpileProjectReturnProgram(string(configPath), luaTarget, cfg.transpileOpts())
-	if err != nil {
-		return serverResponse{Error: err.Error()}
-	}
-	_ = program // not cached for project mode
-
-	// Resolve external dependencies and write output.
-	resolved := resolve.ResolveDependencies(results, resolve.Options{
-		SourceRoot: cfg.sourceRoot,
-		BuildMode:  resolve.BuildMode(cfg.buildMode),
-	})
-
-	needsLualib := false
-	for _, r := range results {
-		if r.UsesLualib {
-			needsLualib = true
-			break
-		}
-	}
-	for _, f := range resolved.Files {
-		outPath := emitpath.OutputPath(f.FileName, cfg.sourceRoot, cfg.outdir, "")
-		if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
-			return serverResponse{Error: fmt.Sprintf("mkdir: %v", err)}
-		}
-		if err := os.WriteFile(outPath, []byte(f.Lua), 0o644); err != nil {
-			return serverResponse{Error: fmt.Sprintf("write: %v", err)}
-		}
-	}
-	if needsLualib {
-		bundlePath := filepath.Join(cfg.outdir, "lualib_bundle.lua")
-		if err := os.WriteFile(bundlePath, lualib.BundleForTarget(string(luaTarget)), 0o644); err != nil {
-			return serverResponse{Error: fmt.Sprintf("write lualib: %v", err)}
-		}
-	}
-
-	return serverResponse{OK: true, Diagnostics: convertDiagnostics(projectDiags, configDir)}
 }
 
 var serverDebugTiming bool
