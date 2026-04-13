@@ -271,7 +271,11 @@ func TranspileTS(t *testing.T, tsCode string, opts Opts) []TranspileResult {
 			transpileOpts.LualibFeatureData = fd
 		}
 	}
-	rawResults, tsDiags := transpiler.TranspileProgramWithOptions(program, tmpDir, luaTarget, nil, transpileOpts)
+	sourceRoot := tmpDir
+	if configResult.CompilerOptions().RootDir != "" {
+		sourceRoot = tspath.ResolvePath(tmpDir, configResult.CompilerOptions().RootDir)
+	}
+	rawResults, tsDiags := transpiler.TranspileProgramWithOptions(program, sourceRoot, luaTarget, nil, transpileOpts)
 	_ = tsDiags
 
 	var results []TranspileResult

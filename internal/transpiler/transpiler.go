@@ -274,6 +274,11 @@ func (t *Transpiler) isFirstDeclaration(node *ast.Node, nameNode *ast.Node) bool
 	if sym == nil {
 		return true
 	}
+	// Empty namespaces have no ValueDeclaration (no runtime value).
+	// Treat them as first declaration so the table gets created.
+	if sym.ValueDeclaration == nil {
+		return true
+	}
 	return sym.ValueDeclaration == node
 }
 
@@ -789,6 +794,19 @@ func isExternalModule(sf *ast.SourceFile) bool {
 	return sf.ExternalModuleIndicator != nil
 }
 
+// hasExportEquals checks if the source file contains an `export = expr` statement.
+// When true, the module init skips `local ____exports = {}` because the export
+// assignment will provide the initializer directly.
+// Ported from: src/transformation/utils/typescript/index.ts (hasExportEquals)
+func hasExportEquals(sf *ast.SourceFile) bool {
+	for _, stmt := range sf.Statements.Nodes {
+		if stmt.Kind == ast.KindExportAssignment && stmt.AsExportAssignment().IsExportEquals {
+			return true
+		}
+	}
+	return false
+}
+
 func hasExportModifier(node *ast.Node) bool {
 	modifiers := node.Modifiers()
 	if modifiers == nil {
@@ -838,7 +856,12 @@ func (t *Transpiler) transformSourceFileAST(sf *ast.SourceFile) []lua.Statement 
 
 	var stmts []lua.Statement
 
-	if t.isModule && !t.exportAsGlobal {
+	// When the file has `export = expr`, the export assignment handler emits
+	// `____exports = expr` which becomes the local declaration. Skip the
+	// empty table init so we get `local ____exports = expr` instead of
+	// `local ____exports = {} ... ____exports = expr`.
+	// Ported from: src/transformation/utils/typescript/index.ts (hasExportEquals)
+	if t.isModule && !t.exportAsGlobal && !hasExportEquals(sf) {
 		stmts = append(stmts, lua.LocalDecl(
 			[]*lua.Identifier{lua.Ident("____exports")},
 			[]lua.Expression{lua.Table()},

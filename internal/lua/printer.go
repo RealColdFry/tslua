@@ -168,11 +168,6 @@ func NewPrinter() *Printer {
 	return &Printer{}
 }
 
-// NewPrinterWithUnicode creates a Printer that accepts unicode identifiers (for LuaJIT).
-func NewPrinterWithUnicode() *Printer {
-	return &Printer{allowUnicode: true}
-}
-
 func (p *Printer) pushIndent() { p.indent++ }
 func (p *Printer) popIndent() {
 	if p.indent > 0 {
@@ -240,14 +235,6 @@ func PrintStatementsWithSourceMap(stmts []Statement, allowUnicode bool) PrintRes
 // PrintExpression prints a single expression and returns the source code.
 func PrintExpression(expr Expression) string {
 	p := NewPrinter()
-	p.printExpression(expr)
-	return p.buf.String()
-}
-
-// PrintExpressionIndented prints an expression with a given base indent level.
-func PrintExpressionIndented(expr Expression, indent int) string {
-	p := NewPrinter()
-	p.indent = indent
 	p.printExpression(expr)
 	return p.buf.String()
 }
@@ -329,8 +316,6 @@ func (p *Printer) printStatement(stmt Statement) {
 		p.writeln("continue")
 	case *ExpressionStatement:
 		p.printExpressionStatement(s)
-	case *CommentStatement:
-		p.writeln("-- " + s.Text)
 	case *RawStatement:
 		// Raw pre-formatted code: emit each line with current indent
 		lines := strings.Split(s.Code, "\n")
@@ -556,8 +541,6 @@ func (p *Printer) printExpression(expr Expression) {
 		p.write("nil --[[ ")
 		p.write(e.Text)
 		p.write(" ]]")
-	case *RawExpression:
-		p.write(e.Code)
 	}
 }
 
@@ -894,9 +877,6 @@ func IsSimpleExpression(expr Expression) bool {
 		return IsSimpleExpression(e.Left) && IsSimpleExpression(e.Right)
 	case *ConditionalExpression:
 		return IsSimpleExpression(e.Condition) && IsSimpleExpression(e.WhenTrue) && IsSimpleExpression(e.WhenFalse)
-	case *RawExpression:
-		// Conservative: treat raw code as not simple since we can't inspect it
-		return false
 	}
 	return true
 }
