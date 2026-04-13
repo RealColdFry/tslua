@@ -194,11 +194,12 @@ type Opts struct {
 
 // TranspileResult holds per-file Lua output.
 type TranspileResult struct {
-	FileName   string
-	Lua        string
-	SourceMap  string // V3 source map JSON (empty if source maps disabled)
-	UsesLualib bool
-	LualibDeps []string // lualib exports referenced (populated for None and RequireMinimal modes)
+	FileName     string
+	Lua          string
+	SourceMap    string // V3 source map JSON (empty if source maps disabled)
+	UsesLualib   bool
+	LualibDeps   []string                      // lualib exports referenced (populated for None and RequireMinimal modes)
+	Dependencies []transpiler.ModuleDependency // module dependencies discovered during transformation
 }
 
 // TranspileTS compiles TypeScript source to Lua using the full compiler pipeline.
@@ -215,7 +216,11 @@ func TranspileTS(t *testing.T, tsCode string, opts Opts) []TranspileResult {
 	if mainFile == "" {
 		mainFile = "main.ts"
 	}
-	if err := os.WriteFile(filepath.Join(tmpDir, mainFile), []byte(tsCode), 0o644); err != nil {
+	mainPath := filepath.Join(tmpDir, mainFile)
+	if err := os.MkdirAll(filepath.Dir(mainPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(mainPath, []byte(tsCode), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	for name, code := range opts.ExtraFiles {
@@ -250,7 +255,7 @@ func TranspileTS(t *testing.T, tsCode string, opts Opts) []TranspileResult {
 		luaTarget = transpiler.LuaTargetLua55
 	}
 
-	rawResults, tsDiags := transpiler.TranspileProgramWithOptions(program, tmpDir, luaTarget, nil, transpiler.TranspileOptions{
+	transpileOpts := transpiler.TranspileOptions{
 		EmitMode:                  opts.EmitMode,
 		LuaLibImport:              opts.LuaLibImport,
 		ExportAsGlobal:            opts.ExportAsGlobal,
@@ -260,18 +265,25 @@ func TranspileTS(t *testing.T, tsCode string, opts Opts) []TranspileResult {
 		SourceMapTraceback:        opts.SourceMapTraceback,
 		InlineSourceMap:           opts.InlineSourceMap,
 		NoResolvePaths:            opts.NoResolvePaths,
-	})
+	}
+	if transpileOpts.LuaLibImport == transpiler.LuaLibImportInline {
+		if fd, err := lualib.FeatureDataForTarget(string(luaTarget)); err == nil {
+			transpileOpts.LualibFeatureData = fd
+		}
+	}
+	rawResults, tsDiags := transpiler.TranspileProgramWithOptions(program, tmpDir, luaTarget, nil, transpileOpts)
 	_ = tsDiags
 
 	var results []TranspileResult
 	for _, r := range rawResults {
 		rel, _ := filepath.Rel(tmpDir, r.FileName)
 		results = append(results, TranspileResult{
-			FileName:   rel,
-			Lua:        r.Lua,
-			SourceMap:  r.SourceMap,
-			UsesLualib: r.UsesLualib,
-			LualibDeps: r.LualibDeps,
+			FileName:     rel,
+			Lua:          r.Lua,
+			SourceMap:    r.SourceMap,
+			UsesLualib:   r.UsesLualib,
+			LualibDeps:   r.LualibDeps,
+			Dependencies: r.Dependencies,
 		})
 	}
 	return results

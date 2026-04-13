@@ -122,6 +122,7 @@ type Transpiler struct {
 	classStyle                ClassStyle              // alternative class emit style (default: TSTL prototype chains)
 	noResolvePaths            map[string]bool         // module specifiers to emit as-is without resolving (TSTL noResolvePaths)
 	crossFileEnums            map[string]bool         // enum names declared in 2+ source files (need global scope for merging)
+	dependencies              []ModuleDependency      // module dependencies discovered during transformation
 
 	// Scope stack & symbol tracking (replaces scopeDepth + hoistedFunctionsStack)
 	scopeStack    []*Scope
@@ -327,16 +328,33 @@ func collectCrossFileEnums(program *compiler.Program) map[string]bool {
 	return result
 }
 
+// ModuleDependency describes a single require() emitted by a transpiled file.
+// Populated during transformation by resolveModulePath.
+type ModuleDependency struct {
+	// RequirePath is the dot-separated path in the emitted require("...").
+	RequirePath string
+	// ResolvedPath is the absolute filesystem path of the resolved module.
+	// Empty if resolution failed or the specifier was in noResolvePaths.
+	ResolvedPath string
+	// IsExternal is true when the resolved file lives outside the project
+	// source root (e.g. node_modules).
+	IsExternal bool
+	// IsLuaSource is true when the resolved file is a .lua file (not
+	// transpiled from .ts/.tsx).
+	IsLuaSource bool
+}
+
 // TranspileResult contains the Lua output for a single source file.
 type TranspileResult struct {
 	FileName      string
 	Lua           string
 	SourceMap     string // V3 source map JSON (empty if source maps disabled)
 	UsesLualib    bool
-	ExportedNames []string      // names exported by this file (populated when ExportAsGlobal is set)
-	LualibDeps    []string      // lualib features used by this file (populated when NoLualibImport is set)
-	TransformDur  time.Duration // time spent transforming TS AST → Lua AST
-	PrintDur      time.Duration // time spent printing Lua AST → string
+	ExportedNames []string           // names exported by this file (populated when ExportAsGlobal is set)
+	LualibDeps    []string           // lualib features used by this file (populated when NoLualibImport is set)
+	Dependencies  []ModuleDependency // module dependencies discovered during transformation
+	TransformDur  time.Duration      // time spent transforming TS AST → Lua AST
+	PrintDur      time.Duration      // time spent printing Lua AST → string
 }
 
 // TranspileOptions holds configuration for transpilation.
@@ -464,6 +482,14 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 		luaAST := t.transformSourceFileAST(sf)
 		transformDur := time.Since(tTransform)
 
+		// Insert a sentinel statement for sourceMapTraceback. The sentinel occupies
+		// one line in the printed output; after printing and computing the source map,
+		// we replace it with the actual traceback call. This avoids fragile string
+		// matching on lualib output format to find the insertion point.
+		if opts.SourceMapTraceback && opts.SourceMap {
+			luaAST = insertTracebackSentinel(luaAST)
+		}
+
 		// Extract shebang trivia to prepend after printing.
 		shebang := shebangRe.FindString(sf.Text())
 
@@ -476,9 +502,7 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 			sourceMapJSON = t.buildSourceMap(fileName, sf, printResult.Mappings)
 
 			if opts.SourceMapTraceback {
-				insertIdx := lualibInsertIndex(luaCode)
-				tracebackCall := buildSourceMapTracebackCall(printResult.Mappings, insertIdx)
-				luaCode = insertAtLine(luaCode, insertIdx, tracebackCall)
+				luaCode = replaceTracebackSentinel(luaCode, printResult.Mappings)
 			}
 
 			if opts.InlineSourceMap {
@@ -513,6 +537,7 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 			UsesLualib:    len(t.lualibs) > 0,
 			ExportedNames: exportNames,
 			LualibDeps:    lualibDeps,
+			Dependencies:  t.dependencies,
 			TransformDur:  transformDur,
 			PrintDur:      printDur,
 		})
@@ -606,30 +631,70 @@ func (t *Transpiler) sourceMapRelativePath(fileName string) string {
 	return filepath.ToSlash(rel)
 }
 
-// buildSourceMapTracebackCall builds the Lua statement that registers line→line
-// source map data at runtime for debug.traceback rewriting.
-// Produces: __TS__SourceMapTraceBack(debug.getinfo(1).short_src, {["1"] = 3, ["5"] = 7, ...});
-// insertIdx is the 0-based line index where the traceback call itself will be inserted,
-// so generated lines at or after insertIdx are shifted by 1 to account for the insertion.
-func buildSourceMapTracebackCall(mappings []lua.Mapping, insertIdx int) string {
-	// Build genLine → min(srcLine) map. Source map lines are 0-based;
+// sourceMapTracebackSentinel is a placeholder comment inserted into the Lua AST
+// before printing. After printing and computing source mappings, it is replaced
+// with the real __TS__SourceMapTraceBack call. Using a sentinel avoids fragile
+// string matching on lualib output format and keeps line numbers stable (the
+// sentinel and its replacement each occupy exactly one line).
+const sourceMapTracebackSentinel = "--[[__SOURCEMAP_TRACEBACK__]]"
+
+// insertTracebackSentinel inserts the sentinel after the last lualib-related
+// statement in the AST (import block or inline block). If no lualib statements
+// exist, it inserts at position 0.
+func insertTracebackSentinel(stmts []lua.Statement) []lua.Statement {
+	// Find insertion point: after the last lualib-related statement.
+	// Lualib statements are always at the front (prepended by transformSourceFile).
+	insertAt := 0
+	for i, stmt := range stmts {
+		switch s := stmt.(type) {
+		case *lua.RawStatement:
+			if strings.Contains(s.Code, "Lua Library inline imports") {
+				insertAt = i + 1
+			}
+		case *lua.VariableDeclarationStatement:
+			if len(s.Left) > 0 && (s.Left[0].Text == "____lualib" || strings.HasPrefix(s.Left[0].Text, "__TS__")) {
+				insertAt = i + 1
+			}
+		}
+	}
+	sentinel := lua.RawStmt(sourceMapTracebackSentinel)
+	result := make([]lua.Statement, 0, len(stmts)+1)
+	result = append(result, stmts[:insertAt]...)
+	result = append(result, sentinel)
+	result = append(result, stmts[insertAt:]...)
+	return result
+}
+
+// replaceTracebackSentinel finds the sentinel line in the printed output and
+// replaces it with the real __TS__SourceMapTraceBack(...) call built from the
+// source mappings. Since the replacement is one line for one line, all other
+// line numbers remain stable.
+func replaceTracebackSentinel(luaCode string, mappings []lua.Mapping) string {
+	lines := strings.Split(luaCode, "\n")
+
+	// Find the sentinel line
+	sentinelLine := -1
+	for i, line := range lines {
+		if strings.TrimSpace(line) == sourceMapTracebackSentinel {
+			sentinelLine = i
+			break
+		}
+	}
+	if sentinelLine < 0 {
+		return luaCode // no sentinel found, return as-is
+	}
+
+	// Build the traceback call. Source map lines are 0-based;
 	// the Lua runtime traceback table uses 1-based lines.
 	lineMap := make(map[int]int)
 	for _, m := range mappings {
-		genLine := m.GenLine
-		// Shift lines at or after the insertion point by 1 to account for the
-		// traceback call line that will be inserted.
-		if genLine >= insertIdx {
-			genLine++
-		}
-		genLine1 := genLine + 1
+		genLine1 := m.GenLine + 1
 		srcLine1 := m.SrcLine + 1
 		if existing, ok := lineMap[genLine1]; !ok || srcLine1 < existing {
 			lineMap[genLine1] = srcLine1
 		}
 	}
 
-	// Sort keys for deterministic output
 	keys := make([]int, 0, len(lineMap))
 	for k := range lineMap {
 		keys = append(keys, k)
@@ -645,32 +710,9 @@ func buildSourceMapTracebackCall(mappings []lua.Mapping, insertIdx int) string {
 		fmt.Fprintf(&b, "[%q] = %d", strconv.Itoa(k), lineMap[k])
 	}
 	b.WriteString("});")
-	return b.String()
-}
 
-// lualibInsertIndex returns the 0-based line index after the lualib import block.
-// Used to determine where to insert the traceback call.
-func lualibInsertIndex(luaCode string) int {
-	insertIdx := 0
-	for i, line := range strings.Split(luaCode, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "local ____lualib") ||
-			strings.HasPrefix(trimmed, "local __TS__") ||
-			strings.HasPrefix(trimmed, "local __") && strings.Contains(trimmed, "____lualib.") {
-			insertIdx = i + 1
-		}
-	}
-	return insertIdx
-}
-
-// insertAtLine inserts text at a specific 0-based line index in the code.
-func insertAtLine(luaCode string, insertIdx int, insertion string) string {
-	lines := strings.Split(luaCode, "\n")
-	result := make([]string, 0, len(lines)+1)
-	result = append(result, lines[:insertIdx]...)
-	result = append(result, insertion)
-	result = append(result, lines[insertIdx:]...)
-	return strings.Join(result, "\n")
+	lines[sentinelLine] = b.String()
+	return strings.Join(lines, "\n")
 }
 
 // lualibFeatureExports maps each multi-export lualib feature to its full export list.

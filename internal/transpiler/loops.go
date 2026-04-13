@@ -1253,9 +1253,10 @@ func (t *Transpiler) emitExportSync(node *ast.Node) []lua.Statement {
 func (t *Transpiler) transformForInStatement(node *ast.Node) []lua.Statement {
 	fs := node.AsForInOrOfStatement()
 
-	// Warn if iterating over an array with for...in
+	// Iterating an array with for...in is always broken (yields enumerable string keys
+	// including inherited properties). TSTL's forbiddenForIn is an error; match that.
 	if t.isArrayType(fs.Expression) {
-		t.addWarning(node, dw.ForbiddenForIn, "Iterating over arrays with 'for ... in' is not allowed.")
+		t.addError(node, dw.ForbiddenForIn, "Iterating over arrays with 'for ... in' is not allowed.")
 	}
 
 	iterExpr, precIter := t.transformExprInScope(fs.Expression)

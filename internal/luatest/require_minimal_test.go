@@ -15,6 +15,12 @@ import (
 // LualibDeps across results, and returns the slim bundle bytes. Mirrors the
 // aggregation done by cmd/tslua/main.go:aggregateLualibExports.
 func buildMinimalBundleForTS(t *testing.T, tsCode string) (bundle string, exports []string) {
+	return buildMinimalBundleWithExtras(t, tsCode, nil)
+}
+
+// buildMinimalBundleWithExtras is like buildMinimalBundleForTS but also scans
+// extraLuaContents for ____lualib references, merging them into the deps.
+func buildMinimalBundleWithExtras(t *testing.T, tsCode string, extraLuaContents []string) (bundle string, exports []string) {
 	t.Helper()
 	results := TranspileTS(t, tsCode, Opts{
 		LuaLibImport: transpiler.LuaLibImportRequireMinimal,
@@ -28,7 +34,18 @@ func buildMinimalBundleForTS(t *testing.T, tsCode string) (bundle string, export
 			}
 		}
 	}
+	for _, lua := range extraLuaContents {
+		for _, dep := range transpiler.ScanLuaForLualibDeps(lua) {
+			if !seen[dep] {
+				seen[dep] = true
+				exports = append(exports, dep)
+			}
+		}
+	}
 	slices.Sort(exports)
+	if len(exports) == 0 {
+		return "", nil
+	}
 	b, err := lualib.MinimalBundleForTarget(string(transpiler.LuaTargetLua55), exports)
 	if err != nil {
 		t.Fatalf("MinimalBundleForTarget: %v", err)
@@ -151,5 +168,61 @@ func TestRequireMinimal_BundleIsExecutable(t *testing.T) {
 	// [0,1,2].indexOf(1) === 1 in JS. Lua serialization: "1".
 	if got != "1" {
 		t.Errorf("got %q, want %q", got, "1")
+	}
+}
+
+// TestRequireMinimal_ExtraLuaFileLualibDeps verifies that lualib references
+// in external .lua files are included in the minimal bundle.
+func TestRequireMinimal_ExtraLuaFileLualibDeps(t *testing.T) {
+	t.Parallel()
+	extraLua := "local ____lualib = require(\"lualib_bundle\")\n" +
+		"local __TS__ArrayIndexOf = ____lualib.__TS__ArrayIndexOf\n" +
+		"__TS__ArrayIndexOf({}, 1)\n"
+
+	// The TS main doesn't use any lualib features itself
+	bundle, exports := buildMinimalBundleWithExtras(t, `export {}`, []string{extraLua})
+
+	if !slices.Contains(exports, "__TS__ArrayIndexOf") {
+		t.Fatalf("expected __TS__ArrayIndexOf in exports from extra .lua, got %v", exports)
+	}
+	if !strings.Contains(bundle, "local function __TS__ArrayIndexOf") {
+		t.Errorf("bundle missing __TS__ArrayIndexOf definition")
+	}
+}
+
+// TestRequireMinimal_ExtraLuaNoLualibDeps verifies that extra .lua files
+// without lualib references do not add spurious deps.
+func TestRequireMinimal_ExtraLuaNoLualibDeps(t *testing.T) {
+	t.Parallel()
+	extraLua := "local x = 42\nprint(x)\n"
+
+	_, exports := buildMinimalBundleWithExtras(t, `export {}`, []string{extraLua})
+
+	if len(exports) != 0 {
+		t.Errorf("expected no exports from plain .lua, got %v", exports)
+	}
+}
+
+// TestRequireMinimal_ExtraLuaDeduplicated verifies that lualib deps from
+// extra .lua files are deduplicated with those from TS transpilation.
+func TestRequireMinimal_ExtraLuaDeduplicated(t *testing.T) {
+	t.Parallel()
+	extraLua := "local ____lualib = require(\"lualib_bundle\")\n" +
+		"local __TS__ArrayIndexOf = ____lualib.__TS__ArrayIndexOf\n"
+
+	// TS code also uses ArrayIndexOf
+	bundle, exports := buildMinimalBundleWithExtras(t, `export const r = [0, 1, 2].indexOf(1);`, []string{extraLua})
+
+	count := 0
+	for _, e := range exports {
+		if e == "__TS__ArrayIndexOf" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("expected __TS__ArrayIndexOf exactly once in exports, got %d (exports: %v)", count, exports)
+	}
+	if !strings.Contains(bundle, "local function __TS__ArrayIndexOf") {
+		t.Errorf("bundle missing __TS__ArrayIndexOf definition")
 	}
 }

@@ -132,6 +132,12 @@ func (t LuaTarget) HasNativeContinue() bool {
 	return t == LuaTargetLuau
 }
 
+// HasConditionalExpression returns whether the target supports if-then-else expressions.
+// Luau has `if cond then expr else expr` as a native ternary.
+func (t LuaTarget) HasConditionalExpression() bool {
+	return t == LuaTargetLuau
+}
+
 // AllowsUnicodeIds returns whether the target supports unicode characters in identifiers.
 func (t LuaTarget) AllowsUnicodeIds() bool {
 	return t == LuaTargetLuaJIT || t == LuaTargetLuau

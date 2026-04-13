@@ -17,9 +17,45 @@ import (
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/microsoft/typescript-go/shim/vfs/cachedvfs"
 	"github.com/microsoft/typescript-go/shim/vfs/osvfs"
-	"github.com/realcoldfry/tslua/internal/lualib"
 	"github.com/realcoldfry/tslua/internal/transpiler"
 )
+
+// buildConfigForEval constructs a buildConfig for the eval subcommand.
+func buildConfigForEval(sourceRoot string, luaTarget transpiler.LuaTarget) (*buildConfig, error) {
+	luaLibImport := transpiler.LuaLibImportKind(luaLibImportFlag)
+	if !transpiler.ValidLuaLibImport(luaLibImportFlag) {
+		return nil, fmt.Errorf("unsupported luaLibImport: %s (supported: require, require-minimal, inline, none)", luaLibImportFlag)
+	}
+
+	var diagFormat dw.DiagnosticFormat
+	switch diagFormatFlag {
+	case "tstl":
+		diagFormat = dw.DiagFormatTSTL
+	case "native":
+		diagFormat = dw.DiagFormatNative
+	default:
+		return nil, fmt.Errorf("unsupported diagnosticFormat: %s (supported: tstl, native)", diagFormatFlag)
+	}
+
+	stderrIsTerminal := false
+	if fi, err := os.Stderr.Stat(); err == nil {
+		stderrIsTerminal = fi.Mode()&os.ModeCharDevice != 0
+	}
+
+	return &buildConfig{
+		sourceRoot:                sourceRoot,
+		luaTarget:                 luaTarget,
+		diagFormat:                diagFormat,
+		emitMode:                  transpiler.EmitMode(emitModeFlag),
+		luaLibImport:              luaLibImport,
+		noImplicitSelf:            noImplicitSelfFlag,
+		noImplicitGlobalVariables: noImplicitGlobalVariablesFlag,
+		classStyle:                transpiler.ClassStyle(classStyleFlag),
+		trace:                     traceFlag,
+		buildMode:                 "default",
+		stderrIsTerminal:          stderrIsTerminal,
+	}, nil
+}
 
 // runEval transpiles inline TypeScript source and prints the Lua output.
 // Source can be provided via -e flag or stdin.
@@ -35,16 +71,6 @@ func runEval(source string) error {
 	luaTarget := transpiler.LuaTarget(luaTargetFlag)
 	if !transpiler.ValidTarget(luaTargetFlag) {
 		return fmt.Errorf("unsupported luaTarget: %s", luaTargetFlag)
-	}
-
-	var diagFormat dw.DiagnosticFormat
-	switch diagFormatFlag {
-	case "tstl":
-		diagFormat = dw.DiagFormatTSTL
-	case "native":
-		diagFormat = dw.DiagFormatNative
-	default:
-		return fmt.Errorf("unsupported diagnosticFormat: %s (supported: tstl, native)", diagFormatFlag)
 	}
 
 	tmpDir, err := os.MkdirTemp("", "tslua-eval-")
@@ -82,35 +108,16 @@ func runEval(source string) error {
 	})
 	program.BindSourceFiles()
 
-	stderrIsTerminal := false
-	if fi, err := os.Stderr.Stat(); err == nil {
-		stderrIsTerminal = fi.Mode()&os.ModeCharDevice != 0
+	cfg, err := buildConfigForEval(tmpDir, luaTarget)
+	if err != nil {
+		return err
 	}
 
-	luaLibImport := transpiler.LuaLibImportKind(luaLibImportFlag)
-	if !transpiler.ValidLuaLibImport(luaLibImportFlag) {
-		return fmt.Errorf("unsupported luaLibImport: %s (supported: require, require-minimal, inline, none)", luaLibImportFlag)
-	}
-	opts := transpiler.TranspileOptions{
-		EmitMode:                  transpiler.EmitMode(emitModeFlag),
-		NoImplicitSelf:            noImplicitSelfFlag,
-		NoImplicitGlobalVariables: noImplicitGlobalVariablesFlag,
-		ClassStyle:                transpiler.ClassStyle(classStyleFlag),
-		LuaLibImport:              luaLibImport,
-		Trace:                     traceFlag,
-	}
-	if luaLibImport == transpiler.LuaLibImportInline {
-		if fd, err := lualib.FeatureDataForTarget(string(luaTarget)); err == nil {
-			opts.LualibFeatureData = fd
-		} else {
-			opts.LualibInlineContent = lualibInlineContent(luaTarget)
-		}
-	}
 	semanticDiags := compiler.SortAndDeduplicateDiagnostics(
 		compiler.Program_GetSemanticDiagnostics(program, context.Background(), nil),
 	)
 
-	results, transpileDiags := transpiler.TranspileProgramWithOptions(program, tmpDir, luaTarget, nil, opts)
+	results, transpileDiags := cfg.transpile(program, nil)
 
 	for _, r := range results {
 		rel, _ := filepath.Rel(tmpDir, r.FileName)
@@ -118,13 +125,13 @@ func runEval(source string) error {
 			fmt.Print(r.Lua)
 			if len(semanticDiags) > 0 || len(transpileDiags) > 0 {
 				if len(semanticDiags) > 0 {
-					dw.FormatTSDiagnostics(os.Stderr, semanticDiags, tmpDir, stderrIsTerminal)
+					dw.FormatTSDiagnostics(os.Stderr, semanticDiags, tmpDir, cfg.stderrIsTerminal)
 				}
 				if len(transpileDiags) > 0 {
 					if len(semanticDiags) > 0 {
 						fmt.Fprintln(os.Stderr)
 					}
-					dw.FormatTSTLDiagnostics(os.Stderr, transpileDiags, tmpDir, diagFormat, stderrIsTerminal)
+					dw.FormatTSTLDiagnostics(os.Stderr, transpileDiags, tmpDir, cfg.diagFormat, cfg.stderrIsTerminal)
 				}
 			}
 			return nil

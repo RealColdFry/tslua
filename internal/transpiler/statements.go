@@ -104,14 +104,14 @@ func (t *Transpiler) transformVariableStatement(node *ast.Node) []lua.Statement 
 				// Exported: target.name = value
 				// Inside a namespace, target is the namespace table; otherwise ____exports
 				// With exportAsGlobal: emit as bare global assignment
-				if t.isExportAsGlobalTopLevel() {
-					rhs := initExpr
-					if rhs == nil {
-						rhs = lua.Nil()
-					}
+				// TSTL: createLocalOrExportedOrGlobalDeclaration returns [] when
+				// exported and no initializer — Lua tables default missing keys to nil.
+				if initExpr == nil {
+					// No initializer: skip entirely (matches TSTL).
+				} else if t.isExportAsGlobalTopLevel() {
 					stmt := lua.LocalDecl(
 						[]*lua.Identifier{lua.Ident(safeName)},
-						[]lua.Expression{rhs},
+						[]lua.Expression{initExpr},
 					)
 					setVarPos(stmt)
 					result = append(result, stmt)
@@ -120,13 +120,9 @@ func (t *Transpiler) transformVariableStatement(node *ast.Node) []lua.Statement 
 					if t.currentNamespace != "" {
 						exportTarget = t.currentNamespace
 					}
-					rhs := initExpr
-					if rhs == nil {
-						rhs = lua.Nil()
-					}
 					stmt := lua.Assign(
 						[]lua.Expression{lua.Index(lua.Ident(exportTarget), lua.Str(name))},
-						[]lua.Expression{rhs},
+						[]lua.Expression{initExpr},
 					)
 					setVarPos(stmt)
 					result = append(result, stmt)
@@ -171,15 +167,12 @@ func (t *Transpiler) transformVariableStatement(node *ast.Node) []lua.Statement 
 					}
 					result = append(result, stmt)
 				}
-			} else {
-				// Script top-level: global
-				rhs := initExpr
-				if rhs == nil {
-					rhs = lua.Nil()
-				}
+			} else if initExpr != nil {
+				// Script top-level: global. Only emit when there's an initializer
+				// (TSTL: createLocalOrExportedOrGlobalDeclaration skips `else if (rhs)`).
 				stmt := lua.Assign(
 					[]lua.Expression{lua.Ident(safeName)},
-					[]lua.Expression{rhs},
+					[]lua.Expression{initExpr},
 				)
 				setVarPos(stmt)
 				result = append(result, stmt)

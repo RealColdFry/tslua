@@ -1,5 +1,5 @@
 diff --git a/test/util.ts b/test/util.ts
-index 3488572..b24965f 100644
+index 3488572..1864e44 100644
 --- a/test/util.ts
 +++ b/test/util.ts
 @@ -13,6 +13,13 @@ import { EmitHost, getEmitOutDir, transpileProject } from "../src";
@@ -27,7 +27,7 @@ index 3488572..b24965f 100644
          const program = this.getProgram();
          const preEmitDiagnostics = ts.getPreEmitDiagnostics(program);
          const collector = createEmitOutputCollector(this.options.extension);
-@@ -254,6 +265,252 @@ export abstract class TestBuilder {
+@@ -254,6 +265,258 @@ export abstract class TestBuilder {
          return { diagnostics: [...diagnostics], transpiledFiles: collector.files };
      }
  
@@ -42,6 +42,7 @@ index 3488572..b24965f 100644
 +            [tstl.LuaTarget.Lua54]: "5.4",
 +            [tstl.LuaTarget.Lua55]: "5.5",
 +            [tstl.LuaTarget.LuaJIT]: "JIT",
++            [tstl.LuaTarget.Luau]: "Luau",
 +        };
 +        const tslTarget = targetMap[luaTarget] ?? "5.5";
 +
@@ -96,6 +97,8 @@ index 3488572..b24965f 100644
 +            mainFileName: this.mainFileName !== "main.ts" ? this.mainFileName : undefined,
 +            extraFiles: Object.keys(this.extraFiles).length > 0 ? this.extraFiles : undefined,
 +            types: this.options.types,
++            luaBundle: (this.options as any).luaBundle,
++            luaBundleEntry: (this.options as any).luaBundleEntry,
 +            compilerOptions: {
 +                target,
 +                lib,
@@ -117,6 +120,9 @@ index 3488572..b24965f 100644
 +                jsxFragmentFactory: this.options.jsxFragmentFactory,
 +                noImplicitSelf: this.options.noImplicitSelf,
 +                noImplicitGlobalVariables: this.options.noImplicitGlobalVariables,
++                luaLibImport: this.options.luaLibImport,
++                buildMode: (this.options as any).buildMode,
++                extension: (this.options as any).extension,
 +            },
 +        });
 +
@@ -280,7 +286,7 @@ index 3488572..b24965f 100644
      @memoize
      public getMainLuaFileResult(): ExecutableTranspiledFile {
          const { transpiledFiles } = this.getLuaResult();
-@@ -452,16 +709,18 @@ export abstract class TestBuilder {
+@@ -452,16 +715,18 @@ export abstract class TestBuilder {
          // Load modules
          // Json
          this.injectLuaFile(L, lua, lauxlib, "json", jsonLib(luaTarget));
