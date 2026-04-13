@@ -100,6 +100,9 @@ jobs:
         run: |
           git submodule update --init --depth 1 extern/typescript-go
 
+      - name: Apply tsgo patches
+        run: ./scripts/apply-tsgo-patches.sh
+
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: "1.26"
