@@ -13,15 +13,8 @@
 cd "$(git rev-parse --show-toplevel)"
 
 # Reset tsgo to the clean submodule pointer, then apply patches
-echo "resetting extern/typescript-go to submodule pointer..."
-cd extern/typescript-go
-git checkout -q "$(git -C ../.. rev-parse HEAD:extern/typescript-go)"
-TSGO_COMMIT="$(git rev-parse HEAD)"
-if ls ../../patches/tsgo/*.patch &>/dev/null; then
-    echo "applying patches..."
-    git am --3way --no-gpg-sign -q ../../patches/tsgo/*.patch
-fi
-cd ../..
+TSGO_COMMIT="$(git ls-tree HEAD -- extern/typescript-go | awk '{print $3}')"
+./scripts/apply-tsgo-patches.sh
 
 echo "updating shim go.mod files (tsgo @ ${TSGO_COMMIT:0:12})..."
 find ./shim -type f -name 'go.mod' -execdir go get "github.com/microsoft/typescript-go@$TSGO_COMMIT" \; -execdir go mod tidy \; 2>&1 | grep -v '^go: ' || true

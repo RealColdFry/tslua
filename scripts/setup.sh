@@ -41,6 +41,10 @@ git submodule update --init extern/typescript-go
 git submodule update --init extern/tstl
 
 echo ""
+echo "Applying tsgo patches..."
+./scripts/apply-tsgo-patches.sh
+
+echo ""
 echo "Applying TSTL patches..."
 ./scripts/apply-tstl-patches.sh
 
