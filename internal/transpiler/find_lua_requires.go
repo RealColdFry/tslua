@@ -68,13 +68,14 @@ func matchRequire(lua string, offset int) (req LuaRequire, end int, matched bool
 		return LuaRequire{}, offset, false
 	}
 
-	if lua[offset] == '(' {
+	switch lua[offset] {
+	case '(':
 		hasParentheses = true
 		offset++
 		offset = skipLuaWhitespace(lua, offset)
-	} else if lua[offset] == '"' || lua[offset] == '\'' {
+	case '"', '\'':
 		// require without parentheses
-	} else {
+	default:
 		return LuaRequire{}, offset, false
 	}
 
