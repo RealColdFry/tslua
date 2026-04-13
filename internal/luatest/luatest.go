@@ -196,7 +196,7 @@ type Opts struct {
 type TranspileResult struct {
 	FileName     string
 	Lua          string
-	SourceMap    string                        // V3 source map JSON (empty if source maps disabled)
+	SourceMap    string // V3 source map JSON (empty if source maps disabled)
 	UsesLualib   bool
 	LualibDeps   []string                      // lualib exports referenced (populated for None and RequireMinimal modes)
 	Dependencies []transpiler.ModuleDependency // module dependencies discovered during transformation

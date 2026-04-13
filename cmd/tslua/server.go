@@ -548,7 +548,6 @@ func transpileProjectReturnProgram(tsconfigPath string, luaTarget transpiler.Lua
 	return program, results, diags, err
 }
 
-
 func transpileProjectInner(tsconfigPath string, luaTarget transpiler.LuaTarget, useCache bool, extraOpts ...transpiler.TranspileOptions) (*compiler.Program, []transpiler.TranspileResult, []*ast.Diagnostic, error) {
 	t0 := time.Now()
 

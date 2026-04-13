@@ -348,7 +348,7 @@ type ModuleDependency struct {
 type TranspileResult struct {
 	FileName      string
 	Lua           string
-	SourceMap     string             // V3 source map JSON (empty if source maps disabled)
+	SourceMap     string // V3 source map JSON (empty if source maps disabled)
 	UsesLualib    bool
 	ExportedNames []string           // names exported by this file (populated when ExportAsGlobal is set)
 	LualibDeps    []string           // lualib features used by this file (populated when NoLualibImport is set)

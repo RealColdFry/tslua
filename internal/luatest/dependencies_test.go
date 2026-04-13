@@ -19,11 +19,17 @@ func TestDependencies_InternalModule(t *testing.T) {
 	})
 
 	// Find the main file's result
-	var mainDeps []struct{ req, resolved string; ext, lua bool }
+	var mainDeps []struct {
+		req, resolved string
+		ext, lua      bool
+	}
 	for _, r := range results {
 		if r.FileName == "main.ts" {
 			for _, d := range r.Dependencies {
-				mainDeps = append(mainDeps, struct{ req, resolved string; ext, lua bool }{
+				mainDeps = append(mainDeps, struct {
+					req, resolved string
+					ext, lua      bool
+				}{
 					d.RequirePath, d.ResolvedPath, d.IsExternal, d.IsLuaSource,
 				})
 			}
