@@ -473,7 +473,6 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 	return serverResponse{OK: true, Files: luaFiles, SourceMaps: sourceMaps, Diagnostics: convertDiagnostics(allDiags, projectDir)}
 }
 
-
 var serverDebugTiming bool
 
 // cachedLibFS is reused across inline requests so TypeScript lib .d.ts files
