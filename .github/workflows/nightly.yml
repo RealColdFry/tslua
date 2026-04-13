@@ -233,8 +233,6 @@ jobs:
         run: node scripts/gen-npm-packages.mjs
 
       - name: Publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           for package in ./npm/cli-*/; do
             echo "Publishing $(jq -r .name "$package/package.json")@${{ needs.check.outputs.version }}"
