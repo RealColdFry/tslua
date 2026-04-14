@@ -53,19 +53,44 @@ just tstl-test  # run full suite
 just tstl-test expressions  # filter by spec name
 ```
 
-Current result: **6071 / 6179 tests pass (98.3%).** The 103 failures break down as:
+### Results
 
-| Category               | Count | Notes                                                                                                                  |
-| ---------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------- |
-| Codegen snapshot diffs | ~23   | Semantically equivalent output, different formatting (e.g. hex vs decimal literals, temp variable elision)             |
-| Plugins/transformers   | ~14   | `luaPlugins` not implemented                                                                                           |
-| Bundling/build modes   | ~11   | `--buildMode library`, `luaLibImport inline`, bundling edge cases                                                      |
-| Module resolution      | ~8    | `noResolvePaths`, `baseUrl` resolution differences                                                                     |
-| Emit paths             | ~4    | `getEmitPath` for outDir/rootDir/extensions                                                                            |
-| Diagnostics            | ~2    | Snapshot diffs in diagnostic output                                                                                    |
-| Other                  | ~41   | Mix of Luau-specific, language extension edge cases, async/generators on universal target, declaration file generation |
+Current result: **6111 / 6179 tests pass (98.9%).** The 63 failures break down as:
 
-Most failures are in unimplemented features (plugins, build modes) or codegen snapshot comparisons where the output is semantically equivalent but not byte-identical.
+**Not planned (20)** - `luaPlugins` (12) and custom TS transformers (8).
+
+**Codegen divergences (23)** - Semantically equivalent output, different formatting:
+
+- Hex bitmask literals, e.g. `0xFFFFFFFF` vs `4294967295` (6)
+- Optional chain temp variable elision for simple identifiers (5)
+- Error-path codegen on invalid `$multi` / `$vararg` usage (6)
+- `table.unpack` vs lualib `__TS__Spread` (1)
+- Annotation comment differences (2)
+- Enum initialization style, labeled statement handling, binding pattern naming (3)
+
+**Universal target strictness (4)** - try/catch in async/generator functions (3+1). tslua emits a diagnostic because `pcall` inside coroutines requires Lua 5.2+. TSTL's test suite runs universal against 5.4, so the difference is not caught there.
+
+**tsgo diagnostic text (4)** - TypeScript 7 emits shorter or differently formatted diagnostic messages than TS5:
+
+- LuaTable strict mode nil key (2)
+- Function tuple assignment (1)
+- Module resolution diagnostic code (1)
+
+**baseUrl / TS7 alignment (4)**:
+
+- `baseUrl` module resolution dropped in tsgo (1)
+- rootDir-relative path differences (2)
+- `paths` without `baseUrl` (1)
+
+**Feature gaps (7)**:
+
+- Declaration file (`.d.ts`) emission (1)
+- `@noResolution` require preservation (1)
+- `require-minimal` separate lualib file (1)
+- Bundle emit path resolution (3)
+- Multi-file bundle require (1)
+
+**Environment (1)** - Stray `/tmp/tsconfig.json` contaminates `locate()` test.
 
 ## Migrated Go tests
 
@@ -84,9 +109,11 @@ just migrate-all            # regenerate all migrated test files
 node --require tsx/cjs scripts/migrate/cli.ts -c -a  # check migration coverage
 ```
 
+### Results
+
 Current result: **5656 / 5903 cases migrated (95.8%)** across 70 of 71 spec files, with **100% behavioral pass rate** on migrated cases.
 
-The 1 unmigrated spec file (`find-lua-requires`) tests a TSTL-internal Lua source parser that scans emitted Lua for `require()` calls (used by TSTL's bundler). tslua doesn't need this: it tracks dependencies at the TypeScript AST level during transpilation and uses TypeScript's own module resolution, so there's no post-emission Lua scanning. The spec also uses plain Jest assertions with no `testExpression`/`testFunction`/`testModule` builders, so the migration system has nothing to capture.
+The 1 unmigrated spec file (`find-lua-requires`) tests TSTL's Lua source scanner that finds `require()` calls in emitted Lua. tslua has its own implementation (`internal/transpiler/find_lua_requires.go`) used for discovering dependencies in external Lua libraries where TypeScript AST information isn't available. The spec uses plain Jest assertions with no `testExpression`/`testFunction`/`testModule` builders, so the migration system has nothing to capture.
 
 The 247 unmigrated cases within migrated specs use TSTL assertion methods (`getMainLuaCodeChunk`, `getLuaExecutionResult`, etc.) that the migration script doesn't yet support. These are captured and reported by the `-c` (check) flag.
 

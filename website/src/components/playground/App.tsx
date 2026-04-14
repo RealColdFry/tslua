@@ -9,6 +9,7 @@ import { execLua, type DualExecResult } from "./exec-lua";
 import { compileTs } from "./compile-ts";
 import { luaLanguage } from "./lua-language";
 import { useHashState, type PlaygroundState, type PlaygroundTsconfig } from "./url-state";
+import { formatTs } from "./format-ts";
 import "./playground.css";
 
 function useStarlightTheme(): "dark" | "light" {
@@ -88,7 +89,7 @@ if (typeof window !== "undefined") {
   });
 }
 
-type MobileTab = "ts" | "lua" | "ts-eval" | "lua-eval";
+type MobileTab = "ts" | "lua" | "ts-eval" | "lua-eval" | "config";
 
 function getTarget(tsconfig: PlaygroundTsconfig): string {
   return tsconfig.tstl?.luaTarget || "JIT";
@@ -426,6 +427,23 @@ function PlaygroundApp() {
     [doTranspile, setPgState],
   );
 
+  const [formatting, setFormatting] = useState(false);
+  const [formatError, setFormatError] = useState<string | null>(null);
+  const handleFormat = useCallback(() => {
+    setFormatting(true);
+    setFormatError(null);
+    formatTs(tsCode).then(
+      (formatted) => {
+        handleTsChange(formatted);
+        setFormatting(false);
+      },
+      (err) => {
+        setFormatting(false);
+        setFormatError(String(err));
+      },
+    );
+  }, [tsCode, handleTsChange]);
+
   const updateTstl = useCallback(
     (key: string, value: string | boolean) => {
       const tstl = { ...pgState.tsconfig.tstl, [key]: value };
@@ -567,26 +585,23 @@ function PlaygroundApp() {
 
       {/* Mobile tabs */}
       <div className="pg-mobile-tabs">
-        {(["ts", "lua", "ts-eval", "lua-eval"] as MobileTab[]).map((tab) => (
+        {(["ts", "lua", "ts-eval", "lua-eval", "config"] as MobileTab[]).map((tab) => (
           <button
             key={tab}
-            className={`pg-tab ${mobileTab === tab ? "active" : ""}`}
+            className={`pg-tab ${mobileTab === tab ? "active" : ""}${tab === "config" ? " pg-tab-gear" : ""}`}
             onClick={() => setMobileTab(tab)}
           >
-            {{ ts: "TS", lua: "Lua", "ts-eval": "JS Out", "lua-eval": "Lua Out" }[tab]}
+            {
+              {
+                ts: "TS",
+                lua: "Lua",
+                "ts-eval": "JS Out",
+                "lua-eval": "Lua Out",
+                config: "\u2699\uFE0E",
+              }[tab]
+            }
           </button>
         ))}
-        <select
-          value={luaTarget}
-          onChange={(e) => updateTstl("luaTarget", e.target.value === "JIT" ? "" : e.target.value)}
-          className="pg-select pg-select-sm"
-        >
-          {LUA_TARGETS.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
       </div>
 
       {/* Mobile layout */}
@@ -613,6 +628,7 @@ function PlaygroundApp() {
             output={jsResult.output}
             error={jsResult.error}
             timeMs={jsEvalMs}
+            stale={staleJs}
           />
         )}
         {mobileTab === "lua-eval" && (
@@ -623,8 +639,17 @@ function PlaygroundApp() {
             timeMs={luaEvalMs}
             toggle={luaPretty}
             onToggle={() => setLuaPretty((v) => !v)}
-            toggleLabel={luaPretty ? "Pretty" : "Raw"}
           />
+        )}
+        {mobileTab === "config" && (
+          <div className="pg-mobile-pane pg-mobile-config">
+            {sidebar}
+            <div className="pg-mobile-config-actions">
+              <button className="pg-fmt-btn" onClick={handleFormat} disabled={formatting}>
+                {formatting ? "Formatting..." : "Format Code"}
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
@@ -652,6 +677,14 @@ function PlaygroundApp() {
                 </button>
               )}
               <span>TypeScript</span>
+              <button
+                className="pg-fmt-btn"
+                onClick={handleFormat}
+                disabled={formatting}
+                title="Format with Prettier"
+              >
+                {formatting ? "..." : "Format"}
+              </button>
             </div>
             <div className="pg-cell-content">
               <Editor
@@ -706,18 +739,18 @@ function PlaygroundApp() {
               timeMs={luaEvalMs}
               toggle={luaPretty}
               onToggle={() => setLuaPretty((v) => !v)}
-              toggleLabel={luaPretty ? "Pretty" : "Raw"}
               stale={staleLuaEval}
             />
           </div>
         </div>
       </div>
 
-      {errors.length > 0 && (
+      {(errors.length > 0 || formatError) && (
         <div className="pg-errors">
           {errors.map((e, i) => (
             <div key={i}>{e}</div>
           ))}
+          {formatError && <div>Format failed: {formatError}</div>}
         </div>
       )}
     </div>

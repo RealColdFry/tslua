@@ -5,7 +5,6 @@ interface OutputPanelProps {
   timeMs?: number | null;
   toggle?: boolean;
   onToggle?: () => void;
-  toggleLabel?: string;
   stale?: boolean;
 }
 
@@ -16,7 +15,6 @@ export function OutputPanel({
   timeMs,
   toggle,
   onToggle,
-  toggleLabel,
   stale,
 }: OutputPanelProps) {
   const hasContent = output.length > 0 || error;
@@ -28,8 +26,9 @@ export function OutputPanel({
         {stale && <span className="pg-stale" />}
         {timeMs != null && <span className="pg-timing">{timeMs.toFixed(1)}ms</span>}
         {onToggle && (
-          <button onClick={onToggle} className={`pg-toggle-btn ${toggle ? "active" : ""}`}>
-            {toggleLabel}
+          <button className="pg-segmented" onClick={onToggle} type="button">
+            <span className={`pg-seg-btn ${toggle ? "" : "active"}`}>Raw</span>
+            <span className={`pg-seg-btn ${toggle ? "active" : ""}`}>Pretty</span>
           </button>
         )}
       </div>
