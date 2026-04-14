@@ -58,6 +58,8 @@ var (
 	traceFlag                     bool
 	noEmitFlag                    bool
 	noEmitOnErrorFlag             bool
+	evalLanguageExtensionsFlag    bool
+	evalTypesFlag                 []string
 )
 
 func main() {
@@ -122,6 +124,8 @@ func main() {
 	}
 	evalCmd.Flags().StringVarP(&evalSourceFlag, "expr", "e", "", "TypeScript source to transpile")
 	evalCmd.Flags().BoolVar(&traceFlag, "trace", false, "emit --[[trace: ...]] comments showing which TS node produced each Lua statement")
+	evalCmd.Flags().BoolVar(&evalLanguageExtensionsFlag, "languageExtensions", false, "include TSTL language extension types ($multi, LuaMultiReturn, etc.)")
+	evalCmd.Flags().StringArrayVar(&evalTypesFlag, "types", nil, "additional type roots to include (can be specified multiple times)")
 	rootCmd.AddCommand(evalCmd)
 
 	// ast subcommand
