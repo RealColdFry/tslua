@@ -84,9 +84,32 @@ func runEval(source string) error {
 		return fmt.Errorf("write source: %w", err)
 	}
 
+	// Resolve types paths for the eval tsconfig.
+	var types []string
+	if evalLanguageExtensionsFlag {
+		exe, err := os.Executable()
+		if err != nil {
+			return fmt.Errorf("resolve executable path: %w", err)
+		}
+		repoRoot := filepath.Dir(filepath.Dir(exe))
+		langExtPath := filepath.Join(repoRoot, "extern", "tstl", "language-extensions")
+		if _, err := os.Stat(langExtPath); err != nil {
+			// Fallback: try relative to working directory (dev builds).
+			cwd, _ := os.Getwd()
+			langExtPath = filepath.Join(cwd, "extern", "tstl", "language-extensions")
+		}
+		types = append(types, langExtPath)
+	}
+	types = append(types, evalTypesFlag...)
+
 	files := []string{mainFile}
 	filesJSON, _ := json.Marshal(files)
-	tsconfig := fmt.Sprintf(`{"compilerOptions":{"target":"ESNext","lib":["ESNext"],"strict":true,"skipLibCheck":true,"moduleResolution":"node"},"files":%s}`, filesJSON)
+	compilerOpts := `"target":"ESNext","lib":["ESNext"],"strict":true,"skipLibCheck":true,"moduleResolution":"node"`
+	if len(types) > 0 {
+		typesJSON, _ := json.Marshal(types)
+		compilerOpts += `,"types":` + string(typesJSON)
+	}
+	tsconfig := fmt.Sprintf(`{"compilerOptions":{%s},"files":%s}`, compilerOpts, filesJSON)
 	if err := os.WriteFile(filepath.Join(tmpDir, "tsconfig.json"), []byte(tsconfig), 0o644); err != nil {
 		return fmt.Errorf("write tsconfig: %w", err)
 	}
