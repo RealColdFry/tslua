@@ -41,7 +41,7 @@ for (const x of items) { print(x * 2) }
 
 Two verification approaches, both running TSTL's own tests:
 
-- **[Jest harness](https://realcoldfry.github.io/tslua/testing/overview/#jest-harness).** TSTL's Jest suite runs unmodified, but with tslua's transpiler swapped in via a Unix socket server. **6071 / 6179 tests pass (98.3%).**
+- **[Jest harness](https://realcoldfry.github.io/tslua/testing/overview/#jest-harness).** TSTL's Jest suite runs unmodified, but with tslua's transpiler swapped in via a Unix socket server. **6111 / 6179 tests pass (98.9%).**
 - **[Migrated Go tests](https://realcoldfry.github.io/tslua/testing/overview/#migrated-go-tests).** A migration system extracts TSTL's Jest specs and code-generates them into native Go tests. **5656 / 5903 cases migrated (95.8%)** across 70 of 71 spec files, with **100% behavioral pass rate** on migrated cases. The 247 unmigrated cases use TSTL assertion methods (`getMainLuaCodeChunk`, `getLuaExecutionResult`, etc.) not yet supported by the migration script.
 
 ## What's not done yet
