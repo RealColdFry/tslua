@@ -1,6 +1,8 @@
 // Executes JavaScript in a sandboxed iframe with no network access.
 // CSP blocks all fetch/XHR/WebSocket. Sandbox blocks DOM/navigation/origin access.
 
+import sandboxScript from "./exec-js-sandbox.js?raw";
+
 const TIMEOUT_MS = 3000;
 
 export interface ExecResult {
@@ -65,30 +67,21 @@ export function execJs(code: string): Promise<ExecResult> {
     };
     window.addEventListener("message", handler);
 
+    // Build the script by splitting on placeholders rather than using .replace(),
+    // which interprets $ patterns in the replacement string.
+    const escaped = JSON.stringify(code).slice(1, -1);
+    const script = sandboxScript
+      .split("__NONCE_PLACEHOLDER__").join(nonce)
+      .split("__CODE_PLACEHOLDER__").join(escaped)
+      .replace(/<\/(script)/gi, "<\\/$1");
+
     const f = getIframe();
-    f.srcdoc = `
-<!DOCTYPE html>
+    f.srcdoc = `<!DOCTYPE html>
 <html>
 <head>
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval';">
 </head>
-<body>
-<script>
-const __nonce = ${JSON.stringify(nonce)};
-const __output = [];
-const __origConsole = { log: console.log, warn: console.warn, error: console.error };
-console.log = (...args) => __output.push(args.map(String).join(" "));
-console.warn = (...args) => __output.push("[warn] " + args.map(String).join(" "));
-console.error = (...args) => __output.push("[error] " + args.map(String).join(" "));
-const print = (...args) => console.log(...args);
-try {
-  ${escapeScript(code)}
-  parent.postMessage({ __nonce: __nonce, output: __output, error: null }, "*");
-} catch (e) {
-  parent.postMessage({ __nonce: __nonce, output: __output, error: String(e) }, "*");
-}
-</script>
-</body>
+<body><script>${script}</script></body>
 </html>`;
   });
 }
@@ -100,8 +93,3 @@ function cleanup() {
   }
 }
 
-function escapeScript(code: string): string {
-  // Wrap in a function to avoid top-level return issues, and use indirect eval
-  // to run in global scope.
-  return `(0, eval)(${JSON.stringify(code)});`;
-}

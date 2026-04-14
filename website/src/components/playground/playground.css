@@ -128,7 +128,7 @@
   margin-top: 0.5rem;
   padding: 0.4rem 0.9rem;
   background: var(--pg-accent, #3b82f6);
-  color: white;
+  color: var(--pg-bg);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -172,6 +172,9 @@
   background: var(--pg-divider);
   color: var(--pg-text);
 }
+.pg-tab-gear {
+  font-size: 1.1rem;
+}
 
 /* ---- Mobile layout ---- */
 .pg-mobile-layout {
@@ -189,6 +192,19 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+.pg-mobile-config {
+  overflow-y: auto;
+}
+.pg-mobile-config .pg-sidebar {
+  width: 100%;
+  border-right: none;
+}
+.pg-mobile-config .pg-sidebar-header {
+  display: none;
+}
+.pg-mobile-config-actions {
+  padding: 0.75rem;
 }
 
 /* ---- Desktop layout: sidebar + grid ---- */
@@ -466,25 +482,48 @@
   white-space: pre-wrap;
   margin-top: 0.25rem;
 }
-.pg-toggle-btn {
-  padding: 0.25rem 0.5rem;
-  margin-top: -0.25rem;
+.pg-segmented {
+  display: inline-flex;
+  border: 1px solid var(--pg-accent);
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.pg-seg-btn {
+  padding: 0.1rem 0.4rem;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: background-color 0.15s, color 0.15s;
+}
+.pg-seg-btn.active {
+  background: var(--pg-accent);
+  color: var(--pg-bg);
+}
+.pg-seg-btn:not(.active) {
+  background: transparent;
+  color: var(--pg-accent);
+}
+.pg-fmt-btn {
+  padding: 0.15rem 0.5rem;
   border-radius: 4px;
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  transition:
-    background-color 0.15s,
-    color 0.15s;
   cursor: pointer;
-  border: none;
-}
-.pg-toggle-btn.active {
-  background: rgba(137, 180, 250, 0.2);
+  border: 1px solid var(--pg-accent);
+  background: transparent;
   color: var(--pg-accent);
+  transition: background-color 0.15s, color 0.15s;
 }
-.pg-toggle-btn:not(.active) {
-  background: rgba(69, 71, 90, 0.5);
-  color: var(--pg-text-muted);
+.pg-fmt-btn:hover {
+  background: var(--pg-accent);
+  color: var(--pg-bg);
+  border-color: var(--pg-accent);
+}
+.pg-fmt-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
