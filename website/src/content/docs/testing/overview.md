@@ -60,6 +60,7 @@ Current result: **6111 / 6179 tests pass (98.9%).** The 63 failures break down a
 **Not planned (20)** - `luaPlugins` (12) and custom TS transformers (8).
 
 **Codegen divergences (23)** - Semantically equivalent output, different formatting:
+
 - Hex bitmask literals, e.g. `0xFFFFFFFF` vs `4294967295` (6)
 - Optional chain temp variable elision for simple identifiers (5)
 - Error-path codegen on invalid `$multi` / `$vararg` usage (6)
@@ -70,16 +71,19 @@ Current result: **6111 / 6179 tests pass (98.9%).** The 63 failures break down a
 **Universal target strictness (4)** - try/catch in async/generator functions (3+1). tslua emits a diagnostic because `pcall` inside coroutines requires Lua 5.2+. TSTL's test suite runs universal against 5.4, so the difference is not caught there.
 
 **tsgo diagnostic text (4)** - TypeScript 7 emits shorter or differently formatted diagnostic messages than TS5:
+
 - LuaTable strict mode nil key (2)
 - Function tuple assignment (1)
 - Module resolution diagnostic code (1)
 
 **baseUrl / TS7 alignment (4)**:
+
 - `baseUrl` module resolution dropped in tsgo (1)
 - rootDir-relative path differences (2)
 - `paths` without `baseUrl` (1)
 
 **Feature gaps (7)**:
+
 - Declaration file (`.d.ts`) emission (1)
 - `@noResolution` require preservation (1)
 - `require-minimal` separate lualib file (1)
