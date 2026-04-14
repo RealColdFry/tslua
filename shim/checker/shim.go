@@ -1275,6 +1275,7 @@ const VarianceFlagsUnmeasurable = checker.VarianceFlagsUnmeasurable
 const VarianceFlagsUnreliable = checker.VarianceFlagsUnreliable
 const VarianceFlagsVarianceMask = checker.VarianceFlagsVarianceMask
 type VarianceLinks = checker.VarianceLinks
+type VerbosityContext = checker.VerbosityContext
 type WideningContext = checker.WideningContext
 type WideningKind = checker.WideningKind
 const WideningKindFunctionReturn = checker.WideningKindFunctionReturn
