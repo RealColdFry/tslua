@@ -26,10 +26,10 @@ export function OutputPanel({
         {stale && <span className="pg-stale" />}
         {timeMs != null && <span className="pg-timing">{timeMs.toFixed(1)}ms</span>}
         {onToggle && (
-          <span className="pg-segmented" onClick={onToggle}>
+          <button className="pg-segmented" onClick={onToggle} type="button">
             <span className={`pg-seg-btn ${toggle ? "" : "active"}`}>Raw</span>
             <span className={`pg-seg-btn ${toggle ? "active" : ""}`}>Pretty</span>
-          </span>
+          </button>
         )}
       </div>
       <div className="pg-output-body">

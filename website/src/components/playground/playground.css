@@ -488,6 +488,9 @@
   border-radius: 4px;
   overflow: hidden;
   cursor: pointer;
+  padding: 0;
+  background: transparent;
+  font: inherit;
 }
 .pg-seg-btn {
   padding: 0.1rem 0.4rem;
@@ -495,7 +498,9 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  transition: background-color 0.15s, color 0.15s;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
 }
 .pg-seg-btn.active {
   background: var(--pg-accent);
@@ -516,7 +521,9 @@
   border: 1px solid var(--pg-accent);
   background: transparent;
   color: var(--pg-accent);
-  transition: background-color 0.15s, color 0.15s;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
 }
 .pg-fmt-btn:hover {
   background: var(--pg-accent);

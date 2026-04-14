@@ -71,8 +71,10 @@ export function execJs(code: string): Promise<ExecResult> {
     // which interprets $ patterns in the replacement string.
     const escaped = JSON.stringify(code).slice(1, -1);
     const script = sandboxScript
-      .split("__NONCE_PLACEHOLDER__").join(nonce)
-      .split("__CODE_PLACEHOLDER__").join(escaped)
+      .split("__NONCE_PLACEHOLDER__")
+      .join(nonce)
+      .split("__CODE_PLACEHOLDER__")
+      .join(escaped)
       .replace(/<\/(script)/gi, "<\\/$1");
 
     const f = getIframe();
@@ -92,4 +94,3 @@ function cleanup() {
     iframe = null;
   }
 }
-

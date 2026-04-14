@@ -591,9 +591,15 @@ function PlaygroundApp() {
             className={`pg-tab ${mobileTab === tab ? "active" : ""}${tab === "config" ? " pg-tab-gear" : ""}`}
             onClick={() => setMobileTab(tab)}
           >
-            {{ ts: "TS", lua: "Lua", "ts-eval": "JS Out", "lua-eval": "Lua Out", config: "\u2699\uFE0E" }[
-              tab
-            ]}
+            {
+              {
+                ts: "TS",
+                lua: "Lua",
+                "ts-eval": "JS Out",
+                "lua-eval": "Lua Out",
+                config: "\u2699\uFE0E",
+              }[tab]
+            }
           </button>
         ))}
       </div>
@@ -639,11 +645,7 @@ function PlaygroundApp() {
           <div className="pg-mobile-pane pg-mobile-config">
             {sidebar}
             <div className="pg-mobile-config-actions">
-              <button
-                className="pg-fmt-btn"
-                onClick={handleFormat}
-                disabled={formatting}
-              >
+              <button className="pg-fmt-btn" onClick={handleFormat} disabled={formatting}>
                 {formatting ? "Formatting..." : "Format Code"}
               </button>
             </div>
@@ -737,7 +739,6 @@ function PlaygroundApp() {
               timeMs={luaEvalMs}
               toggle={luaPretty}
               onToggle={() => setLuaPretty((v) => !v)}
-
               stale={staleLuaEval}
             />
           </div>
