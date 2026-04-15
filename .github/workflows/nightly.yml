@@ -239,7 +239,7 @@ jobs:
         run: |
           for package in ./npm/cli-*/; do
             echo "Publishing $(jq -r .name "$package/package.json")@${{ needs.check.outputs.version }}"
-            npm publish "$package" --provenance
+            npm publish "$package" --provenance --tag latest
           done
           # Wait for platform packages to be available on registry
           VERSION="${{ needs.check.outputs.version }}"
@@ -250,4 +250,4 @@ jobs:
             done
           done
           echo "Publishing @tslua/cli@${VERSION}"
-          npm publish ./npm/tslua --provenance
+          npm publish ./npm/tslua --provenance --tag latest
