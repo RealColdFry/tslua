@@ -1,7 +1,6 @@
 name: Bump tsgo
 
 permissions:
-  actions: write
   contents: write
   pull-requests: write
 
@@ -114,6 +113,7 @@ jobs:
       - name: Push branch
         if: steps.check.outputs.skip == 'false'
         run: |
+          git remote set-url origin https://x-access-token:${{ secrets.BUMP_PAT }}@github.com/${{ github.repository }}
           git fetch origin bump-tsgo || true
           git push --force-with-lease origin bump-tsgo
 
@@ -148,9 +148,3 @@ jobs:
               --title "bump tsgo to ${NEW_SHORT}" \
               --body "$BODY"
           fi
-
-      - name: Trigger CI
-        if: steps.check.outputs.skip == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run ci.yml --ref bump-tsgo
