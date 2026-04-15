@@ -1,0 +1,147 @@
+name: Bump tsgo
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 04:00 UTC daily (before nightly at 06:00)
+    - cron: "0 4 * * *"
+
+concurrency:
+  group: bump-tsgo
+  cancel-in-progress: true
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+
+      - name: Init submodule
+        run: git submodule update --init --depth 1 extern/typescript-go
+
+      - name: Check for upstream update
+        id: check
+        run: |
+          cd extern/typescript-go
+          OLD=$(git rev-parse HEAD)
+          git fetch origin main --depth 1
+          NEW=$(git rev-parse origin/main)
+          echo "old=$OLD" >> "$GITHUB_OUTPUT"
+          echo "new=$NEW" >> "$GITHUB_OUTPUT"
+          echo "new_short=${NEW:0:12}" >> "$GITHUB_OUTPUT"
+          if [ "$OLD" = "$NEW" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Already up to date at ${OLD:0:12}"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "Update available: ${OLD:0:12} -> ${NEW:0:12}"
+          fi
+
+      - name: Check for existing PR
+        if: steps.check.outputs.skip == 'false'
+        id: existing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Find any open PR from our bump branch
+          OPEN_PR=$(gh pr list --head bump-tsgo --state open --json number,title --jq '.[0].number // empty')
+          if [ -n "$OPEN_PR" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "pr_number=$OPEN_PR" >> "$GITHUB_OUTPUT"
+            echo "Open PR #$OPEN_PR exists, will update it"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "No open PR, will create one"
+          fi
+
+      - name: Bump submodule
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          cd extern/typescript-go
+          git checkout --detach origin/main
+
+      # Commit the submodule pointer BEFORE running shim gen
+      # (update-shims.sh reads the committed SHA via `git ls-tree HEAD`)
+      - name: Commit submodule bump
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          BRANCH=bump-tsgo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Force-create the branch (handles both new and existing cases)
+          git checkout -B "$BRANCH"
+          git add extern/typescript-go
+          git commit -m "bump tsgo to ${{ steps.check.outputs.new_short }}"
+
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        if: steps.check.outputs.skip == 'false'
+        with:
+          go-version: "1.26"
+
+      - name: Cache Go build
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: ~/.cache/go-build
+          key: go-build-${{ runner.os }}-${{ hashFiles('go.sum') }}
+
+      - name: Regenerate shims
+        if: steps.check.outputs.skip == 'false'
+        run: ./tools/update-shims.sh
+
+      - name: Commit shim changes
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No shim changes needed"
+          else
+            git add -A shim/ go.mod go.sum
+            git commit -m "regen shims for tsgo ${{ steps.check.outputs.new_short }}"
+          fi
+
+      - name: Verify build
+        if: steps.check.outputs.skip == 'false'
+        run: go build ./...
+
+      - name: Push branch
+        if: steps.check.outputs.skip == 'false'
+        run: git push --force-with-lease origin bump-tsgo
+
+      - name: Create or update PR
+        if: steps.check.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          OLD_SHORT="${{ steps.check.outputs.old }}"
+          OLD_SHORT="${OLD_SHORT:0:12}"
+          NEW_SHORT="${{ steps.check.outputs.new_short }}"
+          COMPARE="https://github.com/microsoft/typescript-go/compare/${OLD_SHORT}...${NEW_SHORT}"
+
+          BODY="$(cat <<EOF
+          Bump \`extern/typescript-go\` submodule to [\`${NEW_SHORT}\`](https://github.com/microsoft/typescript-go/commit/${{ steps.check.outputs.new }}).
+
+          [Upstream diff](${COMPARE}) (${OLD_SHORT} -> ${NEW_SHORT})
+
+          Shims regenerated via \`update-shims.sh\`. CI will validate the build and tests.
+          EOF
+          )"
+
+          if [ "${{ steps.existing.outputs.found }}" = "true" ]; then
+            gh pr edit "${{ steps.existing.outputs.pr_number }}" \
+              --title "bump tsgo to ${NEW_SHORT}" \
+              --body "$BODY"
+            echo "Updated PR #${{ steps.existing.outputs.pr_number }}"
+          else
+            gh pr create \
+              --base main \
+              --head bump-tsgo \
+              --title "bump tsgo to ${NEW_SHORT}" \
+              --body "$BODY"
+          fi
