@@ -136,26 +136,18 @@ func runEval(source string) error {
 		return err
 	}
 
-	semanticDiags := compiler.SortAndDeduplicateDiagnostics(
-		compiler.Program_GetSemanticDiagnostics(program, context.Background(), nil),
-	)
+	semanticDiags := compiler.Program_GetSemanticDiagnostics(program, context.Background(), nil)
 
 	results, transpileDiags := cfg.transpile(program, nil)
+
+	allDiags := mergeAndSortDiagnostics(semanticDiags, transpileDiags)
 
 	for _, r := range results {
 		rel, _ := filepath.Rel(tmpDir, r.FileName)
 		if strings.HasSuffix(rel, "main.ts") {
 			fmt.Print(r.Lua)
-			if len(semanticDiags) > 0 || len(transpileDiags) > 0 {
-				if len(semanticDiags) > 0 {
-					dw.FormatTSDiagnostics(os.Stderr, semanticDiags, tmpDir, cfg.stderrIsTerminal)
-				}
-				if len(transpileDiags) > 0 {
-					if len(semanticDiags) > 0 {
-						fmt.Fprintln(os.Stderr)
-					}
-					dw.FormatTSTLDiagnostics(os.Stderr, transpileDiags, tmpDir, cfg.diagFormat, cfg.stderrIsTerminal)
-				}
+			if len(allDiags) > 0 {
+				dw.FormatAllDiagnostics(os.Stderr, allDiags, tmpDir, cfg.diagFormat, cfg.stderrIsTerminal)
 			}
 			return nil
 		}

@@ -437,7 +437,7 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 	// Pre-emit diagnostics (syntactic + semantic), matching ts.getPreEmitDiagnostics
 	syntacticDiags := compiler.Program_GetSyntacticDiagnostics(program, context.Background(), nil)
 	semanticDiags := compiler.Program_GetSemanticDiagnostics(program, context.Background(), nil)
-	preEmitDiags := compiler.SortAndDeduplicateDiagnostics(append(syntacticDiags, semanticDiags...))
+	preEmitDiags := append(syntacticDiags, semanticDiags...)
 
 	// Transpile using the updated program
 	cfg := buildConfigFromRequest(req, sourceRoot, luaTarget)
@@ -447,7 +447,7 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 	inlineOldProgram = program
 	inlineSourceRoot = sourceRoot
 
-	allDiags := compiler.SortAndDeduplicateDiagnostics(append(preEmitDiags, diags...))
+	allDiags := mergeAndSortDiagnostics(preEmitDiags, diags)
 	luaFiles := make(map[string]string, len(results))
 	sourceMaps := make(map[string]string, len(results))
 	for _, r := range results {
@@ -540,7 +540,7 @@ func transpileProjectInner(tsconfigPath string, luaTarget transpiler.LuaTarget, 
 
 	syntacticDiags := compiler.Program_GetSyntacticDiagnostics(program, context.Background(), nil)
 	semanticDiags := compiler.Program_GetSemanticDiagnostics(program, context.Background(), nil)
-	preEmitDiags := compiler.SortAndDeduplicateDiagnostics(append(syntacticDiags, semanticDiags...))
+	preEmitDiags := append(syntacticDiags, semanticDiags...)
 
 	t5b := time.Now()
 
@@ -557,7 +557,7 @@ func transpileProjectInner(tsconfigPath string, luaTarget transpiler.LuaTarget, 
 			ms(t1.Sub(t0)), ms(t2.Sub(t1)), ms(t3.Sub(t2)), ms(t4.Sub(t3)), ms(t5.Sub(t4)), ms(t5b.Sub(t5)), ms(t6.Sub(t5b)), ms(t6.Sub(t0)))
 	}
 
-	allDiags := append(preEmitDiags, tsDiags...)
+	allDiags := mergeAndSortDiagnostics(preEmitDiags, tsDiags)
 	return program, results, allDiags, nil
 }
 

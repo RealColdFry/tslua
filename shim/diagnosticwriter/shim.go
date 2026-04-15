@@ -121,6 +121,42 @@ func FormatTSTLDiagnostics(w io.Writer, diags []*ast.Diagnostic, cwd string, for
 	}
 }
 
+// IsTSTLDiagnostic returns true if the diagnostic was produced by the tslua transpiler
+// (as opposed to the TypeScript type checker).
+func IsTSTLDiagnostic(d *ast.Diagnostic) bool {
+	return d.MessageKey() == "TSTL"
+}
+
+// FormatAllDiagnostics writes a mixed slice of TS and TSTL diagnostics, interleaved
+// in the order they appear (caller should sort first). Each diagnostic is formatted
+// using the appropriate formatter based on its source.
+func FormatAllDiagnostics(w io.Writer, diags []*ast.Diagnostic, cwd string, format DiagnosticFormat, colorize bool) {
+	opts := &diagnosticwriter.FormattingOptions{
+		NewLine: "\n",
+		ComparePathsOptions: tspath.ComparePathsOptions{
+			CurrentDirectory: cwd,
+		},
+	}
+	for i, d := range diags {
+		if IsTSTLDiagnostic(d) {
+			if i > 0 && colorize {
+				fmt.Fprintln(w)
+			}
+			FormatTSTLDiagnostic(w, d, cwd, format, colorize)
+		} else {
+			if i > 0 && colorize {
+				fmt.Fprintln(w)
+			}
+			wrapped := diagnosticwriter.WrapASTDiagnostic(d)
+			if colorize {
+				diagnosticwriter.FormatDiagnosticWithColorAndContext(w, wrapped, opts)
+			} else {
+				diagnosticwriter.WriteFormatDiagnostic(w, wrapped, opts)
+			}
+		}
+	}
+}
+
 // writeHelp renders help text with "  help: " prefix, indenting continuation lines.
 func writeHelp(w io.Writer, help string, colorize bool) {
 	lines := strings.Split(help, "\n")
