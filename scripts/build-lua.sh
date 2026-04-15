@@ -143,6 +143,9 @@ download_lune() {
 
     # Resolve platform-specific URL
     local arch; arch="$(uname -m)"
+    case "$arch" in
+        arm64) arch="aarch64" ;;
+    esac
     local os_name
     case "$(uname -s)" in
         Darwin*) os_name="macos" ;;
