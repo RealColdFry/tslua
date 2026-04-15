@@ -28,6 +28,7 @@ import { App } from '../components/playground/App';
   }
   :global(.main-pane) {
     overflow: hidden;
+    z-index: calc(var(--sl-z-index-navbar) + 1);
   }
   :global(header.header) {
     flex-shrink: 0;
