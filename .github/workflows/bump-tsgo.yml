@@ -48,7 +48,7 @@ jobs:
         if: steps.check.outputs.skip == 'false'
         id: existing
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.BUMP_PAT }}
         run: |
           # Find any open PR from our bump branch
           OPEN_PR=$(gh pr list --head bump-tsgo --state open --json number,title --jq '.[0].number // empty')
@@ -112,12 +112,14 @@ jobs:
 
       - name: Push branch
         if: steps.check.outputs.skip == 'false'
-        run: git push --force-with-lease origin bump-tsgo
+        run: |
+          git remote set-url origin https://x-access-token:${{ secrets.BUMP_PAT }}@github.com/${{ github.repository }}
+          git push --force-with-lease origin bump-tsgo
 
       - name: Create or update PR
         if: steps.check.outputs.skip == 'false'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.BUMP_PAT }}
         run: |
           OLD_SHORT="${{ steps.check.outputs.old }}"
           OLD_SHORT="${OLD_SHORT:0:12}"
