@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -220,13 +221,17 @@ func transpile(tsCode string, wopts wasmOptions) transpileResult {
 	}
 	results, tsDiags := transpiler.TranspileProgramWithOptions(program, root, lt, nil, opts)
 
+	// Sort transpiler diagnostics for consistent ordering.
+	semanticDiags := compiler.Program_GetSemanticDiagnostics(program, context.Background(), nil)
+	allDiags := compiler.SortAndDeduplicateDiagnostics(append(semanticDiags, tsDiags...))
+
 	var luaOut strings.Builder
 	for _, r := range results {
 		luaOut.WriteString(r.Lua)
 	}
 
 	var diags []wasmDiagnostic
-	for _, d := range tsDiags {
+	for _, d := range allDiags {
 		if d.File() == nil {
 			continue
 		}

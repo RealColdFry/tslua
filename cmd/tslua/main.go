@@ -464,15 +464,14 @@ func runOnce(cfg *buildConfig, host compiler.CompilerHost) error {
 
 	tBind := time.Now()
 
-	semanticDiags := compiler.SortAndDeduplicateDiagnostics(
-		compiler.Program_GetSemanticDiagnostics(program, context.Background(), nil),
-	)
+	semanticDiags := compiler.Program_GetSemanticDiagnostics(program, context.Background(), nil)
 
 	tCheck := time.Now()
 
 	results, transpileDiags := cfg.transpile(program, nil)
 
-	hasErrors := reportDiagnostics(cfg, semanticDiags, transpileDiags)
+	allDiags := mergeAndSortDiagnostics(semanticDiags, transpileDiags)
+	hasErrors := reportDiagnostics(cfg, allDiags)
 
 	noEmit := noEmitFlag || program.Options().NoEmit.IsTrue()
 	noEmitOnError := noEmitOnErrorFlag || program.Options().NoEmitOnError.IsTrue()
@@ -516,20 +515,19 @@ func msf(d time.Duration) float64 {
 	return float64(d.Microseconds()) / 1000
 }
 
-func reportDiagnostics(cfg *buildConfig, semanticDiags []*ast.Diagnostic, transpileDiags []*ast.Diagnostic) bool {
-	hasErrors := false
-	if len(semanticDiags) > 0 {
-		dw.FormatTSDiagnostics(os.Stderr, semanticDiags, cfg.cwd, cfg.stderrIsTerminal)
-		hasErrors = true
+// mergeAndSortDiagnostics combines pre-emit (TS) and transpiler (TSTL) diagnostics
+// into a single sorted, deduplicated slice. This is the centralized chokepoint for
+// diagnostic ordering across all command modes (CLI, eval, watch, server, wasm).
+func mergeAndSortDiagnostics(preEmitDiags, transpileDiags []*ast.Diagnostic) []*ast.Diagnostic {
+	return compiler.SortAndDeduplicateDiagnostics(append(preEmitDiags, transpileDiags...))
+}
+
+func reportDiagnostics(cfg *buildConfig, allDiags []*ast.Diagnostic) bool {
+	if len(allDiags) == 0 {
+		return false
 	}
-	if len(transpileDiags) > 0 {
-		if hasErrors {
-			fmt.Fprintln(os.Stderr)
-		}
-		dw.FormatTSTLDiagnostics(os.Stderr, transpileDiags, cfg.cwd, cfg.diagFormat, cfg.stderrIsTerminal)
-		hasErrors = true
-	}
-	return hasErrors
+	dw.FormatAllDiagnostics(os.Stderr, allDiags, cfg.cwd, cfg.diagFormat, cfg.stderrIsTerminal)
+	return true
 }
 
 func writeBundle(cfg *buildConfig, results []transpiler.TranspileResult) error {

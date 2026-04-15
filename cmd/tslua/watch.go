@@ -42,14 +42,13 @@ func runWatch(cfg *buildConfig, host compiler.CompilerHost) error {
 	t0 := time.Now()
 	fmt.Fprintf(os.Stderr, "build starting at %s\n", t0.Format("03:04:05 PM"))
 
-	semanticDiags := compiler.SortAndDeduplicateDiagnostics(
-		incremental.Program_GetSemanticDiagnostics(incrProg, context.Background(), nil),
-	)
+	semanticDiags := incremental.Program_GetSemanticDiagnostics(incrProg, context.Background(), nil)
 	results, transpileDiags := cfg.transpile(program, nil)
 	for _, r := range results {
 		cachedResults[r.FileName] = r
 	}
-	hasErrors := reportDiagnostics(cfg, semanticDiags, transpileDiags)
+	allDiags := mergeAndSortDiagnostics(semanticDiags, transpileDiags)
+	hasErrors := reportDiagnostics(cfg, allDiags)
 	if !noEmit && (!noEmitOnError || !hasErrors) {
 		emitResults(cfg, results)
 	}
@@ -176,11 +175,8 @@ func runWatch(cfg *buildConfig, host compiler.CompilerHost) error {
 							incremental.Program_GetSemanticDiagnostics(incrProg, context.Background(), sf)...)
 					}
 				}
-				semanticDiags = compiler.SortAndDeduplicateDiagnostics(semanticDiags)
 			} else {
-				semanticDiags = compiler.SortAndDeduplicateDiagnostics(
-					incremental.Program_GetSemanticDiagnostics(incrProg, context.Background(), nil),
-				)
+				semanticDiags = incremental.Program_GetSemanticDiagnostics(incrProg, context.Background(), nil)
 			}
 
 			tCheck := time.Now()
@@ -192,7 +188,8 @@ func runWatch(cfg *buildConfig, host compiler.CompilerHost) error {
 
 			tTranspile := time.Now()
 
-			hasErrors := reportDiagnostics(cfg, semanticDiags, transpileDiags)
+			allDiags := mergeAndSortDiagnostics(semanticDiags, transpileDiags)
+			hasErrors := reportDiagnostics(cfg, allDiags)
 			if !noEmit && !hasErrors {
 				if changedFiles != nil {
 					emitResults(cfg, freshResults)
@@ -268,8 +265,11 @@ func runWatch(cfg *buildConfig, host compiler.CompilerHost) error {
 			fmt.Fprintf(os.Stderr, "build finished in %.2fms\n", msf(time.Since(t0)))
 
 			// Report transpile diagnostics immediately (they're already computed).
-			if len(transpileDiags) > 0 {
-				dw.FormatTSTLDiagnostics(os.Stderr, transpileDiags, cfg.cwd, cfg.diagFormat, cfg.stderrIsTerminal)
+			// Sort for consistent ordering even though we can't interleave with
+			// semantic diags (those arrive asynchronously below).
+			sortedTranspileDiags := mergeAndSortDiagnostics(nil, transpileDiags)
+			if len(sortedTranspileDiags) > 0 {
+				dw.FormatAllDiagnostics(os.Stderr, sortedTranspileDiags, cfg.cwd, cfg.diagFormat, cfg.stderrIsTerminal)
 			}
 
 			// Build incremental snapshot + check diagnostics in background.
@@ -289,14 +289,12 @@ func runWatch(cfg *buildConfig, host compiler.CompilerHost) error {
 								incremental.Program_GetSemanticDiagnostics(newIncrProg, context.Background(), sf)...)
 						}
 					}
-					semanticDiags = compiler.SortAndDeduplicateDiagnostics(semanticDiags)
 				} else {
-					semanticDiags = compiler.SortAndDeduplicateDiagnostics(
-						incremental.Program_GetSemanticDiagnostics(newIncrProg, context.Background(), nil),
-					)
+					semanticDiags = incremental.Program_GetSemanticDiagnostics(newIncrProg, context.Background(), nil)
 				}
-				if len(semanticDiags) > 0 {
-					dw.FormatTSDiagnostics(os.Stderr, semanticDiags, cfg.cwd, cfg.stderrIsTerminal)
+				sorted := mergeAndSortDiagnostics(semanticDiags, nil)
+				if len(sorted) > 0 {
+					dw.FormatAllDiagnostics(os.Stderr, sorted, cfg.cwd, cfg.diagFormat, cfg.stderrIsTerminal)
 				}
 				if timingFlag {
 					fmt.Fprintf(os.Stderr, "  diag(async): %7.2fms\n", msf(time.Since(tIncrStart)))
