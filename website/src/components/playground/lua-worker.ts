@@ -30,11 +30,18 @@ type LuaState = number;
 interface LuaLib {
   lua_tostring(L: LuaState, idx: number): string;
   lua_close(L: LuaState): void;
+  lua_pcall(L: LuaState, nargs: number, nresults: number, msgh: number): number;
+  lua_getglobal(L: LuaState, name: string): number;
+  lua_getfield(L: LuaState, index: number, k: string): number;
+  lua_remove(L: LuaState, index: number): void;
+  lua_gettop(L: LuaState): number;
+  lua_pop(L: LuaState, n: number): void;
 }
 
 interface LauxLib {
   luaL_newstate(): LuaState;
   luaL_dostring(L: LuaState, code: string): number;
+  luaL_loadstring(L: LuaState, code: string): number;
 }
 
 interface LuaStdLib {
@@ -230,17 +237,60 @@ async function getLuaModule(version: string): Promise<LuaModule> {
   return mod;
 }
 
-function runOnce(lua: LuaLib, lauxlib: LauxLib, lualib: LuaStdLib, code: string): ExecResult {
+// Lua's default chunkname for `luaL_loadstring` is the source string itself,
+// which surfaces as `[string "...truncated source..."]:N:` in error messages.
+// Rewrite it to a filename-like prefix so errors read like a local
+// `lua file.lua` run. Applies to the traceback's stack frames too.
+// `debug.traceback` indents stack frames with a literal tab; rewrite to
+// a fixed number of spaces so the playground renders consistently.
+const TRACEBACK_INDENT = "  ";
+function formatError(raw: string | null): string {
+  if (!raw) return "Lua execution error";
+  return raw.replace(/\[string "[^"]*"\]/g, "main").replace(/\t/g, TRACEBACK_INDENT);
+}
+
+function runOnce(
+  lua: LuaLib,
+  lauxlib: LauxLib,
+  lualib: LuaStdLib,
+  setupChunks: string[],
+  code: string,
+): ExecResult {
   currentOutput = [];
   try {
     const L = lauxlib.luaL_newstate();
     lualib.luaL_openlibs(L);
 
-    const err = lauxlib.luaL_dostring(L, code);
-    if (err !== 0) {
+    // Run each setup chunk in its own `luaL_dostring` call so user-code line
+    // numbers aren't shifted by prepended preludes.
+    for (const chunk of setupChunks) {
+      const setupErr = lauxlib.luaL_dostring(L, chunk);
+      if (setupErr !== 0) {
+        const errMsg = lua.lua_tostring(L, -1);
+        lua.lua_close(L);
+        return { output: [...currentOutput], error: formatError(errMsg) };
+      }
+    }
+
+    // Push `debug.traceback` as the message handler so errors come back with
+    // a stack trace, matching what a local `lua file.lua` run prints.
+    lua.lua_getglobal(L, "debug");
+    lua.lua_getfield(L, -1, "traceback");
+    lua.lua_remove(L, -2);
+    const msghIdx = lua.lua_gettop(L);
+
+    const loadErr = lauxlib.luaL_loadstring(L, code);
+    if (loadErr !== 0) {
       const errMsg = lua.lua_tostring(L, -1);
       lua.lua_close(L);
-      return { output: [...currentOutput], error: errMsg || "Lua execution error" };
+      return { output: [...currentOutput], error: formatError(errMsg) };
+    }
+
+    const callErr = lua.lua_pcall(L, 0, 0, msghIdx);
+    if (callErr !== 0) {
+      const errMsg = lua.lua_tostring(L, -1);
+      lua.lua_close(L);
+      return { output: [...currentOutput], error: formatError(errMsg) };
     }
 
     lua.lua_close(L);
@@ -293,9 +343,10 @@ self.addEventListener("message", async (e: MessageEvent<LuaWorkerRequest>) => {
 
   try {
     const { lua, lauxlib, lualib } = await getLuaModule(version);
-    const prelude = lualibBundle ? buildLualibPrelude(lualibBundle) : "";
-    const raw = runOnce(lua, lauxlib, lualib, prelude + code);
-    const pretty = runOnce(lua, lauxlib, lualib, prelude + getPreamble(target) + code);
+    const setup: string[] = [];
+    if (lualibBundle) setup.push(buildLualibPrelude(lualibBundle));
+    const raw = runOnce(lua, lauxlib, lualib, setup, code);
+    const pretty = runOnce(lua, lauxlib, lualib, [...setup, getPreamble(target)], code);
     self.postMessage({ id, raw, pretty } satisfies LuaWorkerResponse);
   } catch (err) {
     const errResult: ExecResult = { output: [], error: String(err) };
