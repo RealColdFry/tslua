@@ -80,7 +80,7 @@ func (t *Transpiler) transformStatementsWithUsing(stmts []*ast.Node, shouldRetur
 					callbackBody = nestedStmts
 				} else {
 					for _, s := range remainingStmts {
-						callbackBody = append(callbackBody, t.transformStatement(s)...)
+						callbackBody = append(callbackBody, t.transformStatementWithComments(s)...)
 					}
 				}
 				callbackBody = t.performHoisting(scope, callbackBody)
@@ -126,7 +126,7 @@ func (t *Transpiler) transformStatementsWithUsing(stmts []*ast.Node, shouldRetur
 		}
 
 		// Not a using declaration — transform normally and add to result
-		result = append(result, t.transformStatement(stmt)...)
+		result = append(result, t.transformStatementWithComments(stmt)...)
 	}
 
 	return false, result

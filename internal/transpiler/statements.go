@@ -25,8 +25,6 @@ func (t *Transpiler) transformVariableStatement(node *ast.Node) []lua.Statement 
 	t.checkVariableDeclarationList(vs.DeclarationList)
 	isExported := hasExportModifier(node)
 
-	comments := t.getLeadingComments(node)
-
 	var result []lua.Statement
 
 	// Check for @customName annotation
@@ -178,10 +176,6 @@ func (t *Transpiler) transformVariableStatement(node *ast.Node) []lua.Statement 
 				result = append(result, stmt)
 			}
 		}
-	}
-
-	if len(comments) > 0 && len(result) > 0 {
-		setLeadingComments(result[0], comments)
 	}
 
 	return result
@@ -852,7 +846,7 @@ func (t *Transpiler) transformBlockOrStatement(node *ast.Node) []lua.Statement {
 	if node.Kind == ast.KindBlock {
 		return t.transformBlock(node)
 	}
-	return t.transformStatement(node)
+	return t.transformStatementWithComments(node)
 }
 
 // transformBlockStatementsNoScope extracts and transforms block statements without pushing a scope.
@@ -866,11 +860,11 @@ func (t *Transpiler) transformBlockStatementsNoScope(node *ast.Node) []lua.State
 		}
 		var stmts []lua.Statement
 		for _, stmt := range block.Statements.Nodes {
-			stmts = append(stmts, t.transformStatement(stmt)...)
+			stmts = append(stmts, t.transformStatementWithComments(stmt)...)
 		}
 		return stmts
 	}
-	return t.transformStatement(node)
+	return t.transformStatementWithComments(node)
 }
 
 func (t *Transpiler) transformBlock(node *ast.Node) []lua.Statement {
@@ -894,7 +888,7 @@ func (t *Transpiler) transformBlockStatementsOnly(node *ast.Node) []lua.Statemen
 
 	var stmts []lua.Statement
 	for _, stmt := range block.Statements.Nodes {
-		stmts = append(stmts, t.transformStatement(stmt)...)
+		stmts = append(stmts, t.transformStatementWithComments(stmt)...)
 	}
 	return stmts
 }
@@ -911,7 +905,7 @@ func (t *Transpiler) transformScopeBlock(node *ast.Node, scopeType ScopeType) []
 		_, stmts = t.transformStatementsWithUsing(block.Statements.Nodes, false)
 	} else {
 		for _, stmt := range block.Statements.Nodes {
-			stmts = append(stmts, t.transformStatement(stmt)...)
+			stmts = append(stmts, t.transformStatementWithComments(stmt)...)
 		}
 	}
 
@@ -1015,7 +1009,7 @@ func (t *Transpiler) transformSwitchStatement(node *ast.Node) []lua.Statement {
 		var clauseStmts []lua.Statement
 		if cc.Statements != nil {
 			for _, stmt := range cc.Statements.Nodes {
-				clauseStmts = append(clauseStmts, t.transformStatement(stmt)...)
+				clauseStmts = append(clauseStmts, t.transformStatementWithComments(stmt)...)
 			}
 		}
 		// Extract hoisted items from this clause's statements
@@ -1196,7 +1190,7 @@ func (t *Transpiler) transformSwitchStatement(node *ast.Node) []lua.Statement {
 		defaultCC := clauses[defaultIdx].AsCaseOrDefaultClause()
 		if defaultCC.Statements != nil {
 			for _, stmt := range defaultCC.Statements.Nodes {
-				defaultStmts = append(defaultStmts, t.transformStatement(stmt)...)
+				defaultStmts = append(defaultStmts, t.transformStatementWithComments(stmt)...)
 			}
 		}
 		// Only hoist from default if it wasn't already transformed in the main loop
@@ -1218,7 +1212,7 @@ func (t *Transpiler) transformSwitchStatement(node *ast.Node) []lua.Statement {
 			if cc.Statements != nil {
 				var ftStmts []lua.Statement
 				for _, stmt := range cc.Statements.Nodes {
-					ftStmts = append(ftStmts, t.transformStatement(stmt)...)
+					ftStmts = append(ftStmts, t.transformStatementWithComments(stmt)...)
 				}
 				// Drop hoisted statements — they were already added during initial clause transformation
 				_, _, ftRemaining := t.separateHoistedStatements(scope, ftStmts)

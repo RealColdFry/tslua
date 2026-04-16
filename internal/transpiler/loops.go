@@ -110,13 +110,13 @@ func (t *Transpiler) transformLabeledStatement(node *ast.Node) []lua.Statement {
 
 	// If no labeled break/continue targets this label, just emit the inner statement
 	if !hasBreak && !hasContinue {
-		return t.transformStatement(ls.Statement)
+		return t.transformStatementWithComments(ls.Statement)
 	}
 
 	if !t.luaTarget.SupportsGoto() {
 		t.addError(node, dw.UnsupportedForTarget, "Labeled break/continue requires goto support (Lua 5.2+ or LuaJIT).")
 		// Still emit the inner statement without label support
-		return t.transformStatement(ls.Statement)
+		return t.transformStatementWithComments(ls.Statement)
 	}
 
 	// Register label names
@@ -139,7 +139,7 @@ func (t *Transpiler) transformLabeledStatement(node *ast.Node) []lua.Statement {
 	}
 
 	// Transform the inner statement (it will use the registered labels)
-	stmts := t.transformStatement(ls.Statement)
+	stmts := t.transformStatementWithComments(ls.Statement)
 
 	// Clean up labels
 	delete(t.breakLabels, tsLabel)

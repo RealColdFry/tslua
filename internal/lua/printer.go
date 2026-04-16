@@ -269,6 +269,7 @@ func (p *Printer) printBlock(stmts []Statement) {
 		}
 		p.printLeadingComments(stmt)
 		p.printStatement(stmt)
+		p.printTrailingComments(stmt)
 		prevStmt = stmt
 		// Lua 5.1/LuaJIT require break/return to be the last statement in a block
 		if isTerminalStatement(stmt) {
@@ -965,6 +966,38 @@ func (p *Printer) printLeadingComments(stmt Statement) {
 			p.writeln(c)
 		}
 	}
+}
+
+// printTrailingComments emits trailing comments inline on the same line as the
+// statement that precedes them, preserving the original source layout where
+// possible (e.g. `print(x) -- note`). Multi-line block comments fall back to a
+// new line since they cannot coexist with following statements.
+func (p *Printer) printTrailingComments(stmt Statement) {
+	hc, ok := stmt.(hasComments)
+	if !ok {
+		return
+	}
+	trailing := hc.GetComments().TrailingComments
+	if len(trailing) == 0 {
+		return
+	}
+	// Strip the newline just written for the statement so we can append inline.
+	s := p.buf.String()
+	if strings.HasSuffix(s, "\n") {
+		p.buf.Reset()
+		p.buf.WriteString(s[:len(s)-1])
+	}
+	for _, c := range trailing {
+		if strings.Contains(c, "\n") {
+			// Multi-line block comment: push to next line with indent.
+			p.write("\n")
+			p.writeIndent()
+			p.write(c)
+		} else {
+			p.write(" " + c)
+		}
+	}
+	p.write("\n")
 }
 
 // isFunctionDefinition checks if a variable declaration is a single function assignment.

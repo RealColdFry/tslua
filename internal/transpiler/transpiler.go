@@ -930,7 +930,7 @@ func (t *Transpiler) transformSourceFileAST(sf *ast.SourceFile) []lua.Statement 
 		_, bodyStmts = t.transformStatementsWithUsing(sf.Statements.Nodes, false)
 	} else {
 		for _, stmt := range sf.Statements.Nodes {
-			bodyStmts = append(bodyStmts, t.transformStatement(stmt)...)
+			bodyStmts = append(bodyStmts, t.transformStatementWithComments(stmt)...)
 		}
 	}
 
@@ -1972,8 +1972,6 @@ func (t *Transpiler) collectExportedNames(sf *ast.SourceFile) {
 //   - Single-line comments (// ...) become "-- ..."
 //   - Block comments (/* ... */) become "--[[ ... ]]"
 //   - JSDoc comments (/** ... */) become LDoc: "--- ..." / "-- ..."
-//
-// TSTL/tslua annotations (@noSelf, etc.) are filtered from JSDoc output.
 func (t *Transpiler) getLeadingComments(node *ast.Node) []string {
 	if t.removeComments {
 		return nil
@@ -1984,48 +1982,7 @@ func (t *Transpiler) getLeadingComments(node *ast.Node) []string {
 	var comments []string
 
 	for cr := range scanner.GetLeadingCommentRanges(f, sourceText, node.Pos()) {
-		raw := sourceText[cr.Pos():cr.End()]
-		switch cr.Kind {
-		case ast.KindSingleLineCommentTrivia:
-			// "// text" → "-- text"
-			text := strings.TrimPrefix(raw, "//")
-			if len(text) > 0 && text[0] == ' ' {
-				text = text[1:]
-			}
-			comments = append(comments, "-- "+text)
-
-		case ast.KindMultiLineCommentTrivia:
-			if strings.HasPrefix(raw, "/**") {
-				// JSDoc: parse and format as LDoc
-				lines := parseJSDocText(raw)
-				lines = filterAnnotations(lines)
-				if len(lines) == 0 {
-					continue
-				}
-				for i, line := range lines {
-					if i == 0 {
-						if strings.HasPrefix(line, "@") {
-							comments = append(comments, "---")
-							comments = append(comments, "-- "+line)
-						} else {
-							comments = append(comments, "--- "+line)
-						}
-					} else {
-						comments = append(comments, "-- "+line)
-					}
-				}
-			} else {
-				// Regular block comment: "/* text */" → "--[[ text ]]"
-				inner := strings.TrimPrefix(raw, "/*")
-				inner = strings.TrimSuffix(inner, "*/")
-				inner = strings.TrimSpace(inner)
-				if strings.Contains(inner, "\n") {
-					comments = append(comments, "--[[ "+inner+" ]]")
-				} else {
-					comments = append(comments, "-- "+inner)
-				}
-			}
-		}
+		comments = append(comments, formatCommentRange(sourceText, cr)...)
 	}
 
 	if len(comments) == 0 {
@@ -2034,25 +1991,71 @@ func (t *Transpiler) getLeadingComments(node *ast.Node) []string {
 	return comments
 }
 
-// filterAnnotations removes TSTL/tslua annotation lines from JSDoc content.
-func filterAnnotations(lines []string) []string {
-	filtered := lines[:0]
-	for _, line := range lines {
-		tag := strings.TrimSpace(line)
-		switch {
-		case tag == "@noSelf" || strings.HasPrefix(tag, "@noSelf "):
-		case tag == "@noSelfInFile" || strings.HasPrefix(tag, "@noSelfInFile "):
-		case tag == "@customName" || strings.HasPrefix(tag, "@customName "):
-		case tag == "@customConstructor" || strings.HasPrefix(tag, "@customConstructor "):
-		case tag == "@compileMembersOnly" || strings.HasPrefix(tag, "@compileMembersOnly "):
-		case tag == "@noResolution" || strings.HasPrefix(tag, "@noResolution "):
-		case tag == "@forRange" || strings.HasPrefix(tag, "@forRange "):
-		case tag == "@vararg" || strings.HasPrefix(tag, "@vararg "):
-		default:
-			filtered = append(filtered, line)
-		}
+// getTrailingComments returns Lua comment strings for a statement's trailing
+// comments (same-line comments after the statement's end position).
+func (t *Transpiler) getTrailingComments(node *ast.Node) []string {
+	if t.removeComments {
+		return nil
 	}
-	return filtered
+
+	sourceText := t.sourceFile.Text()
+	f := &ast.NodeFactory{}
+	var comments []string
+
+	for cr := range scanner.GetTrailingCommentRanges(f, sourceText, node.End()) {
+		comments = append(comments, formatCommentRange(sourceText, cr)...)
+	}
+
+	if len(comments) == 0 {
+		return nil
+	}
+	return comments
+}
+
+// formatCommentRange converts a single TS comment range into Lua comment lines.
+//
+//   - Single-line (// ...) → "-- ..."
+//   - Block (/* ... */) → "-- ..." (single line) or "--[[ ... ]]" (multi-line)
+//   - JSDoc (/** ... */) → LDoc: "--- first" / "-- rest" (with "---" header when first line is an @tag)
+func formatCommentRange(sourceText string, cr ast.CommentRange) []string {
+	raw := sourceText[cr.Pos():cr.End()]
+	switch cr.Kind {
+	case ast.KindSingleLineCommentTrivia:
+		text := strings.TrimPrefix(raw, "//")
+		if len(text) > 0 && text[0] == ' ' {
+			text = text[1:]
+		}
+		return []string{"-- " + text}
+
+	case ast.KindMultiLineCommentTrivia:
+		if strings.HasPrefix(raw, "/**") {
+			lines := parseJSDocText(raw)
+			if len(lines) == 0 {
+				return nil
+			}
+			var out []string
+			for i, line := range lines {
+				if i == 0 {
+					if strings.HasPrefix(line, "@") {
+						out = append(out, "---", "-- "+line)
+					} else {
+						out = append(out, "--- "+line)
+					}
+				} else {
+					out = append(out, "-- "+line)
+				}
+			}
+			return out
+		}
+		inner := strings.TrimPrefix(raw, "/*")
+		inner = strings.TrimSuffix(inner, "*/")
+		inner = strings.TrimSpace(inner)
+		if strings.Contains(inner, "\n") {
+			return []string{"--[[ " + inner + " ]]"}
+		}
+		return []string{"-- " + inner}
+	}
+	return nil
 }
 
 func (t *Transpiler) shouldInjectNoSelfInFileDeclaration() bool {
@@ -2134,6 +2137,35 @@ func setLeadingComments(stmt lua.Statement, comments []string) {
 	if cs, ok := stmt.(commentable); ok {
 		cs.GetComments().LeadingComments = comments
 	}
+}
+
+// setTrailingComments attaches trailing comments to a statement node.
+func setTrailingComments(stmt lua.Statement, comments []string) {
+	type commentable interface {
+		GetComments() *lua.Comments
+	}
+	if cs, ok := stmt.(commentable); ok {
+		cs.GetComments().TrailingComments = comments
+	}
+}
+
+// transformStatementWithComments transforms a single TS statement and attaches
+// its source-text leading and trailing comments to the first and last emitted
+// Lua statement. This is the canonical entry point - every caller that lowers
+// a TS statement into Lua statements should route through here so comments are
+// preserved uniformly regardless of the specific statement kind.
+func (t *Transpiler) transformStatementWithComments(node *ast.Node) []lua.Statement {
+	stmts := t.transformStatement(node)
+	if t.removeComments || len(stmts) == 0 {
+		return stmts
+	}
+	if leading := t.getLeadingComments(node); len(leading) > 0 {
+		setLeadingComments(stmts[0], leading)
+	}
+	if trailing := t.getTrailingComments(node); len(trailing) > 0 {
+		setTrailingComments(stmts[len(stmts)-1], trailing)
+	}
+	return stmts
 }
 
 // identList converts a slice of name strings to lua.Identifier nodes.

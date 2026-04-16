@@ -185,8 +185,6 @@ func (t *Transpiler) transformClassDeclaration(node *ast.Node) []lua.Statement {
 	isExported := hasExportModifier(node)
 	isDefault := hasDefaultModifier(node)
 
-	comments := t.getLeadingComments(node)
-
 	// Determine base class expression if any
 	var baseExpr lua.Expression
 	var basePrec []lua.Statement
@@ -401,10 +399,6 @@ func (t *Transpiler) transformClassDeclaration(node *ast.Node) []lua.Statement {
 				}
 			}
 		}
-	}
-
-	if len(comments) > 0 && len(result) > 0 {
-		setLeadingComments(result[0], comments)
 	}
 
 	return result
