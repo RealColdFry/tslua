@@ -226,3 +226,67 @@ func TestUsing_AsyncArrowReturnValue(t *testing.T) {
 		LuaTarget: transpiler.LuaTargetLuaJIT,
 	})
 }
+
+// TestUsing_NestedAwaitUsingScenarios mirrors the TSTL test cases from the
+// nested-await-using bug investigation. All three involve an outer await using
+// with an inner async callback that itself contains an await using — the
+// pattern that crashes upstream TSTL.
+func TestUsing_NestedAwaitUsingScenarios(t *testing.T) {
+	t.Parallel()
+
+	t.Run("inline async IIFE awaited inside outer await-using", func(t *testing.T) {
+		t.Parallel()
+		body := `async function getA(): Promise<AsyncDisposable> {
+			return { [Symbol.asyncDispose]: async () => {} };
+		}
+		async function outer() {
+			await using a = await getA();
+			return await (async () => {
+				await using b = await getA();
+				return 11;
+			})();
+		}
+		let result: any = null;
+		outer().then(v => { result = v; });
+		return String(result);`
+		ExpectFunction(t, body, `"11"`, Opts{LuaTarget: transpiler.LuaTargetLuaJIT})
+	})
+
+	t.Run("inline async IIFE returned (not awaited) inside outer await-using", func(t *testing.T) {
+		t.Parallel()
+		body := `async function getA(): Promise<AsyncDisposable> {
+			return { [Symbol.asyncDispose]: async () => {} };
+		}
+		async function outer() {
+			await using a = await getA();
+			return (async () => {
+				await using b = await getA();
+				return 11;
+			})();
+		}
+		let result: any = null;
+		outer().then(v => { result = v; });
+		return String(result);`
+		ExpectFunction(t, body, `"11"`, Opts{LuaTarget: transpiler.LuaTargetLuaJIT})
+	})
+
+	// https://github.com/TypeScriptToLua/TypeScriptToLua/issues/1622
+	t.Run("nested async arrow each with await-using", func(t *testing.T) {
+		t.Parallel()
+		body := `const logs: any[] = [];
+		async function getA(): Promise<AsyncDisposable> {
+			return { [Symbol.asyncDispose]: async () => {} };
+		}
+		async function outer(): Promise<number> {
+			await using a = await getA();
+			const inner = async (): Promise<number> => {
+				await using b = await getA();
+				return 42;
+			};
+			return inner();
+		}
+		outer().then(v => logs.push(v));
+		return logs;`
+		ExpectFunction(t, body, `{42}`, Opts{LuaTarget: transpiler.LuaTargetLuaJIT})
+	})
+}
