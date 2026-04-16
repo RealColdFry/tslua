@@ -121,9 +121,10 @@ type wasmDiagnostic struct {
 
 // transpileResult is the JSON structure returned to JS.
 type transpileResult struct {
-	Lua         string           `json:"lua"`
-	Errors      []string         `json:"errors"`
-	Diagnostics []wasmDiagnostic `json:"diagnostics"`
+	Lua          string           `json:"lua"`
+	LualibBundle string           `json:"lualibBundle"`
+	Errors       []string         `json:"errors"`
+	Diagnostics  []wasmDiagnostic `json:"diagnostics"`
 }
 
 // wasmOptions holds the JSON structure passed from the JS side.
@@ -132,6 +133,7 @@ type wasmOptions struct {
 	ExtraFiles      map[string]string `json:"extraFiles,omitempty"` // filename -> content (e.g. "console.d.ts" -> "declare var console...")
 	TSTL            struct {
 		LuaTarget                 string `json:"luaTarget,omitempty"`
+		LuaLibImport              string `json:"luaLibImport,omitempty"`
 		EmitMode                  string `json:"emitMode,omitempty"`
 		ClassStyle                string `json:"classStyle,omitempty"`
 		NoImplicitSelf            bool   `json:"noImplicitSelf,omitempty"`
@@ -202,8 +204,13 @@ func transpile(tsCode string, wopts wasmOptions) transpileResult {
 	}
 	lt := transpiler.LuaTarget(luaTarget)
 
+	luaLibImport := transpiler.LuaLibImportKind(wopts.TSTL.LuaLibImport)
+	if !transpiler.ValidLuaLibImport(wopts.TSTL.LuaLibImport) {
+		luaLibImport = transpiler.LuaLibImportInline
+	}
+
 	opts := transpiler.TranspileOptions{
-		LuaLibImport:              transpiler.LuaLibImportInline,
+		LuaLibImport:              luaLibImport,
 		EmitMode:                  transpiler.EmitMode(wopts.TSTL.EmitMode),
 		ClassStyle:                transpiler.ClassStyle(wopts.TSTL.ClassStyle),
 		NoImplicitSelf:            wopts.TSTL.NoImplicitSelf,
@@ -214,12 +221,47 @@ func transpile(tsCode string, wopts wasmOptions) transpileResult {
 		InlineSourceMap:           wopts.TSTL.InlineSourceMap,
 		Trace:                     wopts.TSTL.Trace,
 	}
-	if fd, err := lualib.FeatureDataForTarget(string(lt)); err == nil {
-		opts.LualibFeatureData = fd
-	} else {
-		opts.LualibInlineContent = string(lualib.BundleForTarget(string(lt)))
+	if luaLibImport == transpiler.LuaLibImportInline {
+		if fd, err := lualib.FeatureDataForTarget(string(lt)); err == nil {
+			opts.LualibFeatureData = fd
+		} else {
+			opts.LualibInlineContent = string(lualib.BundleForTarget(string(lt)))
+		}
 	}
 	results, tsDiags := transpiler.TranspileProgramWithOptions(program, root, lt, nil, opts)
+
+	// For require / require-minimal, compute the lualib bundle the emitted
+	// code will try to require("lualib_bundle"). The playground worker
+	// installs it at runtime; the UI can hide it from view.
+	var lualibBundle string
+	if luaLibImport == transpiler.LuaLibImportRequire || luaLibImport == transpiler.LuaLibImportRequireMinimal {
+		usesLualib := false
+		for _, r := range results {
+			if r.UsesLualib {
+				usesLualib = true
+				break
+			}
+		}
+		if usesLualib {
+			if luaLibImport == transpiler.LuaLibImportRequireMinimal {
+				seen := map[string]bool{}
+				var usedExports []string
+				for _, r := range results {
+					for _, exp := range r.LualibDeps {
+						if !seen[exp] {
+							seen[exp] = true
+							usedExports = append(usedExports, exp)
+						}
+					}
+				}
+				if content, err := lualib.MinimalBundleForTarget(string(lt), usedExports); err == nil {
+					lualibBundle = string(content)
+				}
+			} else {
+				lualibBundle = string(lualib.BundleForTarget(string(lt)))
+			}
+		}
+	}
 
 	// Sort transpiler diagnostics for consistent ordering.
 	semanticDiags := compiler.Program_GetSemanticDiagnostics(program, context.Background(), nil)
@@ -261,7 +303,7 @@ func transpile(tsCode string, wopts wasmOptions) transpileResult {
 		})
 	}
 
-	return transpileResult{Lua: luaOut.String(), Diagnostics: diags}
+	return transpileResult{Lua: luaOut.String(), LualibBundle: lualibBundle, Diagnostics: diags}
 }
 
 func main() {
@@ -297,6 +339,7 @@ func main() {
 
 		obj := js.Global().Get("Object").New()
 		obj.Set("lua", result.Lua)
+		obj.Set("lualibBundle", result.LualibBundle)
 		obj.Set("errors", errArr)
 		obj.Set("diagnostics", diagArr)
 		return obj

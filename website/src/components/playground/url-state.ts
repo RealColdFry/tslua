@@ -11,6 +11,7 @@ export interface PlaygroundTsconfig {
   types?: string[];
   tstl?: {
     luaTarget?: string;
+    luaLibImport?: string;
     emitMode?: string;
     classStyle?: string;
     noImplicitSelf?: boolean;
@@ -96,6 +97,7 @@ function serializeState(state: PlaygroundState): object {
   if (ts.tstl) {
     const tstl: Record<string, unknown> = {};
     if (ts.tstl.luaTarget && ts.tstl.luaTarget !== "JIT") tstl.luaTarget = ts.tstl.luaTarget;
+    if (ts.tstl.luaLibImport) tstl.luaLibImport = ts.tstl.luaLibImport;
     if (ts.tstl.emitMode && ts.tstl.emitMode !== "tstl") tstl.emitMode = ts.tstl.emitMode;
     if (ts.tstl.classStyle) tstl.classStyle = ts.tstl.classStyle;
     if (ts.tstl.noImplicitSelf) tstl.noImplicitSelf = true;

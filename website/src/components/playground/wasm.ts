@@ -23,6 +23,7 @@ export interface TsluaOptions {
   extraFiles?: Record<string, string>;
   tstl?: {
     luaTarget?: string;
+    luaLibImport?: string;
     emitMode?: string;
     classStyle?: string;
     noImplicitSelf?: boolean;
@@ -49,28 +50,35 @@ export function loadWasm(): Promise<void> {
 
 export interface TranspileResult {
   lua: string;
+  lualibBundle: string;
   errors: string[];
   diagnostics: WasmDiagnostic[];
 }
 
 export function transpile(code: string, options: TsluaOptions): TranspileResult {
-  if (!ready) return { lua: "", errors: ["WASM not loaded"], diagnostics: [] };
+  if (!ready) return { lua: "", lualibBundle: "", errors: ["WASM not loaded"], diagnostics: [] };
 
   const raw = tslua_transpile(code, JSON.stringify(options)) as
-    | { lua?: unknown; errors?: unknown; diagnostics?: unknown }
+    | { lua?: unknown; lualibBundle?: unknown; errors?: unknown; diagnostics?: unknown }
     | null
     | undefined;
   if (!raw || typeof raw !== "object") {
-    return { lua: "", errors: ["WASM returned invalid result"], diagnostics: [] };
+    return {
+      lua: "",
+      lualibBundle: "",
+      errors: ["WASM returned invalid result"],
+      diagnostics: [],
+    };
   }
   const lua = typeof raw.lua === "string" ? raw.lua : "";
+  const lualibBundle = typeof raw.lualibBundle === "string" ? raw.lualibBundle : "";
   const errors = isArrayLike(raw.errors)
     ? Array.from(raw.errors as ArrayLike<unknown>, (v) => String(v))
     : [];
   const diagnostics = isArrayLike(raw.diagnostics)
     ? Array.from(raw.diagnostics as ArrayLike<WasmDiagnostic>)
     : [];
-  return { lua, errors, diagnostics };
+  return { lua, lualibBundle, errors, diagnostics };
 }
 
 function isArrayLike(v: unknown): v is ArrayLike<unknown> {
