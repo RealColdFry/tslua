@@ -243,10 +243,18 @@ async function getLuaModule(version: string): Promise<LuaModule> {
 // `lua file.lua` run. Applies to the traceback's stack frames too.
 // `debug.traceback` indents stack frames with a literal tab; rewrite to
 // a fixed number of spaces so the playground renders consistently.
+// Non-greedy + `[\s\S]*?` so we correctly match user code whose truncated
+// chunk name contains embedded quotes (e.g. `require("lualib_bundle")`).
+// `[string "lualib_bundle"]` specifically keeps its identity so lualib
+// frames stay distinguishable from user-code frames.
 const TRACEBACK_INDENT = "  ";
 function formatError(raw: string | null): string {
   if (!raw) return "Lua execution error";
-  return raw.replace(/\[string "[^"]*"\]/g, "main").replace(/\t/g, TRACEBACK_INDENT);
+  return raw
+    .replace(/\[string "[\s\S]*?"\]/g, (match) =>
+      match === '[string "lualib_bundle"]' ? "lualib_bundle" : "main",
+    )
+    .replace(/\t/g, TRACEBACK_INDENT);
 }
 
 function runOnce(
