@@ -9,7 +9,7 @@ local function __TS__Unpack(list, i, j)
         do
             local n = i
             while n <= j do
-                slice[n - i + 1] = list[n]
+                slice[n - i + 1] = list[n] -- We don't want to add 1 to the index into list.
                 n = n + 1
             end
         end

@@ -100,7 +100,9 @@ func (t *Transpiler) transformEnumDeclaration(node *ast.Node) []lua.Statement {
 			result = append(result, valuePrec...)
 
 			if membersOnly {
-				// @compileMembersOnly: each member becomes its own declaration
+				// @compileMembersOnly: each member becomes its own declaration,
+				// so replicate the enum's leading JSDoc onto every member.
+				memberStart := len(result)
 				// Check if the enum symbol is exported in this scope
 				enumExported := isExported
 				if !enumExported {
@@ -144,6 +146,9 @@ func (t *Transpiler) transformEnumDeclaration(node *ast.Node) []lua.Statement {
 						))
 					}
 				}
+				if len(comments) > 0 && len(result) > memberStart {
+					setLeadingComments(result[memberStart], comments)
+				}
 			} else {
 				result = append(result, lua.Assign(
 					[]lua.Expression{lua.Index(enumRef, memberNameExpr)},
@@ -158,10 +163,6 @@ func (t *Transpiler) transformEnumDeclaration(node *ast.Node) []lua.Statement {
 				}
 			}
 		}
-	}
-
-	if len(comments) > 0 && len(result) > 0 {
-		setLeadingComments(result[0], comments)
 	}
 
 	return result

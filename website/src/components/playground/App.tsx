@@ -467,9 +467,9 @@ function PlaygroundApp() {
   );
 
   const updateCompilerOption = useCallback(
-    (key: string, value: string) => {
+    (key: string, value: string | boolean) => {
       const co = { ...pgState.tsconfig.compilerOptions, [key]: value };
-      if (value === "") delete (co as Record<string, unknown>)[key];
+      if (value === "" || value === false) delete (co as Record<string, unknown>)[key];
       const next: PlaygroundState = {
         ...pgState,
         tsconfig: { ...pgState.tsconfig, compilerOptions: co },
@@ -520,6 +520,11 @@ function PlaygroundApp() {
           <span className="pg-config-label">Lib</span>
           <span className="pg-config-value">{`["${(tsconfig.compilerOptions?.target as string) || "ESNext"}"]`}</span>
         </div>
+        <ConfigToggle
+          label="removeComments"
+          checked={!!tsconfig.compilerOptions?.removeComments}
+          onChange={(v) => updateCompilerOption("removeComments", v)}
+        />
         <div className="pg-config-field">
           <span className="pg-config-label">Types</span>
           <div className="pg-types-list">

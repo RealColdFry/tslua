@@ -17,7 +17,7 @@ function Map.prototype.____constructor(self, entries)
             if result.done then
                 break
             end
-            local value = result.value
+            local value = result.value -- Ensures index is offset when tuple is accessed
             self:set(value[1], value[2])
         end
     else

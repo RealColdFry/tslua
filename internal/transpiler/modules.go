@@ -717,7 +717,7 @@ func (t *Transpiler) transformModuleDeclaration(node *ast.Node) []lua.Statement 
 			mb := md.Body.AsModuleBlock()
 			scope := t.pushScope(ScopeBlock, md.Body)
 			for _, stmt := range mb.Statements.Nodes {
-				bodyStmts = append(bodyStmts, t.transformStatement(stmt)...)
+				bodyStmts = append(bodyStmts, t.transformStatementWithComments(stmt)...)
 			}
 			bodyStmts = t.performHoisting(scope, bodyStmts)
 			t.popScope()

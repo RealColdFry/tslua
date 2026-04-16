@@ -78,8 +78,6 @@ func (t *Transpiler) transformFunctionDeclaration(node *ast.Node) []lua.Statemen
 		}
 	}
 
-	comments := t.getLeadingComments(node)
-
 	isExported := hasExportModifier(node)
 	needsSelf := t.functionNeedsSelf(node)
 	paramIdents, hasRest := t.transformParamIdents(fd.Parameters, needsSelf)
@@ -221,9 +219,6 @@ func (t *Transpiler) transformFunctionDeclaration(node *ast.Node) []lua.Statemen
 			if funcSymID != 0 && t.inScope() {
 				t.setFunctionDefinitionStatement(funcSymID, stmt)
 			}
-			if len(comments) > 0 {
-				setLeadingComments(decl, comments)
-			}
 			return []lua.Statement{decl, stmt}
 		}
 		// Local declaration; hoisting will convert if needed
@@ -241,10 +236,6 @@ func (t *Transpiler) transformFunctionDeclaration(node *ast.Node) []lua.Statemen
 	// Register the definition statement for hoisting
 	if funcSymID != 0 && t.inScope() {
 		t.setFunctionDefinitionStatement(funcSymID, stmt)
-	}
-
-	if len(comments) > 0 {
-		setLeadingComments(stmt, comments)
 	}
 
 	// For `export default function foo()`, create a local alias so the name
