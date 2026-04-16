@@ -22,9 +22,11 @@ patch_exports() {
 # Apply patches to a bundle: insert functions before "return {" and add exports
 strip_lua_comments() {
     local file="$1"
+    local tmp
+    tmp=$(mktemp)
     # Remove pure comment lines (-- ...) and collapse resulting blank lines
-    sed -i '/^[[:space:]]*--/d' "$file"
-    sed -i '/^$/N;/^\n$/d' "$file"
+    sed '/^[[:space:]]*--/d' "$file" | sed '/^$/N;/^\n$/d' > "$tmp"
+    mv "$tmp" "$file"
 }
 
 apply_patches() {
@@ -81,7 +83,9 @@ apply_patches_to_features() {
     tmp=$(mktemp)
     sed '$d' "$info_file" > "$tmp"  # remove closing }
     # Ensure trailing comma on last real entry
-    sed -i '' '$ s/}$/},/' "$tmp" 2>/dev/null || sed -i '$ s/}$/},/' "$tmp"
+    local tmp2
+    tmp2=$(mktemp)
+    sed '$ s/}$/},/' "$tmp" > "$tmp2" && mv "$tmp2" "$tmp"
     echo "  \"TsluaIterators\": {\"exports\":[$exports],\"dependencies\":[\"Map\",\"Set\"]}" >> "$tmp"
     echo "}" >> "$tmp"
     mv "$tmp" "$info_file"

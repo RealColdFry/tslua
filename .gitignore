@@ -1,6 +1,7 @@
 /tslua
 /tslua-client
 /luabench
+/wasm
 /tstltest.test
 
 # Generated TSTL test files
