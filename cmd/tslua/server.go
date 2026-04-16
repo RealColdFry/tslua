@@ -422,9 +422,10 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 				sourceMaps[key] = r.SourceMap
 			}
 		}
-		addMinimalLualib(luaFiles, results, coldCfg.transpileOpts(), luaTarget)
+		coldSourceRoot := resolveSourceRoot(projectDir, origRootDir)
+		addMinimalLualib(luaFiles, results, coldSourceRoot, coldCfg.transpileOpts(), luaTarget)
 		if req.LuaBundle != "" {
-			bundledFiles, bundleDiags := bundleInlineResults(req, luaFiles, results, projectDir, origOutDir, luaTarget, coldCfg.transpileOpts())
+			bundledFiles, bundleDiags := bundleInlineResults(req, luaFiles, results, projectDir, origOutDir, coldSourceRoot, luaTarget, coldCfg.transpileOpts())
 			coldDiags = append(coldDiags, bundleDiags...)
 			if bundledFiles != nil {
 				luaFiles = bundledFiles
@@ -460,10 +461,10 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 			sourceMaps[key] = r.SourceMap
 		}
 	}
-	addMinimalLualib(luaFiles, results, cfg.transpileOpts(), luaTarget)
+	addMinimalLualib(luaFiles, results, sourceRoot, cfg.transpileOpts(), luaTarget)
 	if req.LuaBundle != "" {
 		hotOutDir, _ := req.CompilerOptions["outDir"].(string)
-		bundledFiles, bundleDiags := bundleInlineResults(req, luaFiles, results, projectDir, hotOutDir, luaTarget, cfg.transpileOpts())
+		bundledFiles, bundleDiags := bundleInlineResults(req, luaFiles, results, projectDir, hotOutDir, sourceRoot, luaTarget, cfg.transpileOpts())
 		allDiags = append(allDiags, bundleDiags...)
 		if bundledFiles != nil {
 			luaFiles = bundledFiles
@@ -564,7 +565,7 @@ func transpileProjectInner(tsconfigPath string, luaTarget transpiler.LuaTarget, 
 // bundleInlineResults bundles per-file transpile results into a single file when
 // luaBundle/luaBundleEntry are set. Returns the modified files map and any diagnostics.
 // If bundling is not requested, returns the files map unchanged.
-func bundleInlineResults(req serverRequest, luaFiles map[string]string, results []transpiler.TranspileResult, projectDir string, origOutDir string, luaTarget transpiler.LuaTarget, opts transpiler.TranspileOptions) (map[string]string, []*ast.Diagnostic) {
+func bundleInlineResults(req serverRequest, luaFiles map[string]string, results []transpiler.TranspileResult, projectDir string, origOutDir string, sourceRoot string, luaTarget transpiler.LuaTarget, opts transpiler.TranspileOptions) (map[string]string, []*ast.Diagnostic) {
 	if req.LuaBundle == "" {
 		return luaFiles, nil
 	}
@@ -623,7 +624,7 @@ func bundleInlineResults(req serverRequest, luaFiles map[string]string, results 
 			}
 		}
 	case transpiler.LuaLibImportRequireMinimal:
-		usedExports := aggregateLualibExports(results)
+		usedExports := aggregateLualibExportsWithLuaFiles(results, sourceRoot)
 		if len(usedExports) > 0 {
 			content, err := lualib.MinimalBundleForTarget(string(luaTarget), usedExports)
 			if err == nil {
@@ -644,14 +645,7 @@ func bundleInlineResults(req serverRequest, luaFiles map[string]string, results 
 	// Compute bundle output key: relative to outDir if set, otherwise projectDir.
 	// Matches TSTL's behavior where the bundle path resolves relative to the
 	// output directory or project root.
-	bundleKey := req.LuaBundle
-	if origOutDir != "" {
-		if filepath.IsAbs(origOutDir) {
-			bundleKey = filepath.Join(origOutDir, req.LuaBundle)
-		} else {
-			bundleKey = filepath.Join(projectDir, origOutDir, req.LuaBundle)
-		}
-	}
+	bundleKey := resolveBundleOutputPath(projectDir, origOutDir, req.LuaBundle)
 	bundleFiles := map[string]string{bundleKey: bundled}
 	return bundleFiles, diags
 }
@@ -704,11 +698,11 @@ func buildConfigFromRequest(req serverRequest, sourceRoot string, luaTarget tran
 
 // addMinimalLualib adds a tree-shaken lualib_bundle.lua to the file map when
 // LuaLibImport is RequireMinimal. Mirrors the logic in main.go's emit step.
-func addMinimalLualib(luaFiles map[string]string, results []transpiler.TranspileResult, opts transpiler.TranspileOptions, luaTarget transpiler.LuaTarget) {
+func addMinimalLualib(luaFiles map[string]string, results []transpiler.TranspileResult, sourceRoot string, opts transpiler.TranspileOptions, luaTarget transpiler.LuaTarget) {
 	if opts.LuaLibImport != transpiler.LuaLibImportRequireMinimal {
 		return
 	}
-	usedExports := aggregateLualibExports(results)
+	usedExports := aggregateLualibExportsWithLuaFiles(results, sourceRoot)
 	if len(usedExports) == 0 {
 		return
 	}
@@ -737,14 +731,7 @@ func isInsideDir(path, dir string) bool {
 // (before any rewriting for tsconfig).
 func inlineLuaOutputKey(fileName, projectDir, outDir, rootDir, extension string) string {
 	// Resolve sourceRoot: rootDir > projectDir
-	sourceRoot := projectDir
-	if rootDir != "" {
-		if filepath.IsAbs(rootDir) {
-			sourceRoot = rootDir
-		} else {
-			sourceRoot = filepath.Join(projectDir, rootDir)
-		}
-	}
+	sourceRoot := resolveSourceRoot(projectDir, rootDir)
 
 	// Resolve outDir to absolute if relative
 	if outDir != "" && !filepath.IsAbs(outDir) {
