@@ -372,16 +372,19 @@ function PlaygroundApp() {
     if (!monaco) return;
     const model = monaco.editor.getModel(monaco.Uri.parse("file:///main.ts"));
     if (!model) return;
-    const markers = diagnostics.map((d) => ({
-      startLineNumber: d.startLine,
-      startColumn: d.startCol,
-      endLineNumber: d.endLine,
-      endColumn: d.endCol,
-      message: d.message,
-      severity: d.severity,
-      source: "tslua",
-      code: d.code ? String(d.code) : undefined,
-    }));
+    const markers = diagnostics.map((d) => {
+      const marker: import("monaco-editor").editor.IMarkerData = {
+        startLineNumber: d.startLine,
+        startColumn: d.startCol,
+        endLineNumber: d.endLine,
+        endColumn: d.endCol,
+        message: d.message,
+        severity: d.severity,
+        source: "tslua",
+      };
+      if (d.code) marker.code = String(d.code);
+      return marker;
+    });
     monaco.editor.setModelMarkers(model, "tslua", markers);
   }, []);
 
