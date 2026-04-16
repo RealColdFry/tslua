@@ -186,6 +186,7 @@ type Opts struct {
 	CompilerOptions           map[string]any        // extra tsconfig compilerOptions
 	ExtraFiles                map[string]string     // additional TS files (e.g. "helper.ts" → code)
 	NoResolvePaths            []string              // module specifiers to emit as-is (TSTL noResolvePaths)
+	NoImplicitSelf            bool                  // unresolved calls default to no-self
 }
 
 // ============================================================================
@@ -197,6 +198,7 @@ type TranspileResult struct {
 	FileName     string
 	Lua          string
 	SourceMap    string // V3 source map JSON (empty if source maps disabled)
+	Declaration  string // .d.ts content (empty if declaration emission disabled)
 	UsesLualib   bool
 	LualibDeps   []string                      // lualib exports referenced (populated for None and RequireMinimal modes)
 	Dependencies []transpiler.ModuleDependency // module dependencies discovered during transformation
@@ -265,6 +267,7 @@ func TranspileTS(t *testing.T, tsCode string, opts Opts) []TranspileResult {
 		SourceMapTraceback:        opts.SourceMapTraceback,
 		InlineSourceMap:           opts.InlineSourceMap,
 		NoResolvePaths:            opts.NoResolvePaths,
+		NoImplicitSelf:            opts.NoImplicitSelf,
 	}
 	if transpileOpts.LuaLibImport == transpiler.LuaLibImportInline {
 		if fd, err := lualib.FeatureDataForTarget(string(luaTarget)); err == nil {
@@ -285,6 +288,7 @@ func TranspileTS(t *testing.T, tsCode string, opts Opts) []TranspileResult {
 			FileName:     rel,
 			Lua:          r.Lua,
 			SourceMap:    r.SourceMap,
+			Declaration:  r.Declaration,
 			UsesLualib:   r.UsesLualib,
 			LualibDeps:   r.LualibDeps,
 			Dependencies: r.Dependencies,

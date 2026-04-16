@@ -354,12 +354,53 @@ type TranspileResult struct {
 	FileName      string
 	Lua           string
 	SourceMap     string // V3 source map JSON (empty if source maps disabled)
+	Declaration   string // .d.ts content (empty if declaration emission disabled)
 	UsesLualib    bool
 	ExportedNames []string           // names exported by this file (populated when ExportAsGlobal is set)
 	LualibDeps    []string           // lualib features used by this file (populated when NoLualibImport is set)
 	Dependencies  []ModuleDependency // module dependencies discovered during transformation
 	TransformDur  time.Duration      // time spent transforming TS AST → Lua AST
 	PrintDur      time.Duration      // time spent printing Lua AST → string
+}
+
+type declarationEmit struct {
+	text  string
+	diags []*ast.Diagnostic
+}
+
+func collectDeclarationEmits(program *compiler.Program, onlyFiles map[string]bool) map[string]declarationEmit {
+	options := program.Options()
+	if options == nil || !options.GetEmitDeclarations() {
+		return nil
+	}
+
+	emits := make(map[string]declarationEmit)
+	for _, sf := range program.SourceFiles() {
+		fileName := sf.FileName()
+		if isDeclarationFile(fileName) || (onlyFiles != nil && !onlyFiles[fileName]) {
+			continue
+		}
+
+		var decl declarationEmit
+		program.Emit(context.Background(), compiler.EmitOptions{
+			TargetSourceFile: sf,
+			EmitOnly:         compiler.EmitOnlyDts,
+			WriteFile: func(fileName string, text string, data *compiler.WriteFileData) error {
+				if !strings.HasSuffix(fileName, ".d.ts") {
+					return nil
+				}
+				decl.text = text
+				if data != nil && len(data.Diagnostics) > 0 {
+					decl.diags = append(decl.diags, data.Diagnostics...)
+				}
+				return nil
+			},
+		})
+		if decl.text != "" || len(decl.diags) > 0 {
+			emits[fileName] = decl
+		}
+	}
+	return emits
 }
 
 // TranspileOptions holds configuration for transpilation.
@@ -418,6 +459,7 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 	}
 
 	crossFileEnums := collectCrossFileEnums(program)
+	declarationEmits := collectDeclarationEmits(program, onlyFiles)
 
 	// Compile ExportAsGlobalMatch regex once for per-file matching.
 	var exportAsGlobalRe *regexp.Regexp
@@ -535,10 +577,16 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 			(opts.LuaLibImport == LuaLibImportNone || opts.LuaLibImport == LuaLibImportRequireMinimal) {
 			lualibDeps = append([]string{}, t.lualibs...)
 		}
+		var declaration string
+		if decl, ok := declarationEmits[fileName]; ok {
+			declaration = t.postProcessDeclaration(decl.text)
+			diagnostics = append(diagnostics, decl.diags...)
+		}
 		results = append(results, TranspileResult{
 			FileName:      fileName,
 			Lua:           luaCode,
 			SourceMap:     sourceMapJSON,
+			Declaration:   declaration,
 			UsesLualib:    len(t.lualibs) > 0,
 			ExportedNames: exportNames,
 			LualibDeps:    lualibDeps,
@@ -2005,6 +2053,30 @@ func filterAnnotations(lines []string) []string {
 		}
 	}
 	return filtered
+}
+
+func (t *Transpiler) shouldInjectNoSelfInFileDeclaration() bool {
+	if t.sourceFile == nil {
+		return false
+	}
+	if hasFileAnnotation(t.sourceFile, AnnotNoSelfInFile) {
+		return true
+	}
+	if !t.noImplicitSelf || t.program == nil {
+		return false
+	}
+	return !compiler.Program_IsSourceFileDefaultLibrary(t.program, t.sourceFile.Path()) &&
+		!compiler.Program_IsSourceFileFromExternalLibrary(t.program, t.sourceFile)
+}
+
+func (t *Transpiler) postProcessDeclaration(text string) string {
+	if text == "" {
+		return ""
+	}
+	if t.shouldInjectNoSelfInFileDeclaration() && !strings.Contains(text, "@noSelfInFile") {
+		return "/** @noSelfInFile */\n" + text
+	}
+	return text
 }
 
 // parseJSDocText extracts clean text lines from a raw JSDoc comment block.

@@ -563,10 +563,7 @@ func writeBundle(cfg *buildConfig, results []transpiler.TranspileResult) error {
 		return err
 	}
 
-	outPath := cfg.luaBundle
-	if cfg.outdir != "" {
-		outPath = filepath.Join(cfg.outdir, cfg.luaBundle)
-	}
+	outPath := resolveBundleOutputPath(cfg.configDir, cfg.outdir, cfg.luaBundle)
 	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
 		return fmt.Errorf("error creating directory: %w", err)
 	}
@@ -686,24 +683,6 @@ func writeExternalFiles(cfg *buildConfig, resolved resolve.Result) {
 	}
 }
 
-// aggregateLualibExports collects a deduplicated, sorted list of lualib export
-// names used across all transpile results. Requires TranspileResult.LualibDeps
-// to be populated (only for LuaLibImportNone and LuaLibImportRequireMinimal).
-func aggregateLualibExports(results []transpiler.TranspileResult) []string {
-	seen := make(map[string]bool)
-	var out []string
-	for _, r := range results {
-		for _, exp := range r.LualibDeps {
-			if !seen[exp] {
-				seen[exp] = true
-				out = append(out, exp)
-			}
-		}
-	}
-	sort.Strings(out)
-	return out
-}
-
 // aggregateLualibExportsWithLuaFiles extends aggregateLualibExports by also
 // scanning .lua source files in sourceRoot for ____lualib references.
 func aggregateLualibExportsWithLuaFiles(results []transpiler.TranspileResult, sourceRoot string) []string {
@@ -740,6 +719,31 @@ func aggregateLualibExportsWithLuaFiles(results []transpiler.TranspileResult, so
 
 	sort.Strings(out)
 	return out
+}
+
+func resolveSourceRoot(projectDir, rootDir string) string {
+	if rootDir == "" {
+		return projectDir
+	}
+	if filepath.IsAbs(rootDir) {
+		return rootDir
+	}
+	return filepath.Join(projectDir, rootDir)
+}
+
+func resolveBundleOutputPath(projectDir, outDir, luaBundle string) string {
+	if filepath.IsAbs(luaBundle) {
+		return luaBundle
+	}
+	baseDir := projectDir
+	if outDir != "" {
+		if filepath.IsAbs(outDir) {
+			baseDir = outDir
+		} else {
+			baseDir = filepath.Join(projectDir, outDir)
+		}
+	}
+	return filepath.Join(baseDir, luaBundle)
 }
 
 // lualibInlineContent returns the lualib bundle with the trailing return table
