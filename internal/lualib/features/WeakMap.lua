@@ -15,7 +15,7 @@ function WeakMap.prototype.____constructor(self, entries)
             if result.done then
                 break
             end
-            local value = result.value
+            local value = result.value -- Ensures index is offset when tuple is accessed
             self.items[value[1]] = value[2]
         end
     else
