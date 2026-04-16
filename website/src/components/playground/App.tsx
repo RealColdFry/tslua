@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { loader } from "@monaco-editor/react";
+import type { editor } from "monaco-editor";
 import { Editor } from "./Editor";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { OutputPanel } from "./OutputPanel";
@@ -293,6 +294,10 @@ function PlaygroundApp() {
   );
 
   const monacoRef = useRef<Awaited<ReturnType<typeof loader.init>> | null>(null);
+  const luaEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  // Latest Lua error shown to the user, so `onEditorMount` can reapply the
+  // marker when the Lua editor mounts after the error was already emitted.
+  const luaErrorRef = useRef<string | null>(null);
 
   const extraLibsRef = useRef<{ dispose(): void }[]>([]);
   // Cached key of the last-applied Monaco config. Skip re-apply when the
@@ -380,6 +385,41 @@ function PlaygroundApp() {
     monaco.editor.setModelMarkers(model, "tslua", markers);
   }, []);
 
+  const setLuaErrorMarker = useCallback((error: string | null) => {
+    const monaco = monacoRef.current;
+    const luaEditor = luaEditorRef.current;
+    if (!monaco || !luaEditor) return;
+    const model = luaEditor.getModel();
+    if (!model) return;
+    if (!error) {
+      monaco.editor.setModelMarkers(model, "lua-eval", []);
+      return;
+    }
+    // First `main:N:` in the error string is the top frame (actual error line).
+    const match = error.match(/main:(\d+):/);
+    if (!match) {
+      monaco.editor.setModelMarkers(model, "lua-eval", []);
+      return;
+    }
+    const line = Number(match[1]);
+    if (line < 1 || line > model.getLineCount()) {
+      monaco.editor.setModelMarkers(model, "lua-eval", []);
+      return;
+    }
+    const startCol = model.getLineFirstNonWhitespaceColumn(line) || 1;
+    monaco.editor.setModelMarkers(model, "lua-eval", [
+      {
+        startLineNumber: line,
+        startColumn: startCol,
+        endLineNumber: line,
+        endColumn: model.getLineMaxColumn(line),
+        message: error,
+        severity: 8, // MarkerSeverity.Error
+        source: "lua-eval",
+      },
+    ]);
+  }, []);
+
   const doTranspile = useCallback(
     async (code: string, cfg: PlaygroundTsconfig) => {
       if (loading) return;
@@ -422,6 +462,12 @@ function PlaygroundApp() {
   useEffect(() => {
     if (!loading && hashReady) doTranspile(tsCode, tsconfig);
   }, [loading, hashReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const err = luaPretty ? luaDualResult.pretty.error : luaDualResult.raw.error;
+    luaErrorRef.current = err;
+    setLuaErrorMarker(err);
+  }, [luaDualResult, luaPretty, setLuaErrorMarker]);
 
   const handleTsChange = useCallback(
     (value: string) => {
@@ -644,7 +690,17 @@ function PlaygroundApp() {
         )}
         {mobileTab === "lua" && (
           <div className="pg-mobile-pane">
-            <Editor value={luaCode} language="lua" readOnly theme={theme} />
+            <Editor
+              value={luaCode}
+              language="lua"
+              path="file:///main.lua"
+              readOnly
+              theme={theme}
+              onEditorMount={(e) => {
+                luaEditorRef.current = e;
+                setLuaErrorMarker(luaErrorRef.current);
+              }}
+            />
           </div>
         )}
         {mobileTab === "ts-eval" && (
@@ -734,7 +790,16 @@ function PlaygroundApp() {
               )}
             </div>
             <div className="pg-cell-content">
-              <Editor value={luaCode} language="lua" readOnly theme={theme} />
+              <Editor
+                value={luaCode}
+                language="lua"
+                path="file:///main.lua"
+                readOnly
+                theme={theme}
+                onEditorMount={(e) => {
+                  luaEditorRef.current = e;
+                }}
+              />
             </div>
           </div>
 

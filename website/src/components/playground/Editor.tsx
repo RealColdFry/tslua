@@ -50,6 +50,10 @@ export function Editor({
         onMount={handleMount}
         options={{
           readOnly: readOnly ?? false,
+          // Monaco defaults to "editable", which suppresses markers on
+          // read-only models. Force "on" so setModelMarkers is visible
+          // on the read-only Lua output pane.
+          renderValidationDecorations: "on",
           fixedOverflowWidgets: true,
           minimap: { enabled: false },
           fontFamily: '"JetBrains Mono", "Fira Code", monospace',
