@@ -683,24 +683,6 @@ func writeExternalFiles(cfg *buildConfig, resolved resolve.Result) {
 	}
 }
 
-// aggregateLualibExports collects a deduplicated, sorted list of lualib export
-// names used across all transpile results. Requires TranspileResult.LualibDeps
-// to be populated (only for LuaLibImportNone and LuaLibImportRequireMinimal).
-func aggregateLualibExports(results []transpiler.TranspileResult) []string {
-	seen := make(map[string]bool)
-	var out []string
-	for _, r := range results {
-		for _, exp := range r.LualibDeps {
-			if !seen[exp] {
-				seen[exp] = true
-				out = append(out, exp)
-			}
-		}
-	}
-	sort.Strings(out)
-	return out
-}
-
 // aggregateLualibExportsWithLuaFiles extends aggregateLualibExports by also
 // scanning .lua source files in sourceRoot for ____lualib references.
 func aggregateLualibExportsWithLuaFiles(results []transpiler.TranspileResult, sourceRoot string) []string {

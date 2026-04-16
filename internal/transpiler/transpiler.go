@@ -364,7 +364,7 @@ type TranspileResult struct {
 }
 
 type declarationEmit struct {
-	text string
+	text  string
 	diags []*ast.Diagnostic
 }
 
