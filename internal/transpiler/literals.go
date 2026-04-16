@@ -146,7 +146,7 @@ func (t *Transpiler) transformObjectPropertyValue(prop *ast.Node) lua.Expression
 		var bodyStmts []lua.Statement
 		bodyStmts = append(bodyStmts, t.transformParamPreamble(md.Parameters)...)
 		if md.Body != nil {
-			bodyStmts = append(bodyStmts, t.transformBlock(md.Body)...)
+			bodyStmts = append(bodyStmts, t.transformFunctionBodyBlock(md.Body)...)
 		}
 		var result lua.Expression = &lua.FunctionExpression{
 			Params: paramIdents,
@@ -246,7 +246,7 @@ func (t *Transpiler) transformObjectPropertyField(prop *ast.Node) *lua.TableFiel
 		var bodyStmts []lua.Statement
 		bodyStmts = append(bodyStmts, t.transformParamPreamble(md.Parameters)...)
 		if md.Body != nil {
-			bodyStmts = append(bodyStmts, t.transformBlock(md.Body)...)
+			bodyStmts = append(bodyStmts, t.transformFunctionBodyBlock(md.Body)...)
 		}
 		fn := &lua.FunctionExpression{
 			Params: paramIdents,
