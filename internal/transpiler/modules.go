@@ -428,6 +428,10 @@ func (t *Transpiler) resolveModulePath(moduleSpecifier *ast.Node) string {
 		t.addDependency(ModuleDependency{RequirePath: specText})
 		return specText
 	}
+	if hasSymbolAnnotation(t.checker.GetSymbolAtLocation(moduleSpecifier), AnnotNoResolution) {
+		t.addDependency(ModuleDependency{RequirePath: specText})
+		return specText
+	}
 
 	resolved := t.program.GetResolvedModuleFromModuleSpecifier(t.sourceFile, moduleSpecifier)
 	if resolved != nil && resolved.ResolvedFileName != "" {

@@ -12,12 +12,14 @@ const (
 	AnnotNoSelf AnnotationKind = iota
 	AnnotNoSelfInFile
 	AnnotCompileMembersOnly
+	AnnotNoResolution
 )
 
 var annotationValues = map[string]AnnotationKind{
 	"noself":             AnnotNoSelf,
 	"noselfinfile":       AnnotNoSelfInFile,
 	"compilemembersonly": AnnotCompileMembersOnly,
+	"noresolution":       AnnotNoResolution,
 }
 
 func hasNodeAnnotation(node *ast.Node, sf *ast.SourceFile, kind AnnotationKind) bool {
@@ -72,13 +74,23 @@ func (t *Transpiler) hasTypeAnnotation(node *ast.Node, kind AnnotationKind) bool
 	if sym == nil {
 		return false
 	}
-	annotName := ""
+	return hasSymbolAnnotation(sym, kind)
+}
+
+func annotationName(kind AnnotationKind) string {
 	for k, v := range annotationValues {
 		if v == kind {
-			annotName = k
-			break
+			return k
 		}
 	}
+	return ""
+}
+
+func hasSymbolAnnotation(sym *ast.Symbol, kind AnnotationKind) bool {
+	if sym == nil {
+		return false
+	}
+	annotName := annotationName(kind)
 	for _, decl := range sym.Declarations {
 		sf := ast.GetSourceFileOfNode(decl)
 		if hasNodeAnnotation(decl, sf, kind) {
