@@ -703,7 +703,7 @@ func (t *Transpiler) transformClassConstructor(classRef lua.Expression, construc
 		// Transform the constructor body and split out the super call
 		var ctorBodyStmts []lua.Statement
 		if ctor.Body != nil {
-			ctorBodyStmts = t.transformBlock(ctor.Body)
+			ctorBodyStmts = t.transformFunctionBodyBlock(ctor.Body)
 		}
 
 		// Extract super call from the body (must run before field initializers)
@@ -867,7 +867,7 @@ func (t *Transpiler) transformClassMethod(classRef lua.Expression, node *ast.Nod
 		var bodyStmts []lua.Statement
 		bodyStmts = append(bodyStmts, t.transformParamPreamble(md.Parameters)...)
 		if md.Body != nil {
-			bodyStmts = append(bodyStmts, t.transformBlock(md.Body)...)
+			bodyStmts = append(bodyStmts, t.transformFunctionBodyBlock(md.Body)...)
 		}
 
 		t.inStaticMethod = prevInStaticMethod
@@ -940,7 +940,7 @@ func (t *Transpiler) transformClassMethod(classRef lua.Expression, node *ast.Nod
 
 		var bodyStmts []lua.Statement
 		if ga.Body != nil {
-			bodyStmts = t.transformBlock(ga.Body)
+			bodyStmts = t.transformFunctionBodyBlock(ga.Body)
 		}
 
 		getterFn := &lua.FunctionExpression{
@@ -983,7 +983,7 @@ func (t *Transpiler) transformClassMethod(classRef lua.Expression, node *ast.Nod
 		paramIdents, hasRest := t.transformParamIdents(sa.Parameters, true)
 		var bodyStmts []lua.Statement
 		if sa.Body != nil {
-			bodyStmts = t.transformBlock(sa.Body)
+			bodyStmts = t.transformFunctionBodyBlock(sa.Body)
 		}
 
 		setterFn := &lua.FunctionExpression{
@@ -1038,7 +1038,7 @@ func (t *Transpiler) transformAccessorPair(classRef lua.Expression, getter, sett
 
 	var getBodyStmts []lua.Statement
 	if ga.Body != nil {
-		getBodyStmts = t.transformBlock(ga.Body)
+		getBodyStmts = t.transformFunctionBodyBlock(ga.Body)
 	}
 	getterFn := &lua.FunctionExpression{
 		Params: []*lua.Identifier{lua.Ident("self")},
@@ -1048,7 +1048,7 @@ func (t *Transpiler) transformAccessorPair(classRef lua.Expression, getter, sett
 	setParamIdents, hasRest := t.transformParamIdents(sa.Parameters, true)
 	var setBodyStmts []lua.Statement
 	if sa.Body != nil {
-		setBodyStmts = t.transformBlock(sa.Body)
+		setBodyStmts = t.transformFunctionBodyBlock(sa.Body)
 	}
 	setterFn := &lua.FunctionExpression{
 		Params: setParamIdents,

@@ -868,7 +868,16 @@ func (t *Transpiler) transformBlockStatementsNoScope(node *ast.Node) []lua.State
 }
 
 func (t *Transpiler) transformBlock(node *ast.Node) []lua.Statement {
-	return t.transformScopeBlock(node, ScopeBlock)
+	return t.transformScopeBlockReturning(node, ScopeBlock, false)
+}
+
+// transformFunctionBodyBlock transforms a block that is the body of a function-like
+// (arrow, method, accessor, ctor, object-literal method). Differs from transformBlock
+// in that `using` calls become `return __TS__Using(...)` so the function's return value
+// flows through the using callback. Without this, async arrow + await using drops the
+// inner return value and the resulting promise resolves to nil.
+func (t *Transpiler) transformFunctionBodyBlock(node *ast.Node) []lua.Statement {
+	return t.transformScopeBlockReturning(node, ScopeBlock, true)
 }
 
 // transformBlockStatementsOnly transforms a block's statements without pushing a new scope.
@@ -893,16 +902,17 @@ func (t *Transpiler) transformBlockStatementsOnly(node *ast.Node) []lua.Statemen
 	return stmts
 }
 
-// transformScopeBlock transforms a block with a specific scope type.
-func (t *Transpiler) transformScopeBlock(node *ast.Node, scopeType ScopeType) []lua.Statement {
+// transformScopeBlockReturning is the shared implementation behind transformBlock
+// and transformFunctionBodyBlock. shouldReturn controls whether `using` declarations
+// emit `return __TS__Using(...)` (function body) or a bare call statement (standalone
+// block).
+func (t *Transpiler) transformScopeBlockReturning(node *ast.Node, scopeType ScopeType, shouldReturn bool) []lua.Statement {
 	block := node.AsBlock()
 	scope := t.pushScope(scopeType, node)
 	var stmts []lua.Statement
 
-	// Check if any statement is a `using` declaration and use the using-aware transform.
-	// Standalone blocks (do...end) should not return from using calls.
 	if blockHasUsingDeclaration(block.Statements) {
-		_, stmts = t.transformStatementsWithUsing(block.Statements.Nodes, false)
+		_, stmts = t.transformStatementsWithUsing(block.Statements.Nodes, shouldReturn)
 	} else {
 		for _, stmt := range block.Statements.Nodes {
 			stmts = append(stmts, t.transformStatementWithComments(stmt)...)

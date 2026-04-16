@@ -399,7 +399,7 @@ func (t *Transpiler) transformArrowFunction(node *ast.Node) lua.Expression {
 	if af.Body.Kind == ast.KindBlock {
 		var bodyStmts []lua.Statement
 		bodyStmts = append(bodyStmts, t.transformParamPreamble(af.Parameters)...)
-		bodyStmts = append(bodyStmts, t.transformBlock(af.Body)...)
+		bodyStmts = append(bodyStmts, t.transformFunctionBodyBlock(af.Body)...)
 		if isAsync {
 			bodyStmts = t.wrapInAsyncAwaiter(bodyStmts)
 		}

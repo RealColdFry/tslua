@@ -198,3 +198,31 @@ func TestUsing_Codegen(t *testing.T) {
 		}
 	})
 }
+
+// TestUsing_AsyncArrowReturnValue verifies that an async arrow body containing
+// `await using` correctly propagates the return value. Arrow function bodies
+// were going through the standalone-block path (shouldReturn=false), which
+// dropped the value and resolved the promise to undefined instead of the
+// returned value.
+func TestUsing_AsyncArrowReturnValue(t *testing.T) {
+	t.Parallel()
+
+	body := `const log: string[] = [];
+	function getD(): AsyncDisposable {
+		return { [Symbol.asyncDispose]: async () => { log.push("d"); } };
+	}
+	async function run() {
+		const inner = async () => {
+			await using b = getD();
+			return 42;
+		};
+		const result = await inner();
+		log.push("result=" + String(result));
+	}
+	run();
+	return log;`
+
+	ExpectFunction(t, body, `{"d", "result=42"}`, Opts{
+		LuaTarget: transpiler.LuaTargetLuaJIT,
+	})
+}
