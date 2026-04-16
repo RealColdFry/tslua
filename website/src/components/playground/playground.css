@@ -301,6 +301,12 @@
   font-size: 0.8125rem;
   color: var(--pg-text);
 }
+.pg-config-note {
+  font-size: 0.75rem;
+  color: var(--pg-text-muted);
+  line-height: 1.35;
+  margin-top: 0.15rem;
+}
 .pg-types-list {
   display: flex;
   flex-direction: column;

@@ -65,7 +65,7 @@ function killWorker() {
   }
 }
 
-export function execLua(code: string, target: string): Promise<DualExecResult> {
+export function execLua(code: string, target: string, lualib?: string): Promise<DualExecResult> {
   return new Promise((resolve) => {
     const id = nextId++;
     const timer = setTimeout(() => {
@@ -73,6 +73,8 @@ export function execLua(code: string, target: string): Promise<DualExecResult> {
     }, TIMEOUT_MS);
 
     pending.set(id, { resolve, timer });
-    getWorker().postMessage({ id, code, target } satisfies LuaWorkerRequest);
+    const msg: LuaWorkerRequest = { id, code, target };
+    if (lualib) msg.lualib = lualib;
+    getWorker().postMessage(msg);
   });
 }

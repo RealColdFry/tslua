@@ -48,7 +48,7 @@ const EMIT_MODES = [
 
 const TS_TARGETS = [
   { value: "", label: "ESNext (default)" },
-  { value: "ES5", label: "ES5" },
+  // { value: "ES5", label: "ES5" },
   { value: "ES2015", label: "ES2015" },
   { value: "ES2016", label: "ES2016" },
   { value: "ES2017", label: "ES2017" },
@@ -63,9 +63,14 @@ const TS_TARGETS = [
 
 const CLASS_STYLES = [
   { value: "", label: "TSTL (default)" },
+  { value: "inline", label: "Inline" },
   { value: "luabind", label: "Luabind" },
   { value: "middleclass", label: "Middleclass" },
-  { value: "inline", label: "Inline" },
+] as const;
+
+const LUALIB_IMPORTS = [
+  { value: "", label: "inline" },
+  { value: "require-minimal", label: "require-minimal" },
 ] as const;
 
 const DEFAULT_CODE = `// Try some TypeScript!
@@ -100,11 +105,13 @@ function ConfigSelect({
   value,
   options,
   onChange,
+  note,
 }: {
   label: string;
   value: string;
   options: readonly { value: string; label: string }[];
   onChange: (value: string) => void;
+  note?: React.ReactNode;
 }) {
   return (
     <label className="pg-config-field">
@@ -120,6 +127,7 @@ function ConfigSelect({
           </option>
         ))}
       </select>
+      {note && <span className="pg-config-note">{note}</span>}
     </label>
   );
 }
@@ -244,7 +252,7 @@ function PlaygroundApp() {
   }, []);
 
   const runExecution = useCallback(
-    async (epoch: number, tsSource: string, lua: string, tgt: string) => {
+    async (epoch: number, tsSource: string, lua: string, tgt: string, lualibBundle: string) => {
       const isCurrent = () => epoch === epochRef.current;
       try {
         const js = await compileTs(tsSource);
@@ -264,7 +272,7 @@ function PlaygroundApp() {
       if (lua.trim()) {
         try {
           const t0 = performance.now();
-          const result = await execLua(lua, tgt);
+          const result = await execLua(lua, tgt, lualibBundle);
           if (!isCurrent()) return;
           setLuaEvalMs(performance.now() - t0);
           setLuaDualResult(result);
@@ -405,7 +413,7 @@ function PlaygroundApp() {
       if (execDebounceRef.current) clearTimeout(execDebounceRef.current);
       execDebounceRef.current = setTimeout(() => {
         if (!isCurrent()) return;
-        runExecution(epoch, code, result.lua, tgt);
+        runExecution(epoch, code, result.lua, tgt, result.lualibBundle);
       }, 500);
     },
     [loading, runExecution, setTsluaMarkers, syncMonacoOptions],
@@ -547,6 +555,7 @@ function PlaygroundApp() {
           value={luaTarget}
           options={LUA_TARGETS}
           onChange={(v) => updateTstl("luaTarget", v === "JIT" ? "" : v)}
+          note={luaTarget === "JIT" ? "Evaluated via Lua 5.1.5 WASM." : undefined}
         />
         <ConfigSelect
           label="Emit Mode"
@@ -559,6 +568,17 @@ function PlaygroundApp() {
           value={tsconfig.tstl?.classStyle || ""}
           options={CLASS_STYLES}
           onChange={(v) => updateTstl("classStyle", v)}
+        />
+        <ConfigSelect
+          label="Lualib Import"
+          value={tsconfig.tstl?.luaLibImport || ""}
+          options={LUALIB_IMPORTS}
+          onChange={(v) => updateTstl("luaLibImport", v)}
+          note={
+            tsconfig.tstl?.luaLibImport === "require-minimal"
+              ? "Bundle hidden from view; loaded for eval."
+              : undefined
+          }
         />
         <ConfigToggle
           label="noImplicitSelf"

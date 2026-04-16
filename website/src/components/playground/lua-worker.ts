@@ -256,6 +256,7 @@ export interface LuaWorkerRequest {
   id: number;
   code: string;
   target: string;
+  lualib?: string;
 }
 
 export interface LuaWorkerResponse {
@@ -264,14 +265,37 @@ export interface LuaWorkerResponse {
   pretty: ExecResult;
 }
 
+// Wraps `bundleCode` so that `require("lualib_bundle")` returns the table the
+// bundle's `return { ... }` produces. Uses a long bracket with enough equals
+// signs to avoid collision with anything the bundle itself could contain.
+function buildLualibPrelude(bundleCode: string): string {
+  let eqs = "=====";
+  while (bundleCode.includes("]" + eqs + "]")) eqs += "=";
+  const open = "[" + eqs + "[";
+  const close = "]" + eqs + "]";
+  return `do
+  local ____lualib_chunk = assert(loadstring or load)(${open}
+${bundleCode}
+${close}, "lualib_bundle")
+  local ____lualib_table = ____lualib_chunk()
+  local ____orig_require = require
+  require = function(name)
+    if name == "lualib_bundle" then return ____lualib_table end
+    return ____orig_require(name)
+  end
+end
+`;
+}
+
 self.addEventListener("message", async (e: MessageEvent<LuaWorkerRequest>) => {
-  const { id, code, target } = e.data;
+  const { id, code, target, lualib: lualibBundle } = e.data;
   const version = TARGET_TO_VERSION[target] ?? "5.4";
 
   try {
     const { lua, lauxlib, lualib } = await getLuaModule(version);
-    const raw = runOnce(lua, lauxlib, lualib, code);
-    const pretty = runOnce(lua, lauxlib, lualib, getPreamble(target) + code);
+    const prelude = lualibBundle ? buildLualibPrelude(lualibBundle) : "";
+    const raw = runOnce(lua, lauxlib, lualib, prelude + code);
+    const pretty = runOnce(lua, lauxlib, lualib, prelude + getPreamble(target) + code);
     self.postMessage({ id, raw, pretty } satisfies LuaWorkerResponse);
   } catch (err) {
     const errResult: ExecResult = { output: [], error: String(err) };
