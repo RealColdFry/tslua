@@ -41,6 +41,8 @@ const (
 	ScopeLoop
 	ScopeConditional
 	ScopeBlock
+	ScopeTry
+	ScopeCatch
 )
 
 // SymbolID is a unique identifier for a tracked symbol within a transpilation.
@@ -73,6 +75,13 @@ type Scope struct {
 	VariableDecls     []TrackedVarDecl // variable declarations for hoisting
 	FunctionDefs      map[SymbolID]*FunctionDefinitionInfo
 	ImportStatements  []lua.Statement // import statements to hoist to top
+
+	// Flags set when a return/break/continue inside an async try/catch needs
+	// to be deferred to post-check logic after the awaiter chain. Ported from
+	// TSTL PR #1706.
+	AsyncTryHasReturn   bool
+	AsyncTryHasBreak    bool
+	AsyncTryHasContinue bool
 }
 
 // Transpiler holds the state needed for transpiling a single source file.
@@ -1084,8 +1093,26 @@ func (t *Transpiler) transformStatement(node *ast.Node) (result []lua.Statement)
 				}
 			}
 		}
+		if t.asyncDepth > 0 {
+			if tryScope := t.findAsyncTryScopeBeforeLoop(); tryScope != nil {
+				tryScope.AsyncTryHasBreak = true
+				return []lua.Statement{
+					lua.Assign([]lua.Expression{lua.Ident("____hasBroken")}, []lua.Expression{lua.Bool(true)}),
+					lua.Return(),
+				}
+			}
+		}
 		return []lua.Statement{lua.Break()}
 	case ast.KindContinueStatement:
+		if t.asyncDepth > 0 {
+			if tryScope := t.findAsyncTryScopeBeforeLoop(); tryScope != nil {
+				tryScope.AsyncTryHasContinue = true
+				return []lua.Statement{
+					lua.Assign([]lua.Expression{lua.Ident("____hasContinued")}, []lua.Expression{lua.Bool(true)}),
+					lua.Return(),
+				}
+			}
+		}
 		if t.luaTarget.HasNativeContinue() {
 			// For C-style for-loops, the incrementor must run before continue.
 			// Duplicate it here since native continue skips to the loop condition.
@@ -1168,6 +1195,39 @@ func (t *Transpiler) popScope() *Scope {
 // peekScope returns the current (top) scope.
 func (t *Transpiler) peekScope() *Scope {
 	return t.scopeStack[len(t.scopeStack)-1]
+}
+
+// findAsyncTryScope walks up the scope stack looking for an enclosing Try/Catch
+// scope inside the current async function. Returns nil if a Function scope is
+// encountered first (i.e. the try belongs to an outer function). Ported from
+// TSTL PR #1706 findAsyncTryScopeInStack.
+func (t *Transpiler) findAsyncTryScope() *Scope {
+	for i := len(t.scopeStack) - 1; i >= 0; i-- {
+		s := t.scopeStack[i]
+		if s.Type == ScopeFunction {
+			return nil
+		}
+		if s.Type == ScopeTry || s.Type == ScopeCatch {
+			return s
+		}
+	}
+	return nil
+}
+
+// findAsyncTryScopeBeforeLoop is like findAsyncTryScope but stops at Loop
+// boundaries so that break/continue in an inner loop don't target the outer
+// async try. Ported from TSTL PR #1706 findAsyncTryScopeBeforeLoop.
+func (t *Transpiler) findAsyncTryScopeBeforeLoop() *Scope {
+	for i := len(t.scopeStack) - 1; i >= 0; i-- {
+		s := t.scopeStack[i]
+		if s.Type == ScopeFunction || s.Type == ScopeLoop {
+			return nil
+		}
+		if s.Type == ScopeTry || s.Type == ScopeCatch {
+			return s
+		}
+	}
+	return nil
 }
 
 // isInsideFunction returns true if any scope in the stack is a function scope.

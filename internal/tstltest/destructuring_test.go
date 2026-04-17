@@ -4508,6 +4508,58 @@ function ____exports.__main(self)
     return {head = head, called = called}
 end
 return ____exports`, false, false},
+		{"array destructuring optimization array literal with side effects in elements", `const arr = [1, 2];
+            let i = 0;
+            let [v1, v2] = [arr[i], arr[++i]];
+            return { v1, v2 };`, `{v1 = 1, v2 = 2}`, `local ____exports = {}
+function ____exports.__main(self)
+    local arr = {1, 2}
+    local i = 0
+    local ____arr_index_0 = arr[i + 1]
+    i = i + 1
+    local v1, v2 = ____arr_index_0, arr[i + 1]
+    return {v1 = v1, v2 = v2}
+end
+return ____exports`, false, false},
+		{"array destructuring optimization array literal with many side effects in elements", `const arr = [10, 20, 30, 40];
+            let i = 0;
+            let [v1, v2, v3, v4] = [arr[i++], arr[i++], arr[i++], arr[i++]];
+            return { v1, v2, v3, v4 };`, `{v1 = 10, v2 = 20, v3 = 30, v4 = 40}`, `local ____lualib = require("lualib_bundle")
+local __TS__SparseArrayNew = ____lualib.__TS__SparseArrayNew
+local __TS__SparseArrayPush = ____lualib.__TS__SparseArrayPush
+local __TS__SparseArraySpread = ____lualib.__TS__SparseArraySpread
+local ____exports = {}
+function ____exports.__main(self)
+    local arr = {10, 20, 30, 40}
+    local i = 0
+    local ____i_0 = i
+    i = ____i_0 + 1
+    local ____array_4 = __TS__SparseArrayNew(arr[____i_0 + 1])
+    local ____i_1 = i
+    i = ____i_1 + 1
+    __TS__SparseArrayPush(____array_4, arr[____i_1 + 1])
+    local ____i_2 = i
+    i = ____i_2 + 1
+    __TS__SparseArrayPush(____array_4, arr[____i_2 + 1])
+    local ____i_3 = i
+    i = ____i_3 + 1
+    __TS__SparseArrayPush(____array_4, arr[____i_3 + 1])
+    local v1, v2, v3, v4 = __TS__SparseArraySpread(____array_4)
+    return {v1 = v1, v2 = v2, v3 = v3, v4 = v4}
+end
+return ____exports`, false, false},
+		{"array destructuring optimization array literal with mixed pure and impure elements", `const arr = [10, 20, 30];
+            let i = 0;
+            let [v1, v2, v3] = [1, arr[++i], 2];
+            return { v1, v2, v3, i };`, `{i = 1, v1 = 1, v2 = 20, v3 = 2}`, `local ____exports = {}
+function ____exports.__main(self)
+    local arr = {10, 20, 30}
+    local i = 0
+    i = i + 1
+    local v1, v2, v3 = 1, arr[i + 1], 2
+    return {v1 = v1, v2 = v2, v3 = v3, i = i}
+end
+return ____exports`, false, false},
 		{"array destructuring optimization array union", `const array: [string] | [] = ["bar"];
             let x: string;
             [x] = array;
