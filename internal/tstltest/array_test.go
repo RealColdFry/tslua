@@ -2611,11 +2611,11 @@ return ____exports`, false, false},
 	})
 
 	batchExpectDiagnostics(t, []diagTestCase{
-		{"not allowed to use null or undefined in array literals (\"[1, undefined, 3]\")", "expression", `[1, undefined, 3]`, []int32{100042}, nil},
-		{"not allowed to use null or undefined in array literals (\"[1, null, 3]\")", "expression", `[1, null, 3]`, []int32{100042}, nil},
-		{"not allowed to use null or undefined in array literals (\"[1, undefined, 2, null]\")", "expression", `[1, undefined, 2, null]`, []int32{100042}, nil},
-		{"not allowed to use null or undefined in array literals ([undefined, null, 1])", "expression", `[undefined, null, 1]`, []int32{100042, 100042}, nil},
-		{"new Array<T>(length)", "function", `const arr = new Array<string>(10);`, []int32{100047}, nil},
+		{"not allowed to use null or undefined in array literals (\"[1, undefined, 3]\")", "expression", `[1, undefined, 3]`, []int32{100043}, nil},
+		{"not allowed to use null or undefined in array literals (\"[1, null, 3]\")", "expression", `[1, null, 3]`, []int32{100043}, nil},
+		{"not allowed to use null or undefined in array literals (\"[1, undefined, 2, null]\")", "expression", `[1, undefined, 2, null]`, []int32{100043}, nil},
+		{"not allowed to use null or undefined in array literals ([undefined, null, 1])", "expression", `[undefined, null, 1]`, []int32{100043, 100043}, nil},
+		{"new Array<T>(length)", "function", `const arr = new Array<string>(10);`, []int32{100048}, nil},
 	})
 
 	t.Run("access derived array (.{\"member\":\"firstElement()\",\"expected\":3})", func(t *testing.T) {

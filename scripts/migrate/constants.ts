@@ -1,3 +1,5 @@
+import { tstlDiagCode } from "./tstl-diagnostics.ts";
+
 export const diagFactory = (code: number) => Object.assign(() => ({}), { code });
 
 // ---- TSTL bug overrides ----
@@ -149,11 +151,15 @@ export const codegenAssertionSkips: Set<string> = new Set([
 ]);
 
 // Skip specific diagnostic codes that tslua emits differently.
-// Key: "specBase::testName", value: set of codes to skip.
-export const diagCodeSkips: Map<string, Set<number>> = new Map([
-  // tslua emits InvalidAmbientIdentifierName (100030) before InvalidMultiFunctionUse (100032)
-  ["multi::invalid $multi call (({ $multi });)", new Set([100032])],
+// Key: "specBase::testName", value: set of TSTL diagnostic factory names to skip.
+const diagCodeSkipsByName: Map<string, Set<string>> = new Map([
+  // tslua emits invalidAmbientIdentifierName before invalidMultiFunctionUse
+  ["multi::invalid $multi call (({ $multi });)", new Set(["invalidMultiFunctionUse"])],
 ]);
+
+export const diagCodeSkips: Map<string, Set<number>> = new Map(
+  Array.from(diagCodeSkipsByName, ([k, names]) => [k, new Set(Array.from(names, tstlDiagCode))]),
+);
 
 // Force allowDiagnostics on specific tests where our batching strategy causes
 // diagnostic conflicts that don't exist in TSTL (which compiles each test independently).
@@ -217,33 +223,37 @@ export const tstlEnumToTarget: Record<string, string> = {
   Luau: "Luau",
 };
 
-// TSTL diagnostic codes used in the test environment (where src entry point is imported first).
-// tslua uses these same codes directly, so no mapping is needed.
-// Codes that are not in this set are not yet implemented in tslua and are filtered out.
-export const supportedTstlDiagCodes: Set<number> = new Set([
-  100013, // unsupportedNodeKind
-  100014, // forbiddenForIn
-  100015, // unsupportedNoSelfFunctionConversion
-  100016, // unsupportedSelfFunctionConversion
-  100017, // unsupportedOverloadAssignment
-  100020, // invalidRangeUse
-  100021, // invalidVarargUse
-  100022, // invalidRangeControlVariable
-  100023, // invalidMultiIterableWithoutDestructuring
-  100024, // invalidPairsIterableWithoutDestructuring
-  100026, // unsupportedRightShiftOperator
-  100027, // unsupportedForTarget
-  100028, // unsupportedForTargetButOverrideAvailable
-  100029, // unsupportedProperty
-  100030, // invalidAmbientIdentifierName
-  100031, // unsupportedVarDeclaration
-  100032, // invalidMultiFunctionUse
-  100033, // invalidMultiFunctionReturnType
-  100034, // invalidMultiReturnAccess
-  100035, // invalidCallExtensionUse
-  100039, // awaitMustBeInAsyncFunction
-  100042, // undefinedInArrayLiteral
-  100043, // invalidMethodCallExtensionUse
-  100044, // invalidSpreadInCallExtension
-  100047, // unsupportedArrayWithLengthConstructor
-]);
+// TSTL diagnostic factories that tslua implements. Codes resolve from the real
+// TSTL modules so they track upstream changes automatically. Codes not in this
+// set are filtered out of migrated tests.
+const supportedTstlDiagNames: readonly string[] = [
+  "unsupportedNodeKind",
+  "forbiddenForIn",
+  "unsupportedNoSelfFunctionConversion",
+  "unsupportedSelfFunctionConversion",
+  "unsupportedOverloadAssignment",
+  "invalidRangeUse",
+  "invalidVarargUse",
+  "invalidRangeControlVariable",
+  "invalidMultiIterableWithoutDestructuring",
+  "invalidPairsIterableWithoutDestructuring",
+  "unsupportedRightShiftOperator",
+  "unsupportedForTarget",
+  "unsupportedForTargetButOverrideAvailable",
+  "unsupportedProperty",
+  "invalidAmbientIdentifierName",
+  "unsupportedVarDeclaration",
+  "invalidMultiFunctionUse",
+  "invalidMultiFunctionReturnType",
+  "invalidMultiReturnAccess",
+  "invalidCallExtensionUse",
+  "awaitMustBeInAsyncFunction",
+  "undefinedInArrayLiteral",
+  "invalidMethodCallExtensionUse",
+  "invalidSpreadInCallExtension",
+  "unsupportedArrayWithLengthConstructor",
+];
+
+export const supportedTstlDiagCodes: Set<number> = new Set(
+  supportedTstlDiagNames.map(tstlDiagCode),
+);

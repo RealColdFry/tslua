@@ -5,6 +5,7 @@ import path from "path";
 import type { TestCase, ExtractionError, SandboxRef } from "./types.ts";
 import { taggedTemplate, LUA_CODE_BRAND } from "./builder.ts";
 import { supportedTargets, tstlTargetMap, diagFactory } from "./constants.ts";
+import { tstlDiagModules } from "./tstl-diagnostics.ts";
 import { stringContaining } from "./serialize.ts";
 
 // Proxy that returns a no-op function for any property access — used for expect() matchers
@@ -262,54 +263,21 @@ export function extractTestCases(specPath: string): {
         };
       }
       if (mod.includes("diagnostics")) {
-        // Codes match the TSTL test environment (where src entry point is imported
-        // first, shifting all codes by 1 from standalone values).
-        const knownDiags: Record<string, any> = {
-          unsupportedNodeKind: diagFactory(100013),
-          forbiddenForIn: diagFactory(100014),
-          unsupportedNoSelfFunctionConversion: diagFactory(100015),
-          unsupportedSelfFunctionConversion: diagFactory(100016),
-          unsupportedOverloadAssignment: diagFactory(100017),
-          decoratorInvalidContext: diagFactory(100018),
-          annotationInvalidArgumentCount: diagFactory(100019),
-          invalidRangeUse: diagFactory(100020),
-          invalidVarargUse: diagFactory(100021),
-          invalidRangeControlVariable: diagFactory(100022),
-          invalidMultiIterableWithoutDestructuring: diagFactory(100023),
-          invalidPairsIterableWithoutDestructuring: diagFactory(100024),
-          unsupportedAccessorInObjectLiteral: diagFactory(100025),
-          unsupportedRightShiftOperator: diagFactory(100026),
-          unsupportedForTarget: diagFactory(100027),
-          unsupportedForTargetButOverrideAvailable: diagFactory(100028),
-          unsupportedProperty: diagFactory(100029),
-          invalidAmbientIdentifierName: diagFactory(100030),
-          unsupportedVarDeclaration: diagFactory(100031),
-          invalidMultiFunctionUse: diagFactory(100032),
-          invalidMultiFunctionReturnType: diagFactory(100033),
-          invalidMultiReturnAccess: diagFactory(100034),
-          invalidCallExtensionUse: diagFactory(100035),
-          annotationDeprecated: diagFactory(100036),
-          truthyOnlyConditionalValue: diagFactory(100037),
-          notAllowedOptionalAssignment: diagFactory(100038),
-          awaitMustBeInAsyncFunction: diagFactory(100039),
-          unsupportedBuiltinOptionalCall: diagFactory(100040),
-          unsupportedOptionalCompileMembersOnly: diagFactory(100041),
-          undefinedInArrayLiteral: diagFactory(100042),
-          invalidMethodCallExtensionUse: diagFactory(100043),
-          invalidSpreadInCallExtension: diagFactory(100044),
-          cannotAssignToNodeOfKind: diagFactory(100045),
-          incompleteFieldDecoratorWarning: diagFactory(100046),
-          unsupportedArrayWithLengthConstructor: diagFactory(100047),
-          couldNotResolveRequire: diagFactory(100048),
-        };
-        // Proxy fallback for unknown diagnostics (e.g. transpilation diagnostics)
-        return new Proxy(knownDiags, {
-          get(target, prop: string | symbol) {
-            if (typeof prop === "symbol") return undefined;
-            if (prop in target) return target[prop];
-            return diagFactory(0);
+        // Forward to real TSTL diagnostic factories so codes track upstream
+        // changes automatically. Unknown names fall back to diagFactory(0).
+        return new Proxy(
+          {},
+          {
+            get(_target, prop: string | symbol) {
+              if (typeof prop === "symbol") return undefined;
+              for (const m of tstlDiagModules) {
+                const f = (m as any)[prop];
+                if (f && typeof f.code === "number") return diagFactory(f.code);
+              }
+              return diagFactory(0);
+            },
           },
-        });
+        );
       }
       if (mod.includes("tstl") || mod.includes("/src") || mod === "../src" || mod === "../../src") {
         // Unified mock for all TSTL internal imports (tstl, src/*, diagnostics from src, etc.)

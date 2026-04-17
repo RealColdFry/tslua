@@ -3103,95 +3103,95 @@ return ____exports`},
 
 	batchExpectDiagnostics(t, []diagTestCase{
 		{"ambient identifier cannot be a lua keyword (\"var local: any;\")", "module", `declare var local: any;
-        local;`, []int32{100030}, []string{`local ____ = ____local`}},
+        local;`, []int32{100031}, []string{`local ____ = ____local`}},
 		{"ambient identifier cannot be a lua keyword (\"let local: any;\")", "module", `declare let local: any;
-        local;`, []int32{100030}, []string{`local ____ = ____local`}},
+        local;`, []int32{100031}, []string{`local ____ = ____local`}},
 		{"ambient identifier cannot be a lua keyword (\"const local: any;\")", "module", `declare const local: any;
-        local;`, []int32{100030}, []string{`local ____ = ____local`}},
+        local;`, []int32{100031}, []string{`local ____ = ____local`}},
 		{"ambient identifier cannot be a lua keyword (\"const foo: any, bar: any, local: any;\")", "module", `declare const foo: any, bar: any, local: any;
-        local;`, []int32{100030}, []string{`local ____ = ____local`}},
+        local;`, []int32{100031}, []string{`local ____ = ____local`}},
 		{"ambient identifier cannot be a lua keyword (\"class local {}\")", "module", `declare class local {}
-        local;`, []int32{100030}, []string{`local ____ = ____local`}},
+        local;`, []int32{100031}, []string{`local ____ = ____local`}},
 		{"ambient identifier cannot be a lua keyword (\"namespace local { export const bar: any; }\")", "module", `declare namespace local { export const bar: any; }
-        local;`, []int32{100030}, []string{`local ____ = ____local`}},
+        local;`, []int32{100031}, []string{`local ____ = ____local`}},
 		{"ambient identifier cannot be a lua keyword (\"module local { export const bar: any; }\")", "module", `declare module local { export const bar: any; }
-        local;`, []int32{100030}, []string{`local ____ = ____local`}},
+        local;`, []int32{100031}, []string{`local ____ = ____local`}},
 		{"ambient identifier cannot be a lua keyword (\"enum local {}\")", "module", `declare enum local {}
-        local;`, []int32{100030}, []string{`local ____ = ____local`}},
+        local;`, []int32{100031}, []string{`local ____ = ____local`}},
 		{"ambient identifier cannot be a lua keyword (\"function local() {}\")", "module", `declare function local() {}
-        local;`, []int32{100030}, []string{`local ____ = ____local`}},
+        local;`, []int32{100031}, []string{`local ____ = ____local`}},
 		{"ambient identifier must be a valid lua identifier (\"var $$$: any;\")", "module", `declare var $$$: any;
-        $$$;`, []int32{100030}, nil},
+        $$$;`, []int32{100031}, nil},
 		{"ambient identifier must be a valid lua identifier (\"let $$$: any;\")", "module", `declare let $$$: any;
-        $$$;`, []int32{100030}, nil},
+        $$$;`, []int32{100031}, nil},
 		{"ambient identifier must be a valid lua identifier (\"const $$$: any;\")", "module", `declare const $$$: any;
-        $$$;`, []int32{100030}, nil},
+        $$$;`, []int32{100031}, nil},
 		{"ambient identifier must be a valid lua identifier (\"const foo: any, bar: any, $$$: any;\")", "module", `declare const foo: any, bar: any, $$$: any;
-        $$$;`, []int32{100030}, nil},
+        $$$;`, []int32{100031}, nil},
 		{"ambient identifier must be a valid lua identifier (\"class $$$ {}\")", "module", `declare class $$$ {}
-        $$$;`, []int32{100030}, nil},
+        $$$;`, []int32{100031}, nil},
 		{"ambient identifier must be a valid lua identifier (\"namespace $$$ { export const bar: any; }\")", "module", `declare namespace $$$ { export const bar: any; }
-        $$$;`, []int32{100030}, nil},
+        $$$;`, []int32{100031}, nil},
 		{"ambient identifier must be a valid lua identifier (\"enum $$$ {}\")", "module", `declare enum $$$ {}
-        $$$;`, []int32{100030}, nil},
+        $$$;`, []int32{100031}, nil},
 		{"ambient identifier must be a valid lua identifier (\"function $$$(): void;\")", "module", `declare function $$$(): void;
-        $$$;`, []int32{100030}, nil},
+        $$$;`, []int32{100031}, nil},
 		{"ambient identifier must be a valid lua identifier (object literal shorthand) (\"$$$\")", "module", `declare var $$$: any;
-            const foo = { $$$ };`, []int32{100030}, nil},
+            const foo = { $$$ };`, []int32{100031}, nil},
 		{"ambient identifier must be a valid lua identifier (object literal shorthand) (\"ɥɣɎɌͼƛಠ\")", "module", `declare var ɥɣɎɌͼƛಠ: any;
-            const foo = { ɥɣɎɌͼƛಠ };`, []int32{100030}, []string{`foo = {["ɥɣɎɌͼƛಠ"] = _____265_263_24E_24C_37C_19B_CA0}`}},
+            const foo = { ɥɣɎɌͼƛಠ };`, []int32{100031}, []string{`foo = {["ɥɣɎɌͼƛಠ"] = _____265_263_24E_24C_37C_19B_CA0}`}},
 		{"ambient identifier must be a valid lua identifier (object literal shorthand) (\"_̀ः٠‿\")", "module", `declare var _̀ः٠‿: any;
-            const foo = { _̀ः٠‿ };`, []int32{100030}, []string{`foo = {["_̀ः٠‿"] = ______300_903_660_203F}`}},
+            const foo = { _̀ः٠‿ };`, []int32{100031}, []string{`foo = {["_̀ः٠‿"] = ______300_903_660_203F}`}},
 		{"ambient identifier must be a valid lua identifier (object literal shorthand) (\"and\")", "module", `declare var and: any;
-            const foo = { and };`, []int32{100030}, []string{`foo = {["and"] = ____and}`}},
+            const foo = { and };`, []int32{100031}, []string{`foo = {["and"] = ____and}`}},
 		{"ambient identifier must be a valid lua identifier (object literal shorthand) (\"elseif\")", "module", `declare var elseif: any;
-            const foo = { elseif };`, []int32{100030}, []string{`foo = {["elseif"] = ____elseif}`}},
+            const foo = { elseif };`, []int32{100031}, []string{`foo = {["elseif"] = ____elseif}`}},
 		{"ambient identifier must be a valid lua identifier (object literal shorthand) (\"end\")", "module", `declare var end: any;
-            const foo = { end };`, []int32{100030}, []string{`foo = {["end"] = ____end}`}},
+            const foo = { end };`, []int32{100031}, []string{`foo = {["end"] = ____end}`}},
 		{"ambient identifier must be a valid lua identifier (object literal shorthand) (\"goto\")", "module", `declare var goto: any;
-            const foo = { goto };`, []int32{100030}, []string{`foo = {["goto"] = ____goto}`}},
+            const foo = { goto };`, []int32{100031}, []string{`foo = {["goto"] = ____goto}`}},
 		{"ambient identifier must be a valid lua identifier (object literal shorthand) (\"local\")", "module", `declare var local: any;
-            const foo = { local };`, []int32{100030}, []string{`foo = {["local"] = ____local}`}},
+            const foo = { local };`, []int32{100031}, []string{`foo = {["local"] = ____local}`}},
 		{"ambient identifier must be a valid lua identifier (object literal shorthand) (\"nil\")", "module", `declare var nil: any;
-            const foo = { nil };`, []int32{100030}, []string{`foo = {["nil"] = ____nil}`}},
+            const foo = { nil };`, []int32{100031}, []string{`foo = {["nil"] = ____nil}`}},
 		{"ambient identifier must be a valid lua identifier (object literal shorthand) (\"not\")", "module", `declare var not: any;
-            const foo = { not };`, []int32{100030}, []string{`foo = {["not"] = ____not}`}},
+            const foo = { not };`, []int32{100031}, []string{`foo = {["not"] = ____not}`}},
 		{"ambient identifier must be a valid lua identifier (object literal shorthand) (\"or\")", "module", `declare var or: any;
-            const foo = { or };`, []int32{100030}, []string{`foo = {["or"] = ____or}`}},
+            const foo = { or };`, []int32{100031}, []string{`foo = {["or"] = ____or}`}},
 		{"ambient identifier must be a valid lua identifier (object literal shorthand) (\"repeat\")", "module", `declare var repeat: any;
-            const foo = { repeat };`, []int32{100030}, []string{`foo = {["repeat"] = ____repeat}`}},
+            const foo = { repeat };`, []int32{100031}, []string{`foo = {["repeat"] = ____repeat}`}},
 		{"ambient identifier must be a valid lua identifier (object literal shorthand) (\"then\")", "module", `declare var then: any;
-            const foo = { then };`, []int32{100030}, []string{`foo = {["then"] = ____then}`}},
+            const foo = { then };`, []int32{100031}, []string{`foo = {["then"] = ____then}`}},
 		{"ambient identifier must be a valid lua identifier (object literal shorthand) (\"until\")", "module", `declare var until: any;
-            const foo = { until };`, []int32{100030}, []string{`foo = {["until"] = ____until}`}},
-		{"undeclared identifier must be a valid lua identifier (\"$$$\")", "module", `const foo = $$$;`, []int32{100030}, nil},
-		{"undeclared identifier must be a valid lua identifier (\"ɥɣɎɌͼƛಠ\")", "module", `const foo = ɥɣɎɌͼƛಠ;`, []int32{100030}, []string{`foo = _____265_263_24E_24C_37C_19B_CA0`}},
-		{"undeclared identifier must be a valid lua identifier (\"_̀ः٠‿\")", "module", `const foo = _̀ः٠‿;`, []int32{100030}, []string{`foo = ______300_903_660_203F`}},
-		{"undeclared identifier must be a valid lua identifier (\"and\")", "module", `const foo = and;`, []int32{100030}, []string{`foo = ____and`}},
-		{"undeclared identifier must be a valid lua identifier (\"elseif\")", "module", `const foo = elseif;`, []int32{100030}, []string{`foo = ____elseif`}},
-		{"undeclared identifier must be a valid lua identifier (\"end\")", "module", `const foo = end;`, []int32{100030}, []string{`foo = ____end`}},
-		{"undeclared identifier must be a valid lua identifier (\"goto\")", "module", `const foo = goto;`, []int32{100030}, []string{`foo = ____goto`}},
-		{"undeclared identifier must be a valid lua identifier (\"local\")", "module", `const foo = local;`, []int32{100030}, []string{`foo = ____local`}},
-		{"undeclared identifier must be a valid lua identifier (\"nil\")", "module", `const foo = nil;`, []int32{100030}, []string{`foo = ____nil`}},
-		{"undeclared identifier must be a valid lua identifier (\"not\")", "module", `const foo = not;`, []int32{100030}, []string{`foo = ____not`}},
-		{"undeclared identifier must be a valid lua identifier (\"or\")", "module", `const foo = or;`, []int32{100030}, []string{`foo = ____or`}},
-		{"undeclared identifier must be a valid lua identifier (\"repeat\")", "module", `const foo = repeat;`, []int32{100030}, []string{`foo = ____repeat`}},
-		{"undeclared identifier must be a valid lua identifier (\"then\")", "module", `const foo = then;`, []int32{100030}, []string{`foo = ____then`}},
-		{"undeclared identifier must be a valid lua identifier (\"until\")", "module", `const foo = until;`, []int32{100030}, []string{`foo = ____until`}},
-		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"$$$\")", "module", `const foo = { $$$ };`, []int32{100030}, nil},
-		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"ɥɣɎɌͼƛಠ\")", "module", `const foo = { ɥɣɎɌͼƛಠ };`, []int32{100030}, []string{`foo = {["ɥɣɎɌͼƛಠ"] = _____265_263_24E_24C_37C_19B_CA0}`}},
-		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"_̀ः٠‿\")", "module", `const foo = { _̀ः٠‿ };`, []int32{100030}, []string{`foo = {["_̀ः٠‿"] = ______300_903_660_203F}`}},
-		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"and\")", "module", `const foo = { and };`, []int32{100030}, []string{`foo = {["and"] = ____and}`}},
-		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"elseif\")", "module", `const foo = { elseif };`, []int32{100030}, []string{`foo = {["elseif"] = ____elseif}`}},
-		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"end\")", "module", `const foo = { end };`, []int32{100030}, []string{`foo = {["end"] = ____end}`}},
-		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"goto\")", "module", `const foo = { goto };`, []int32{100030}, []string{`foo = {["goto"] = ____goto}`}},
-		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"local\")", "module", `const foo = { local };`, []int32{100030}, []string{`foo = {["local"] = ____local}`}},
-		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"nil\")", "module", `const foo = { nil };`, []int32{100030}, []string{`foo = {["nil"] = ____nil}`}},
-		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"not\")", "module", `const foo = { not };`, []int32{100030}, []string{`foo = {["not"] = ____not}`}},
-		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"or\")", "module", `const foo = { or };`, []int32{100030}, []string{`foo = {["or"] = ____or}`}},
-		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"repeat\")", "module", `const foo = { repeat };`, []int32{100030}, []string{`foo = {["repeat"] = ____repeat}`}},
-		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"then\")", "module", `const foo = { then };`, []int32{100030}, []string{`foo = {["then"] = ____then}`}},
-		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"until\")", "module", `const foo = { until };`, []int32{100030}, []string{`foo = {["until"] = ____until}`}},
+            const foo = { until };`, []int32{100031}, []string{`foo = {["until"] = ____until}`}},
+		{"undeclared identifier must be a valid lua identifier (\"$$$\")", "module", `const foo = $$$;`, []int32{100031}, nil},
+		{"undeclared identifier must be a valid lua identifier (\"ɥɣɎɌͼƛಠ\")", "module", `const foo = ɥɣɎɌͼƛಠ;`, []int32{100031}, []string{`foo = _____265_263_24E_24C_37C_19B_CA0`}},
+		{"undeclared identifier must be a valid lua identifier (\"_̀ः٠‿\")", "module", `const foo = _̀ः٠‿;`, []int32{100031}, []string{`foo = ______300_903_660_203F`}},
+		{"undeclared identifier must be a valid lua identifier (\"and\")", "module", `const foo = and;`, []int32{100031}, []string{`foo = ____and`}},
+		{"undeclared identifier must be a valid lua identifier (\"elseif\")", "module", `const foo = elseif;`, []int32{100031}, []string{`foo = ____elseif`}},
+		{"undeclared identifier must be a valid lua identifier (\"end\")", "module", `const foo = end;`, []int32{100031}, []string{`foo = ____end`}},
+		{"undeclared identifier must be a valid lua identifier (\"goto\")", "module", `const foo = goto;`, []int32{100031}, []string{`foo = ____goto`}},
+		{"undeclared identifier must be a valid lua identifier (\"local\")", "module", `const foo = local;`, []int32{100031}, []string{`foo = ____local`}},
+		{"undeclared identifier must be a valid lua identifier (\"nil\")", "module", `const foo = nil;`, []int32{100031}, []string{`foo = ____nil`}},
+		{"undeclared identifier must be a valid lua identifier (\"not\")", "module", `const foo = not;`, []int32{100031}, []string{`foo = ____not`}},
+		{"undeclared identifier must be a valid lua identifier (\"or\")", "module", `const foo = or;`, []int32{100031}, []string{`foo = ____or`}},
+		{"undeclared identifier must be a valid lua identifier (\"repeat\")", "module", `const foo = repeat;`, []int32{100031}, []string{`foo = ____repeat`}},
+		{"undeclared identifier must be a valid lua identifier (\"then\")", "module", `const foo = then;`, []int32{100031}, []string{`foo = ____then`}},
+		{"undeclared identifier must be a valid lua identifier (\"until\")", "module", `const foo = until;`, []int32{100031}, []string{`foo = ____until`}},
+		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"$$$\")", "module", `const foo = { $$$ };`, []int32{100031}, nil},
+		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"ɥɣɎɌͼƛಠ\")", "module", `const foo = { ɥɣɎɌͼƛಠ };`, []int32{100031}, []string{`foo = {["ɥɣɎɌͼƛಠ"] = _____265_263_24E_24C_37C_19B_CA0}`}},
+		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"_̀ः٠‿\")", "module", `const foo = { _̀ः٠‿ };`, []int32{100031}, []string{`foo = {["_̀ः٠‿"] = ______300_903_660_203F}`}},
+		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"and\")", "module", `const foo = { and };`, []int32{100031}, []string{`foo = {["and"] = ____and}`}},
+		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"elseif\")", "module", `const foo = { elseif };`, []int32{100031}, []string{`foo = {["elseif"] = ____elseif}`}},
+		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"end\")", "module", `const foo = { end };`, []int32{100031}, []string{`foo = {["end"] = ____end}`}},
+		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"goto\")", "module", `const foo = { goto };`, []int32{100031}, []string{`foo = {["goto"] = ____goto}`}},
+		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"local\")", "module", `const foo = { local };`, []int32{100031}, []string{`foo = {["local"] = ____local}`}},
+		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"nil\")", "module", `const foo = { nil };`, []int32{100031}, []string{`foo = {["nil"] = ____nil}`}},
+		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"not\")", "module", `const foo = { not };`, []int32{100031}, []string{`foo = {["not"] = ____not}`}},
+		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"or\")", "module", `const foo = { or };`, []int32{100031}, []string{`foo = {["or"] = ____or}`}},
+		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"repeat\")", "module", `const foo = { repeat };`, []int32{100031}, []string{`foo = {["repeat"] = ____repeat}`}},
+		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"then\")", "module", `const foo = { then };`, []int32{100031}, []string{`foo = {["then"] = ____then}`}},
+		{"undeclared identifier must be a valid lua identifier (object literal shorthand) (\"until\")", "module", `const foo = { until };`, []int32{100031}, []string{`foo = {["until"] = ____until}`}},
 	})
 
 	batchExpectCodegen(t, []codegenTestCase{

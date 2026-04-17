@@ -1338,17 +1338,17 @@ return ____exports`, extraFiles: map[string]string{"a.ts": `function foo() { ret
 
 	batchExpectDiagnostics(t, []diagTestCase{
 		{"function.length unsupported (\"Lua 5.0\")", "function", `function fn() {}
-            return fn.length;`, []int32{100027}, nil},
+            return fn.length;`, []int32{100028}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetLua50))
 
 	batchExpectDiagnostics(t, []diagTestCase{
 		{"function.length unsupported (\"Lua 5.1\")", "function", `function fn() {}
-            return fn.length;`, []int32{100027}, nil},
+            return fn.length;`, []int32{100028}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetLua51))
 
 	batchExpectDiagnostics(t, []diagTestCase{
 		{"function.length unsupported (\"universal\")", "function", `function fn() {}
-            return fn.length;`, []int32{100027}, []string{`local ____exports = {}
+            return fn.length;`, []int32{100028}, []string{`local ____exports = {}
 function ____exports.__main(self)
     local function fn(self)
     end
