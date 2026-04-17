@@ -2164,6 +2164,431 @@ function ____exports.__main(self)
     return allLogs
 end
 return ____exports`},
+		{name: "try/catch in async function return inside try with deferred promise (#1706)", tsCode: `
+// Some logging utility, useful for asserting orders of operations
+
+const allLogs: any[] = [];
+function log(...values: any[]) {
+    allLogs.push(...values);
+}
+
+// Create a promise and store its resolve and reject functions, useful for creating pending promises
+
+function defer<T>() {
+    let resolve: (data: any) => void = () => {};
+    let reject: (reason: string) => void = () => {};
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    return { promise, resolve, reject };
+}
+export function __main() {let resolveLater!: (value: string) => void;
+
+            function deferredPromise(): Promise<string> {
+                return new Promise(resolve => {
+                    resolveLater = (v) => resolve(v);
+                });
+            }
+
+            async function fn(): Promise<string> {
+                try {
+                    return await deferredPromise();
+                } catch {
+                    return 'caught';
+                }
+                log('unreachable!');
+            }
+
+            const promise = fn();
+            resolveLater('ok');
+            promise.then(v => log(v));
+
+            return allLogs;}`, accessor: `mod.__main()`, want: `{"ok"}`, refLua: `local ____lualib = require("lualib_bundle")
+local __TS__ArrayPush = ____lualib.__TS__ArrayPush
+local __TS__Promise = ____lualib.__TS__Promise
+local __TS__New = ____lualib.__TS__New
+local __TS__AsyncAwaiter = ____lualib.__TS__AsyncAwaiter
+local __TS__Await = ____lualib.__TS__Await
+local ____exports = {}
+local allLogs = {}
+local function log(self, ...)
+    __TS__ArrayPush(allLogs, ...)
+end
+local function defer(self)
+    local function resolve()
+    end
+    local function reject()
+    end
+    local promise = __TS__New(
+        __TS__Promise,
+        function(____, res, rej)
+            resolve = res
+            reject = rej
+        end
+    )
+    return {promise = promise, resolve = resolve, reject = reject}
+end
+function ____exports.__main(self)
+    local resolveLater
+    local function deferredPromise(self)
+        return __TS__New(
+            __TS__Promise,
+            function(____, resolve)
+                resolveLater = function(____, v) return resolve(nil, v) end
+            end
+        )
+    end
+    local function fn(self)
+        return __TS__AsyncAwaiter(function(____awaiter_resolve)
+            local ____hasReturned, ____returnValue
+            local ____try = __TS__AsyncAwaiter(function()
+                ____hasReturned = true
+                ____returnValue = __TS__Await(deferredPromise(nil))
+                return
+            end)
+            __TS__Await(____try.catch(
+                ____try,
+                function(____)
+                    ____hasReturned = true
+                    ____returnValue = "caught"
+                    return
+                end
+            ))
+            if ____hasReturned then
+                return ____awaiter_resolve(nil, ____returnValue)
+            end
+            log(nil, "unreachable!")
+        end)
+    end
+    local promise = fn(nil)
+    resolveLater(nil, "ok")
+    promise["then"](
+        promise,
+        function(____, v) return log(nil, v) end
+    )
+    return allLogs
+end
+return ____exports`},
+		{name: "try/catch in async function return inside try in loop with deferred promise (#1706)", tsCode: `
+// Some logging utility, useful for asserting orders of operations
+
+const allLogs: any[] = [];
+function log(...values: any[]) {
+    allLogs.push(...values);
+}
+
+// Create a promise and store its resolve and reject functions, useful for creating pending promises
+
+function defer<T>() {
+    let resolve: (data: any) => void = () => {};
+    let reject: (reason: string) => void = () => {};
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    return { promise, resolve, reject };
+}
+export function __main() {let resolveLater!: (value: string) => void;
+
+            function deferredPromise(): Promise<string> {
+                return new Promise(resolve => {
+                    resolveLater = (v) => resolve(v);
+                });
+            }
+
+            async function fn(): Promise<string> {
+                while (true) {
+                    try {
+                        return await deferredPromise();
+                    } catch {
+                        return 'caught';
+                    }
+                    log('unreachable!');
+                }
+            }
+
+            const promise = fn();
+            resolveLater('ok');
+            promise.then(v => log(v));
+
+            return allLogs;}`, accessor: `mod.__main()`, want: `{"ok"}`, refLua: `local ____lualib = require("lualib_bundle")
+local __TS__ArrayPush = ____lualib.__TS__ArrayPush
+local __TS__Promise = ____lualib.__TS__Promise
+local __TS__New = ____lualib.__TS__New
+local __TS__AsyncAwaiter = ____lualib.__TS__AsyncAwaiter
+local __TS__Await = ____lualib.__TS__Await
+local ____exports = {}
+local allLogs = {}
+local function log(self, ...)
+    __TS__ArrayPush(allLogs, ...)
+end
+local function defer(self)
+    local function resolve()
+    end
+    local function reject()
+    end
+    local promise = __TS__New(
+        __TS__Promise,
+        function(____, res, rej)
+            resolve = res
+            reject = rej
+        end
+    )
+    return {promise = promise, resolve = resolve, reject = reject}
+end
+function ____exports.__main(self)
+    local resolveLater
+    local function deferredPromise(self)
+        return __TS__New(
+            __TS__Promise,
+            function(____, resolve)
+                resolveLater = function(____, v) return resolve(nil, v) end
+            end
+        )
+    end
+    local function fn(self)
+        return __TS__AsyncAwaiter(function(____awaiter_resolve)
+            while true do
+                local ____hasReturned, ____returnValue
+                local ____try = __TS__AsyncAwaiter(function()
+                    ____hasReturned = true
+                    ____returnValue = __TS__Await(deferredPromise(nil))
+                    return
+                end)
+                __TS__Await(____try.catch(
+                    ____try,
+                    function(____)
+                        ____hasReturned = true
+                        ____returnValue = "caught"
+                        return
+                    end
+                ))
+                if ____hasReturned then
+                    return ____awaiter_resolve(nil, ____returnValue)
+                end
+                log(nil, "unreachable!")
+            end
+        end)
+    end
+    local promise = fn(nil)
+    resolveLater(nil, "ok")
+    promise["then"](
+        promise,
+        function(____, v) return log(nil, v) end
+    )
+    return allLogs
+end
+return ____exports`},
+		{name: "try/catch in async function return from catch with deferred promise (#1706)", tsCode: `
+// Some logging utility, useful for asserting orders of operations
+
+const allLogs: any[] = [];
+function log(...values: any[]) {
+    allLogs.push(...values);
+}
+
+// Create a promise and store its resolve and reject functions, useful for creating pending promises
+
+function defer<T>() {
+    let resolve: (data: any) => void = () => {};
+    let reject: (reason: string) => void = () => {};
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    return { promise, resolve, reject };
+}
+export function __main() {let rejectLater!: (reason: string) => void;
+
+            function deferredPromise(): Promise<string> {
+                return new Promise((_, reject) => {
+                    rejectLater = (r) => reject(r);
+                });
+            }
+
+            async function fn(): Promise<string> {
+                try {
+                    return await deferredPromise();
+                } catch (e) {
+                    return 'caught: ' + e;
+                }
+                log('unreachable!');
+            }
+
+            const promise = fn();
+            rejectLater('oops');
+            promise.then(v => log(v));
+
+            return allLogs;}`, accessor: `mod.__main()`, want: `{"caught: oops"}`, refLua: `local ____lualib = require("lualib_bundle")
+local __TS__ArrayPush = ____lualib.__TS__ArrayPush
+local __TS__Promise = ____lualib.__TS__Promise
+local __TS__New = ____lualib.__TS__New
+local __TS__AsyncAwaiter = ____lualib.__TS__AsyncAwaiter
+local __TS__Await = ____lualib.__TS__Await
+local ____exports = {}
+local allLogs = {}
+local function log(self, ...)
+    __TS__ArrayPush(allLogs, ...)
+end
+local function defer(self)
+    local function resolve()
+    end
+    local function reject()
+    end
+    local promise = __TS__New(
+        __TS__Promise,
+        function(____, res, rej)
+            resolve = res
+            reject = rej
+        end
+    )
+    return {promise = promise, resolve = resolve, reject = reject}
+end
+function ____exports.__main(self)
+    local rejectLater
+    local function deferredPromise(self)
+        return __TS__New(
+            __TS__Promise,
+            function(____, _, reject)
+                rejectLater = function(____, r) return reject(nil, r) end
+            end
+        )
+    end
+    local function fn(self)
+        return __TS__AsyncAwaiter(function(____awaiter_resolve)
+            local ____hasReturned, ____returnValue
+            local ____try = __TS__AsyncAwaiter(function()
+                ____hasReturned = true
+                ____returnValue = __TS__Await(deferredPromise(nil))
+                return
+            end)
+            __TS__Await(____try.catch(
+                ____try,
+                function(____, e)
+                    ____hasReturned = true
+                    ____returnValue = "caught: " .. tostring(e)
+                    return
+                end
+            ))
+            if ____hasReturned then
+                return ____awaiter_resolve(nil, ____returnValue)
+            end
+            log(nil, "unreachable!")
+        end)
+    end
+    local promise = fn(nil)
+    rejectLater(nil, "oops")
+    promise["then"](
+        promise,
+        function(____, v) return log(nil, v) end
+    )
+    return allLogs
+end
+return ____exports`},
+		{name: "try/catch in async function return inside try with finally (#1706)", tsCode: `
+// Some logging utility, useful for asserting orders of operations
+
+const allLogs: any[] = [];
+function log(...values: any[]) {
+    allLogs.push(...values);
+}
+
+// Create a promise and store its resolve and reject functions, useful for creating pending promises
+
+function defer<T>() {
+    let resolve: (data: any) => void = () => {};
+    let reject: (reason: string) => void = () => {};
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    return { promise, resolve, reject };
+}
+export function __main() {let resolveLater!: (value: string) => void;
+
+            function deferredPromise(): Promise<string> {
+                return new Promise(resolve => {
+                    resolveLater = (v) => resolve(v);
+                });
+            }
+
+            async function fn(): Promise<string> {
+                try {
+                    return await deferredPromise();
+                } finally {
+                    log('finally');
+                }
+            }
+
+            const promise = fn();
+            resolveLater('ok');
+            promise.then(v => log(v));
+
+            return allLogs;}`, accessor: `mod.__main()`, want: `{"finally", "ok"}`, refLua: `local ____lualib = require("lualib_bundle")
+local __TS__ArrayPush = ____lualib.__TS__ArrayPush
+local __TS__Promise = ____lualib.__TS__Promise
+local __TS__New = ____lualib.__TS__New
+local __TS__AsyncAwaiter = ____lualib.__TS__AsyncAwaiter
+local __TS__Await = ____lualib.__TS__Await
+local ____exports = {}
+local allLogs = {}
+local function log(self, ...)
+    __TS__ArrayPush(allLogs, ...)
+end
+local function defer(self)
+    local function resolve()
+    end
+    local function reject()
+    end
+    local promise = __TS__New(
+        __TS__Promise,
+        function(____, res, rej)
+            resolve = res
+            reject = rej
+        end
+    )
+    return {promise = promise, resolve = resolve, reject = reject}
+end
+function ____exports.__main(self)
+    local resolveLater
+    local function deferredPromise(self)
+        return __TS__New(
+            __TS__Promise,
+            function(____, resolve)
+                resolveLater = function(____, v) return resolve(nil, v) end
+            end
+        )
+    end
+    local function fn(self)
+        return __TS__AsyncAwaiter(function(____awaiter_resolve)
+            local ____hasReturned, ____returnValue
+            local ____try = __TS__AsyncAwaiter(function()
+                ____hasReturned = true
+                ____returnValue = __TS__Await(deferredPromise(nil))
+                return
+            end)
+            ____try.finally(
+                ____try,
+                function()
+                    log(nil, "finally")
+                end
+            )
+            __TS__Await(____try)
+            if ____hasReturned then
+                return ____awaiter_resolve(nil, ____returnValue)
+            end
+        end)
+    end
+    local promise = fn(nil)
+    resolveLater(nil, "ok")
+    promise["then"](
+        promise,
+        function(____, v) return log(nil, v) end
+    )
+    return allLogs
+end
+return ____exports`},
 	})
 
 	batchExpectDiagnostics(t, []diagTestCase{
@@ -2254,6 +2679,28 @@ return ____exports`},
                 reason = e;
             });
             reject("test error");`, []int32{100028}, nil},
+		{"break inside try in async loop (#1706) [5.0]", "module", `export let result = "not set";
+            async function fn(): Promise<void> {
+                while (true) {
+                    try {
+                        await Promise.resolve();
+                        break;
+                    } catch {}
+                }
+                result = "done";
+            }
+            fn();`, []int32{100028}, nil},
+		{"continue inside try in async loop (#1706) [5.0]", "module", `export const results: number[] = [];
+            async function fn(): Promise<void> {
+                for (let i = 0; i < 3; i++) {
+                    try {
+                        await Promise.resolve();
+                        if (i === 1) continue;
+                    } catch {}
+                    results.push(i);
+                }
+            }
+            fn();`, []int32{100028}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetLua50))
 
 	batchExpectDiagnostics(t, []diagTestCase{
@@ -2293,6 +2740,28 @@ return ____exports`},
                 reason = e;
             });
             reject("test error");`, []int32{100028}, nil},
+		{"break inside try in async loop (#1706) [5.1]", "module", `export let result = "not set";
+            async function fn(): Promise<void> {
+                while (true) {
+                    try {
+                        await Promise.resolve();
+                        break;
+                    } catch {}
+                }
+                result = "done";
+            }
+            fn();`, []int32{100028}, nil},
+		{"continue inside try in async loop (#1706) [5.1]", "module", `export const results: number[] = [];
+            async function fn(): Promise<void> {
+                for (let i = 0; i < 3; i++) {
+                    try {
+                        await Promise.resolve();
+                        if (i === 1) continue;
+                    } catch {}
+                    results.push(i);
+                }
+            }
+            fn();`, []int32{100028}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetLua51))
 
 	batchExpectDiagnostics(t, []diagTestCase{
@@ -2332,6 +2801,28 @@ return ____exports`},
                 reason = e;
             });
             reject("test error");`, []int32{100028}, nil},
+		{"break inside try in async loop (#1706) [universal]", "module", `export let result = "not set";
+            async function fn(): Promise<void> {
+                while (true) {
+                    try {
+                        await Promise.resolve();
+                        break;
+                    } catch {}
+                }
+                result = "done";
+            }
+            fn();`, []int32{100028}, nil},
+		{"continue inside try in async loop (#1706) [universal]", "module", `export const results: number[] = [];
+            async function fn(): Promise<void> {
+                for (let i = 0; i < 3; i++) {
+                    try {
+                        await Promise.resolve();
+                        if (i === 1) continue;
+                    } catch {}
+                    results.push(i);
+                }
+            }
+            fn();`, []int32{100028}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetUniversal))
 
 	t.Run("can call async function at top-level", func(t *testing.T) {
@@ -2583,5 +3074,172 @@ return ____exports`},
                 reason = e;
             });
             reject("test error");`, `{reason = "an error occurred in the async function: test error"}`, WithLuaTarget(transpiler.LuaTargetLua55))
+	})
+
+	t.Run("break inside try in async loop (#1706) [JIT]", func(t *testing.T) {
+		t.Parallel()
+		expectModule(t, `export let result = "not set";
+            async function fn(): Promise<void> {
+                while (true) {
+                    try {
+                        await Promise.resolve();
+                        break;
+                    } catch {}
+                }
+                result = "done";
+            }
+            fn();`, `{result = "done"}`, WithLuaTarget(transpiler.LuaTargetLuaJIT))
+	})
+
+	t.Run("break inside try in async loop (#1706) [5.2]", func(t *testing.T) {
+		t.Parallel()
+		expectModule(t, `export let result = "not set";
+            async function fn(): Promise<void> {
+                while (true) {
+                    try {
+                        await Promise.resolve();
+                        break;
+                    } catch {}
+                }
+                result = "done";
+            }
+            fn();`, `{result = "done"}`, WithLuaTarget(transpiler.LuaTargetLua52))
+	})
+
+	t.Run("break inside try in async loop (#1706) [5.3]", func(t *testing.T) {
+		t.Parallel()
+		expectModule(t, `export let result = "not set";
+            async function fn(): Promise<void> {
+                while (true) {
+                    try {
+                        await Promise.resolve();
+                        break;
+                    } catch {}
+                }
+                result = "done";
+            }
+            fn();`, `{result = "done"}`, WithLuaTarget(transpiler.LuaTargetLua53))
+	})
+
+	t.Run("break inside try in async loop (#1706) [5.4]", func(t *testing.T) {
+		t.Parallel()
+		expectModule(t, `export let result = "not set";
+            async function fn(): Promise<void> {
+                while (true) {
+                    try {
+                        await Promise.resolve();
+                        break;
+                    } catch {}
+                }
+                result = "done";
+            }
+            fn();`, `{result = "done"}`, WithLuaTarget(transpiler.LuaTargetLua54))
+	})
+
+	t.Run("break inside try in async loop (#1706) [5.5]", func(t *testing.T) {
+		t.Parallel()
+		expectModule(t, `export let result = "not set";
+            async function fn(): Promise<void> {
+                while (true) {
+                    try {
+                        await Promise.resolve();
+                        break;
+                    } catch {}
+                }
+                result = "done";
+            }
+            fn();`, `{result = "done"}`, WithLuaTarget(transpiler.LuaTargetLua55))
+	})
+
+	t.Run("continue inside try in async loop (#1706) [JIT]", func(t *testing.T) {
+		t.Parallel()
+		expectModule(t, `export const results: number[] = [];
+            async function fn(): Promise<void> {
+                for (let i = 0; i < 3; i++) {
+                    try {
+                        await Promise.resolve();
+                        if (i === 1) continue;
+                    } catch {}
+                    results.push(i);
+                }
+            }
+            fn();`, `{results = {0, 2}}`, WithLuaTarget(transpiler.LuaTargetLuaJIT))
+	})
+
+	t.Run("continue inside try in async loop (#1706) [5.2]", func(t *testing.T) {
+		t.Parallel()
+		expectModule(t, `export const results: number[] = [];
+            async function fn(): Promise<void> {
+                for (let i = 0; i < 3; i++) {
+                    try {
+                        await Promise.resolve();
+                        if (i === 1) continue;
+                    } catch {}
+                    results.push(i);
+                }
+            }
+            fn();`, `{results = {0, 2}}`, WithLuaTarget(transpiler.LuaTargetLua52))
+	})
+
+	t.Run("continue inside try in async loop (#1706) [5.3]", func(t *testing.T) {
+		t.Parallel()
+		expectModule(t, `export const results: number[] = [];
+            async function fn(): Promise<void> {
+                for (let i = 0; i < 3; i++) {
+                    try {
+                        await Promise.resolve();
+                        if (i === 1) continue;
+                    } catch {}
+                    results.push(i);
+                }
+            }
+            fn();`, `{results = {0, 2}}`, WithLuaTarget(transpiler.LuaTargetLua53))
+	})
+
+	t.Run("continue inside try in async loop (#1706) [5.4]", func(t *testing.T) {
+		t.Parallel()
+		expectModule(t, `export const results: number[] = [];
+            async function fn(): Promise<void> {
+                for (let i = 0; i < 3; i++) {
+                    try {
+                        await Promise.resolve();
+                        if (i === 1) continue;
+                    } catch {}
+                    results.push(i);
+                }
+            }
+            fn();`, `{results = {0, 2}}`, WithLuaTarget(transpiler.LuaTargetLua54))
+	})
+
+	t.Run("continue inside try in async loop (#1706) [5.5]", func(t *testing.T) {
+		t.Parallel()
+		expectModule(t, `export const results: number[] = [];
+            async function fn(): Promise<void> {
+                for (let i = 0; i < 3; i++) {
+                    try {
+                        await Promise.resolve();
+                        if (i === 1) continue;
+                    } catch {}
+                    results.push(i);
+                }
+            }
+            fn();`, `{results = {0, 2}}`, WithLuaTarget(transpiler.LuaTargetLua55))
+	})
+
+	t.Run("try/catch in async function multi return from try in async function (#1706)", func(t *testing.T) {
+		t.Parallel()
+		expectFunction(t, `async function fn(): Promise<LuaMultiReturn<[string, string]>> {
+                try {
+                    await Promise.resolve();
+                    return $multi("foo", "bar");
+                } catch {
+                    return $multi("err", "err");
+                }
+            }
+
+            let result: string[] = [];
+            fn().then(v => { const [a, b] = v; result = [a, b]; });
+
+            return result;`, `{"foo", "bar"}`, WithLanguageExtensions())
 	})
 }

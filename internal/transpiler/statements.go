@@ -731,6 +731,46 @@ func (t *Transpiler) transformReturnStatement(node *ast.Node) []lua.Statement {
 
 	// Inside async functions, return becomes: return ____awaiter_resolve(nil, value)
 	if t.asyncDepth > 0 {
+		// If we're inside an async try/catch, defer the return to post-check
+		// logic after the awaiter chain resolves. Ported from TSTL PR #1706.
+		if tryScope := t.findAsyncTryScope(); tryScope != nil {
+			tryScope.AsyncTryHasReturn = true
+			result := []lua.Statement{
+				lua.Assign([]lua.Expression{lua.Ident("____hasReturned")}, []lua.Expression{lua.Bool(true)}),
+			}
+			if rs.Expression != nil {
+				t.pushPrecedingStatements()
+				exprs := t.transformExpressionsInReturn(rs.Expression)
+				prec := t.popPrecedingStatements()
+				result = append(result, prec...)
+				// Multi-return values must be wrapped in a table so they
+				// survive the single-value promise resolution path. The
+				// awaiter (.then) handler receives the table and user code
+				// destructures it. Ported from TSTL PR #1706
+				// transformReturnExpressionForTryCatch.
+				var retExpr lua.Expression
+				if len(exprs) > 1 {
+					var fields []*lua.TableFieldExpression
+					for _, e := range exprs {
+						fields = append(fields, lua.Field(e))
+					}
+					retExpr = lua.Table(fields...)
+				} else {
+					retExpr = exprs[0]
+					inner := skipOuterExpressionsDown(rs.Expression)
+					if inner.Kind == ast.KindCallExpression && t.returnsMultiType(inner) &&
+						!t.shouldMultiReturnCallBeWrapped(inner) {
+						retExpr = lua.Table(lua.Field(retExpr))
+					}
+				}
+				result = append(result, lua.Assign(
+					[]lua.Expression{lua.Ident("____returnValue")},
+					[]lua.Expression{retExpr},
+				))
+			}
+			result = append(result, lua.Return())
+			return result
+		}
 		if rs.Expression != nil {
 			expr, prec := t.transformExprInScope(rs.Expression)
 			result := make([]lua.Statement, 0, len(prec)+1)
@@ -922,6 +962,27 @@ func (t *Transpiler) transformScopeBlockReturning(node *ast.Node, scopeType Scop
 	stmts = t.performHoisting(scope, stmts)
 	t.popScope()
 	return stmts
+}
+
+// transformBlockInNewScope transforms a block within a freshly-pushed scope and
+// returns both the statements and the (popped) scope so callers can inspect
+// scope-level flags captured during transformation.
+func (t *Transpiler) transformBlockInNewScope(node *ast.Node, scopeType ScopeType) ([]lua.Statement, *Scope) {
+	block := node.AsBlock()
+	scope := t.pushScope(scopeType, node)
+	var stmts []lua.Statement
+
+	if blockHasUsingDeclaration(block.Statements) {
+		_, stmts = t.transformStatementsWithUsing(block.Statements.Nodes, false)
+	} else {
+		for _, stmt := range block.Statements.Nodes {
+			stmts = append(stmts, t.transformStatementWithComments(stmt)...)
+		}
+	}
+
+	stmts = t.performHoisting(scope, stmts)
+	t.popScope()
+	return stmts, scope
 }
 
 // blockHasUsingDeclaration checks if a statement list contains any `using` declarations.
@@ -1430,8 +1491,9 @@ func (t *Transpiler) transformAsyncTry(ts *ast.TryStatement) []lua.Statement {
 		return t.transformBlock(ts.TryBlock)
 	}
 
-	// Transform try block body (no tryDepth increment — not using pcall)
-	tryBlockStmts := t.transformBlock(ts.TryBlock)
+	// Transform try block body in a ScopeTry so nested return/break/continue
+	// can set flags on the try scope. Ported from TSTL PR #1706.
+	tryBlockStmts, tryScope := t.transformBlockInNewScope(ts.TryBlock, ScopeTry)
 
 	// local ____try = __TS__AsyncAwaiter(function() <try body> end)
 	asyncAwaiterFn := t.requireLualib("__TS__AsyncAwaiter")
@@ -1441,14 +1503,13 @@ func (t *Transpiler) transformAsyncTry(ts *ast.TryStatement) []lua.Statement {
 	awaiterCall := lua.Call(lua.Ident(asyncAwaiterFn), tryFn)
 	tryIdent := lua.Ident("____try")
 
-	var result []lua.Statement
-	result = append(result, lua.LocalDecl([]*lua.Identifier{tryIdent}, []lua.Expression{awaiterCall}))
-
 	// Chain catch before finally (order matters for Promise semantics).
 	// Each handler that contains await must be wrapped in __TS__AsyncAwaiter
 	// so that coroutine.yield works inside it.
 	// Fix for: https://github.com/TypeScriptToLua/TypeScriptToLua/issues/1659
 
+	var catchScope *Scope
+	var catchCall lua.Expression
 	if ts.CatchClause != nil {
 		cc := ts.CatchClause.AsCatchClause()
 
@@ -1463,7 +1524,10 @@ func (t *Transpiler) transformAsyncTry(ts *ast.TryStatement) []lua.Statement {
 			}
 		}
 
-		catchBlockStmts := t.transformBlock(cc.Block)
+		// Transform catch block body in a ScopeCatch so nested
+		// return/break/continue set flags on the catch scope.
+		var catchBlockStmts []lua.Statement
+		catchBlockStmts, catchScope = t.transformBlockInNewScope(cc.Block, ScopeCatch)
 
 		// Wrap catch body in __TS__AsyncAwaiter so await works inside it
 		var catchBody []lua.Statement
@@ -1481,15 +1545,12 @@ func (t *Transpiler) transformAsyncTry(ts *ast.TryStatement) []lua.Statement {
 			Body:   &lua.Block{Statements: catchBody},
 		}
 
-		// ____try = ____try.catch(____try, function(____, err) return __TS__AsyncAwaiter(function() ... end) end)
+		// ____try.catch(____try, function(____, err) return __TS__AsyncAwaiter(function() ... end) end)
 		catchMethod := lua.Index(lua.Ident("____try"), lua.Str("catch"))
-		catchCall := lua.Call(catchMethod, lua.Ident("____try"), catchFn)
-		result = append(result, lua.Assign(
-			[]lua.Expression{lua.Ident("____try")},
-			[]lua.Expression{catchCall},
-		))
+		catchCall = lua.Call(catchMethod, lua.Ident("____try"), catchFn)
 	}
 
+	var finallyCall lua.Expression
 	if ts.FinallyBlock != nil {
 		finallyStmts := t.transformBlock(ts.FinallyBlock)
 
@@ -1503,21 +1564,115 @@ func (t *Transpiler) transformAsyncTry(ts *ast.TryStatement) []lua.Statement {
 			Body: &lua.Block{Statements: finallyBody},
 		}
 
-		// ____try = ____try.finally(____try, function() return __TS__AsyncAwaiter(function() ... end) end)
+		// ____try.finally(____try, function() return __TS__AsyncAwaiter(function() ... end) end)
 		finallyMethod := lua.Index(lua.Ident("____try"), lua.Str("finally"))
-		finallyCall := lua.Call(finallyMethod, lua.Ident("____try"), finallyFn)
+		finallyCall = lua.Call(finallyMethod, lua.Ident("____try"), finallyFn)
+	}
+
+	// Collect deferred-control-flow flags from try and catch scopes.
+	hasReturn := tryScope.AsyncTryHasReturn
+	hasBreak := tryScope.AsyncTryHasBreak
+	hasContinue := tryScope.AsyncTryHasContinue
+	if catchScope != nil {
+		hasReturn = hasReturn || catchScope.AsyncTryHasReturn
+		hasBreak = hasBreak || catchScope.AsyncTryHasBreak
+		hasContinue = hasContinue || catchScope.AsyncTryHasContinue
+	}
+
+	var result []lua.Statement
+
+	// Declare flag locals before the awaiter so the inner closures can assign them.
+	if hasReturn || hasBreak || hasContinue {
+		var flagDecls []*lua.Identifier
+		if hasReturn {
+			flagDecls = append(flagDecls, lua.Ident("____hasReturned"), lua.Ident("____returnValue"))
+		}
+		if hasBreak {
+			flagDecls = append(flagDecls, lua.Ident("____hasBroken"))
+		}
+		if hasContinue {
+			flagDecls = append(flagDecls, lua.Ident("____hasContinued"))
+		}
+		result = append(result, lua.LocalDecl(flagDecls, nil))
+	}
+
+	result = append(result, lua.LocalDecl([]*lua.Identifier{tryIdent}, []lua.Expression{awaiterCall}))
+
+	// Chain catch before finally so catch runs first in microtask order
+	// (JS semantics: rejection → catch → finally cleanup). Re-assigning ____try
+	// keeps a single await point after the full chain is built.
+	if catchCall != nil {
+		result = append(result, lua.Assign(
+			[]lua.Expression{lua.Ident("____try")},
+			[]lua.Expression{catchCall},
+		))
+	}
+	if finallyCall != nil {
 		result = append(result, lua.Assign(
 			[]lua.Expression{lua.Ident("____try")},
 			[]lua.Expression{finallyCall},
 		))
 	}
 
-	// __TS__Await(____try)
 	awaitFn := t.requireLualib("__TS__Await")
-	awaitCall := lua.Call(lua.Ident(awaitFn), lua.Ident("____try"))
-	result = append(result, lua.ExprStmt(awaitCall))
+	result = append(result, lua.ExprStmt(lua.Call(lua.Ident(awaitFn), lua.Ident("____try"))))
+
+	// Post-check: propagate deferred return/break/continue from within the
+	// awaiter chain to the outer async function scope.
+	if hasReturn {
+		// if ____hasReturned then return ____awaiter_resolve(nil, ____returnValue) end
+		result = append(result, &lua.IfStatement{
+			Condition: lua.Ident("____hasReturned"),
+			IfBlock: &lua.Block{Statements: []lua.Statement{
+				lua.Return(lua.Call(lua.Ident("____awaiter_resolve"), lua.Nil(), lua.Ident("____returnValue"))),
+			}},
+		})
+	}
+	if hasBreak {
+		// if ____hasBroken then break end
+		result = append(result, &lua.IfStatement{
+			Condition: lua.Ident("____hasBroken"),
+			IfBlock:   &lua.Block{Statements: []lua.Statement{lua.Break()}},
+		})
+	}
+	if hasContinue {
+		// if ____hasContinued then <continue stmts> end
+		continueStmts := t.buildContinueStatements()
+		result = append(result, &lua.IfStatement{
+			Condition: lua.Ident("____hasContinued"),
+			IfBlock:   &lua.Block{Statements: continueStmts},
+		})
+	}
 
 	return result
+}
+
+// buildContinueStatements emits the target-appropriate continue sequence for
+// the innermost enclosing loop (native continue, goto label, or repeat-break
+// fallback). Used by the async try post-check when a continue inside the try
+// needs to propagate to the outer loop.
+func (t *Transpiler) buildContinueStatements() []lua.Statement {
+	if t.luaTarget.HasNativeContinue() {
+		var stmts []lua.Statement
+		if n := len(t.forLoopIncrementors); n > 0 {
+			if inc := t.forLoopIncrementors[n-1]; inc != nil {
+				stmts = append(stmts, t.transformAsStatement(inc)...)
+			}
+		}
+		return append(stmts, lua.Continue())
+	}
+	label := "__continue"
+	if len(t.continueLabels) > 0 {
+		label = t.continueLabels[len(t.continueLabels)-1]
+	}
+	if t.luaTarget.SupportsGoto() {
+		return []lua.Statement{lua.Goto(label)}
+	}
+	// Lua 5.0/5.1: set continue flag and break out of repeat loop
+	return []lua.Statement{
+		lua.Assign([]lua.Expression{lua.Ident(label)}, []lua.Expression{lua.Bool(true)}),
+		lua.Break(),
+	}
 }
 
 // throw expr → error(expr, 0)

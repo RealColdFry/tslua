@@ -12,6 +12,9 @@ func TestEval_Resolution(t *testing.T) {
 local module = require("module")
 local ____ = module
 return ____exports`}},
+		{"dots in paths that collide with existing paths produce a diagnostic", "module", `import { a } from "./Foo.Bar";
+        import { b } from "./Foo_Bar";
+        export const result = a + b;`, nil, nil},
 	})
 
 	batchExpectCodegen(t, []codegenTestCase{

@@ -275,6 +275,26 @@ local __TS__ObjectAssign = ____lualib.__TS__ObjectAssign
 local ____exports = {}
 ____exports.__result = __TS__ObjectAssign({x = false}, {x = false}, {x = true})
 return ____exports`, false, true},
+		{"in object literal of short-circuited operand (\"{ ...((false && { a: 1 }) as any) }\")", `{ ...((false && { a: 1 }) as any) }`, `{}`, `local ____lualib = require("lualib_bundle")
+local __TS__ObjectAssign = ____lualib.__TS__ObjectAssign
+local ____exports = {}
+____exports.__result = __TS__ObjectAssign({}, false and ({a = 1}))
+return ____exports`, false, false},
+		{"in object literal of short-circuited operand (\"{ ...((true && { a: 1 }) as any) }\")", `{ ...((true && { a: 1 }) as any) }`, `{a = 1}`, `local ____lualib = require("lualib_bundle")
+local __TS__ObjectAssign = ____lualib.__TS__ObjectAssign
+local ____exports = {}
+____exports.__result = __TS__ObjectAssign({}, true and ({a = 1}))
+return ____exports`, false, false},
+		{"in object literal of short-circuited operand (\"{ a: 1, ...((false && { b: 2 }) as any) }\")", `{ a: 1, ...((false && { b: 2 }) as any) }`, `{a = 1}`, `local ____lualib = require("lualib_bundle")
+local __TS__ObjectAssign = ____lualib.__TS__ObjectAssign
+local ____exports = {}
+____exports.__result = __TS__ObjectAssign({a = 1}, false and ({b = 2}))
+return ____exports`, false, false},
+		{"in object literal of short-circuited operand (\"{ ...(null as any), ...(undefined as any) }\")", `{ ...(null as any), ...(undefined as any) }`, `{}`, `local ____lualib = require("lualib_bundle")
+local __TS__ObjectAssign = ____lualib.__TS__ObjectAssign
+local ____exports = {}
+____exports.__result = __TS__ObjectAssign({}, nil, nil)
+return ____exports`, false, false},
 	})
 
 	batchExpectFunctions(t, []funcTestCase{

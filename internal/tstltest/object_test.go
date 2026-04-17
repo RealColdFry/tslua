@@ -27,6 +27,31 @@ local __TS__ObjectAssign = ____lualib.__TS__ObjectAssign
 local ____exports = {}
 ____exports.__result = __TS__ObjectAssign({a = 3}, {b = 5}, {c = 7})
 return ____exports`, false, false},
+		{"Object.assign skips non-object sources (\"Object.assign({}, false)\")", `Object.assign({}, false)`, `{}`, `local ____lualib = require("lualib_bundle")
+local __TS__ObjectAssign = ____lualib.__TS__ObjectAssign
+local ____exports = {}
+____exports.__result = __TS__ObjectAssign({}, false)
+return ____exports`, false, false},
+		{"Object.assign skips non-object sources (\"Object.assign({}, null)\")", `Object.assign({}, null)`, `{}`, `local ____lualib = require("lualib_bundle")
+local __TS__ObjectAssign = ____lualib.__TS__ObjectAssign
+local ____exports = {}
+____exports.__result = __TS__ObjectAssign({}, nil)
+return ____exports`, false, false},
+		{"Object.assign skips non-object sources (\"Object.assign({}, undefined)\")", `Object.assign({}, undefined)`, `{}`, `local ____lualib = require("lualib_bundle")
+local __TS__ObjectAssign = ____lualib.__TS__ObjectAssign
+local ____exports = {}
+____exports.__result = __TS__ObjectAssign({}, nil)
+return ____exports`, false, false},
+		{"Object.assign skips non-object sources (\"Object.assign({}, null, undefined)\")", `Object.assign({}, null, undefined)`, `{}`, `local ____lualib = require("lualib_bundle")
+local __TS__ObjectAssign = ____lualib.__TS__ObjectAssign
+local ____exports = {}
+____exports.__result = __TS__ObjectAssign({}, nil, nil)
+return ____exports`, false, false},
+		{"Object.assign skips non-object sources (\"Object.assign({ a: 1 }, false, { b: 2 })\")", `Object.assign({ a: 1 }, false, { b: 2 })`, `{a = 1, b = 2}`, `local ____lualib = require("lualib_bundle")
+local __TS__ObjectAssign = ____lualib.__TS__ObjectAssign
+local ____exports = {}
+____exports.__result = __TS__ObjectAssign({a = 1}, false, {b = 2})
+return ____exports`, false, false},
 		{"Object.fromEntries([])", `Object.fromEntries([])`, `{}`, `local ____lualib = require("lualib_bundle")
 local __TS__ObjectFromEntries = ____lualib.__TS__ObjectFromEntries
 local ____exports = {}

@@ -73,6 +73,13 @@ export const tstlBugSkips: Record<string, string> = {
     "luau: lualib async bundle incompatible with Luau coroutine runtime",
   "async-await::await inside try/catch deferred rejection uses catch clause [Luau]":
     "luau: lualib async bundle incompatible with Luau coroutine runtime",
+  // Lune's `_G` is empty (Luau builtins only reachable as barewords), so the
+  // lualib `local ____pcall = _G.pcall` returns nil and __TS__Promise errors
+  // on construction. See upstream TSTL lualib patch proposal.
+  "async-await::break inside try in async loop (#1706) [Luau]":
+    "luau: lualib uses _G.pcall which is nil in Lune",
+  "async-await::continue inside try in async loop (#1706) [Luau]":
+    "luau: lualib uses _G.pcall which is nil in Lune",
 };
 
 // Skip codegen comparison only (eval still runs). Use when tslua's codegen is
