@@ -585,144 +585,144 @@ local function __TS__Class(self)
 end
 local __TS__Promise
 do
-local function makeDeferredPromiseFactory()
-    local resolve
-    local reject
-    local function executor(____, res, rej)
-        resolve = res
-        reject = rej
+    local function makeDeferredPromiseFactory()
+        local resolve
+        local reject
+        local function executor(____, res, rej)
+            resolve = res
+            reject = rej
+        end
+        return function()
+            local promise = __TS__New(__TS__Promise, executor)
+            return promise, resolve, reject
+        end
     end
-    return function()
-        local promise = __TS__New(__TS__Promise, executor)
-        return promise, resolve, reject
+    local makeDeferredPromise = makeDeferredPromiseFactory()
+    local function isPromiseLike(value)
+        return __TS__InstanceOf(value, __TS__Promise)
     end
-end
-local makeDeferredPromise = makeDeferredPromiseFactory()
-local function isPromiseLike(value)
-    return __TS__InstanceOf(value, __TS__Promise)
-end
-local function doNothing(self)
-end
-local ____pcall = _G.pcall
-__TS__Promise = __TS__Class()
-__TS__Promise.name = "__TS__Promise"
-function __TS__Promise.prototype.____constructor(self, executor)
-    self.state = 0
-    self.fulfilledCallbacks = {}
-    self.rejectedCallbacks = {}
-    local success, ____error = ____pcall(
-        executor,
-        nil,
-        function(____, v) return self:resolve(v) end,
-        function(____, err) return self:reject(err) end
-    )
-    if not success then
-        self:reject(____error)
+    local function doNothing(self)
     end
-end
-function __TS__Promise.resolve(value)
-    if __TS__InstanceOf(value, __TS__Promise) then
-        return value
-    end
-    local promise = __TS__New(__TS__Promise, doNothing)
-    promise.state = 1
-    promise.value = value
-    return promise
-end
-function __TS__Promise.reject(reason)
-    local promise = __TS__New(__TS__Promise, doNothing)
-    promise.state = 2
-    promise.rejectionReason = reason
-    return promise
-end
-__TS__Promise.prototype["then"] = function(self, onFulfilled, onRejected)
-    local promise, resolve, reject = makeDeferredPromise()
-    self:addCallbacks(
-        onFulfilled and self:createPromiseResolvingCallback(onFulfilled, resolve, reject) or resolve,
-        onRejected and self:createPromiseResolvingCallback(onRejected, resolve, reject) or reject
-    )
-    return promise
-end
-function __TS__Promise.prototype.addCallbacks(self, fulfilledCallback, rejectedCallback)
-    if self.state == 1 then
-        return fulfilledCallback(nil, self.value)
-    end
-    if self.state == 2 then
-        return rejectedCallback(nil, self.rejectionReason)
-    end
-    local ____self_fulfilledCallbacks_0 = self.fulfilledCallbacks
-    ____self_fulfilledCallbacks_0[table.getn(____self_fulfilledCallbacks_0) + 1] = fulfilledCallback
-    local ____self_rejectedCallbacks_1 = self.rejectedCallbacks
-    ____self_rejectedCallbacks_1[table.getn(____self_rejectedCallbacks_1) + 1] = rejectedCallback
-end
-function __TS__Promise.prototype.catch(self, onRejected)
-    return self["then"](self, nil, onRejected)
-end
-function __TS__Promise.prototype.finally(self, onFinally)
-    return self["then"](
-        self,
-        onFinally and (function(____, value)
-            onFinally(nil)
-            return value
-        end) or nil,
-        onFinally and (function(____, reason)
-            onFinally(nil)
-            error(reason, 0)
-        end) or nil
-    )
-end
-function __TS__Promise.prototype.resolve(self, value)
-    if isPromiseLike(value) then
-        return value:addCallbacks(
+    local ____pcall = _G.pcall
+    __TS__Promise = __TS__Class()
+    __TS__Promise.name = "__TS__Promise"
+    function __TS__Promise.prototype.____constructor(self, executor)
+        self.state = 0
+        self.fulfilledCallbacks = {}
+        self.rejectedCallbacks = {}
+        local success, ____error = ____pcall(
+            executor,
+            nil,
             function(____, v) return self:resolve(v) end,
             function(____, err) return self:reject(err) end
         )
-    end
-    if self.state == 0 then
-        self.state = 1
-        self.value = value
-        return self:invokeCallbacks(self.fulfilledCallbacks, value)
-    end
-end
-function __TS__Promise.prototype.reject(self, reason)
-    if self.state == 0 then
-        self.state = 2
-        self.rejectionReason = reason
-        return self:invokeCallbacks(self.rejectedCallbacks, reason)
-    end
-end
-function __TS__Promise.prototype.invokeCallbacks(self, callbacks, value)
-    local callbacksLength = table.getn(callbacks)
-    if callbacksLength ~= 0 then
-        for i = 1, callbacksLength - 1 do
-            callbacks[i](callbacks, value)
-        end
-        return callbacks[callbacksLength](callbacks, value)
-    end
-end
-function __TS__Promise.prototype.createPromiseResolvingCallback(self, f, resolve, reject)
-    return function(____, value)
-        local success, resultOrError = ____pcall(f, nil, value)
         if not success then
-            return reject(nil, resultOrError)
+            self:reject(____error)
         end
-        return self:handleCallbackValue(resultOrError, resolve, reject)
     end
-end
-function __TS__Promise.prototype.handleCallbackValue(self, value, resolve, reject)
-    if isPromiseLike(value) then
-        local nextpromise = value
-        if nextpromise.state == 1 then
-            return resolve(nil, nextpromise.value)
-        elseif nextpromise.state == 2 then
-            return reject(nil, nextpromise.rejectionReason)
+    function __TS__Promise.resolve(value)
+        if __TS__InstanceOf(value, __TS__Promise) then
+            return value
+        end
+        local promise = __TS__New(__TS__Promise, doNothing)
+        promise.state = 1
+        promise.value = value
+        return promise
+    end
+    function __TS__Promise.reject(reason)
+        local promise = __TS__New(__TS__Promise, doNothing)
+        promise.state = 2
+        promise.rejectionReason = reason
+        return promise
+    end
+    __TS__Promise.prototype["then"] = function(self, onFulfilled, onRejected)
+        local promise, resolve, reject = makeDeferredPromise()
+        self:addCallbacks(
+            onFulfilled and self:createPromiseResolvingCallback(onFulfilled, resolve, reject) or resolve,
+            onRejected and self:createPromiseResolvingCallback(onRejected, resolve, reject) or reject
+        )
+        return promise
+    end
+    function __TS__Promise.prototype.addCallbacks(self, fulfilledCallback, rejectedCallback)
+        if self.state == 1 then
+            return fulfilledCallback(nil, self.value)
+        end
+        if self.state == 2 then
+            return rejectedCallback(nil, self.rejectionReason)
+        end
+        local ____self_fulfilledCallbacks_0 = self.fulfilledCallbacks
+        ____self_fulfilledCallbacks_0[table.getn(____self_fulfilledCallbacks_0) + 1] = fulfilledCallback
+        local ____self_rejectedCallbacks_1 = self.rejectedCallbacks
+        ____self_rejectedCallbacks_1[table.getn(____self_rejectedCallbacks_1) + 1] = rejectedCallback
+    end
+    function __TS__Promise.prototype.catch(self, onRejected)
+        return self["then"](self, nil, onRejected)
+    end
+    function __TS__Promise.prototype.finally(self, onFinally)
+        return self["then"](
+            self,
+            onFinally and (function(____, value)
+                onFinally(nil)
+                return value
+            end) or nil,
+            onFinally and (function(____, reason)
+                onFinally(nil)
+                error(reason, 0)
+            end) or nil
+        )
+    end
+    function __TS__Promise.prototype.resolve(self, value)
+        if isPromiseLike(value) then
+            return value:addCallbacks(
+                function(____, v) return self:resolve(v) end,
+                function(____, err) return self:reject(err) end
+            )
+        end
+        if self.state == 0 then
+            self.state = 1
+            self.value = value
+            return self:invokeCallbacks(self.fulfilledCallbacks, value)
+        end
+    end
+    function __TS__Promise.prototype.reject(self, reason)
+        if self.state == 0 then
+            self.state = 2
+            self.rejectionReason = reason
+            return self:invokeCallbacks(self.rejectedCallbacks, reason)
+        end
+    end
+    function __TS__Promise.prototype.invokeCallbacks(self, callbacks, value)
+        local callbacksLength = table.getn(callbacks)
+        if callbacksLength ~= 0 then
+            for i = 1, callbacksLength - 1 do
+                callbacks[i](callbacks, value)
+            end
+            return callbacks[callbacksLength](callbacks, value)
+        end
+    end
+    function __TS__Promise.prototype.createPromiseResolvingCallback(self, f, resolve, reject)
+        return function(____, value)
+            local success, resultOrError = ____pcall(f, nil, value)
+            if not success then
+                return reject(nil, resultOrError)
+            end
+            return self:handleCallbackValue(resultOrError, resolve, reject)
+        end
+    end
+    function __TS__Promise.prototype.handleCallbackValue(self, value, resolve, reject)
+        if isPromiseLike(value) then
+            local nextpromise = value
+            if nextpromise.state == 1 then
+                return resolve(nil, nextpromise.value)
+            elseif nextpromise.state == 2 then
+                return reject(nil, nextpromise.rejectionReason)
+            else
+                return nextpromise:addCallbacks(resolve, reject)
+            end
         else
-            return nextpromise:addCallbacks(resolve, reject)
+            return resolve(nil, value)
         end
-    else
-        return resolve(nil, value)
     end
-end
 end
 local ____coroutine = _G.coroutine or ({})
 local cocreate = ____coroutine.create
@@ -1229,167 +1229,167 @@ local function __TS__LuaIteratorSpread(self, state, firstKey)
 end
 local Map
 do
-Map = __TS__Class()
-Map.name = "Map"
-function Map.prototype.____constructor(self, entries)
-    self[Symbol.toStringTag] = "Map"
-    self.items = {}
-    self.size = 0
-    self.nextKey = {}
-    self.previousKey = {}
-    if entries == nil then
-        return
-    end
-    local iterable = entries
-    if iterable[Symbol.iterator] then
-        local iterator = iterable[Symbol.iterator](iterable)
-        while true do
-            local result = iterator:next()
-            if result.done then
-                break
+    Map = __TS__Class()
+    Map.name = "Map"
+    function Map.prototype.____constructor(self, entries)
+        self[Symbol.toStringTag] = "Map"
+        self.items = {}
+        self.size = 0
+        self.nextKey = {}
+        self.previousKey = {}
+        if entries == nil then
+            return
+        end
+        local iterable = entries
+        if iterable[Symbol.iterator] then
+            local iterator = iterable[Symbol.iterator](iterable)
+            while true do
+                local result = iterator:next()
+                if result.done then
+                    break
+                end
+                local value = result.value -- Ensures index is offset when tuple is accessed
+                self:set(value[1], value[2])
             end
-            local value = result.value -- Ensures index is offset when tuple is accessed
-            self:set(value[1], value[2])
-        end
-    else
-        local array = entries
-        for ____, kvp in ipairs(array) do
-            self:set(kvp[1], kvp[2])
-        end
-    end
-end
-function Map.prototype.clear(self)
-    self.items = {}
-    self.nextKey = {}
-    self.previousKey = {}
-    self.firstKey = nil
-    self.lastKey = nil
-    self.size = 0
-end
-function Map.prototype.delete(self, key)
-    local contains = self:has(key)
-    if contains then
-        self.size = self.size - 1
-        local next = self.nextKey[key]
-        local previous = self.previousKey[key]
-        if next ~= nil and previous ~= nil then
-            self.nextKey[previous] = next
-            self.previousKey[next] = previous
-        elseif next ~= nil then
-            self.firstKey = next
-            self.previousKey[next] = nil
-        elseif previous ~= nil then
-            self.lastKey = previous
-            self.nextKey[previous] = nil
         else
-            self.firstKey = nil
-            self.lastKey = nil
-        end
-        self.nextKey[key] = nil
-        self.previousKey[key] = nil
-    end
-    self.items[key] = nil
-    return contains
-end
-function Map.prototype.forEach(self, callback)
-    for ____, key in __TS__Iterator(self:keys()) do
-        callback(nil, self.items[key], key, self)
-    end
-end
-function Map.prototype.get(self, key)
-    return self.items[key]
-end
-function Map.prototype.has(self, key)
-    return self.nextKey[key] ~= nil or self.lastKey == key
-end
-function Map.prototype.set(self, key, value)
-    local isNewValue = not self:has(key)
-    if isNewValue then
-        self.size = self.size + 1
-    end
-    self.items[key] = value
-    if self.firstKey == nil then
-        self.firstKey = key
-        self.lastKey = key
-    elseif isNewValue then
-        self.nextKey[self.lastKey] = key
-        self.previousKey[key] = self.lastKey
-        self.lastKey = key
-    end
-    return self
-end
-Map.prototype[Symbol.iterator] = function(self)
-    return self:entries()
-end
-function Map.prototype.entries(self)
-    local function getFirstKey()
-        return self.firstKey
-    end
-    local items = self.items
-    local nextKey = self.nextKey
-    local key
-    local started = false
-    return {
-        [Symbol.iterator] = function(self)
-            return self
-        end,
-        next = function(self)
-            if not started then
-                started = true
-                key = getFirstKey(nil)
-            else
-                key = nextKey[key]
+            local array = entries
+            for ____, kvp in ipairs(array) do
+                self:set(kvp[1], kvp[2])
             end
-            return {done = not key, value = {key, items[key]}}
         end
-    }
-end
-function Map.prototype.keys(self)
-    local function getFirstKey()
-        return self.firstKey
     end
-    local nextKey = self.nextKey
-    local key
-    local started = false
-    return {
-        [Symbol.iterator] = function(self)
-            return self
-        end,
-        next = function(self)
-            if not started then
-                started = true
-                key = getFirstKey(nil)
-            else
-                key = nextKey[key]
-            end
-            return {done = not key, value = key}
-        end
-    }
-end
-function Map.prototype.values(self)
-    local function getFirstKey()
-        return self.firstKey
+    function Map.prototype.clear(self)
+        self.items = {}
+        self.nextKey = {}
+        self.previousKey = {}
+        self.firstKey = nil
+        self.lastKey = nil
+        self.size = 0
     end
-    local items = self.items
-    local nextKey = self.nextKey
-    local key
-    local started = false
-    return {
-        [Symbol.iterator] = function(self)
-            return self
-        end,
-        next = function(self)
-            if not started then
-                started = true
-                key = getFirstKey(nil)
+    function Map.prototype.delete(self, key)
+        local contains = self:has(key)
+        if contains then
+            self.size = self.size - 1
+            local next = self.nextKey[key]
+            local previous = self.previousKey[key]
+            if next ~= nil and previous ~= nil then
+                self.nextKey[previous] = next
+                self.previousKey[next] = previous
+            elseif next ~= nil then
+                self.firstKey = next
+                self.previousKey[next] = nil
+            elseif previous ~= nil then
+                self.lastKey = previous
+                self.nextKey[previous] = nil
             else
-                key = nextKey[key]
+                self.firstKey = nil
+                self.lastKey = nil
             end
-            return {done = not key, value = items[key]}
+            self.nextKey[key] = nil
+            self.previousKey[key] = nil
         end
-    }
-end
-Map[Symbol.species] = Map
+        self.items[key] = nil
+        return contains
+    end
+    function Map.prototype.forEach(self, callback)
+        for ____, key in __TS__Iterator(self:keys()) do
+            callback(nil, self.items[key], key, self)
+        end
+    end
+    function Map.prototype.get(self, key)
+        return self.items[key]
+    end
+    function Map.prototype.has(self, key)
+        return self.nextKey[key] ~= nil or self.lastKey == key
+    end
+    function Map.prototype.set(self, key, value)
+        local isNewValue = not self:has(key)
+        if isNewValue then
+            self.size = self.size + 1
+        end
+        self.items[key] = value
+        if self.firstKey == nil then
+            self.firstKey = key
+            self.lastKey = key
+        elseif isNewValue then
+            self.nextKey[self.lastKey] = key
+            self.previousKey[key] = self.lastKey
+            self.lastKey = key
+        end
+        return self
+    end
+    Map.prototype[Symbol.iterator] = function(self)
+        return self:entries()
+    end
+    function Map.prototype.entries(self)
+        local function getFirstKey()
+            return self.firstKey
+        end
+        local items = self.items
+        local nextKey = self.nextKey
+        local key
+        local started = false
+        return {
+            [Symbol.iterator] = function(self)
+                return self
+            end,
+            next = function(self)
+                if not started then
+                    started = true
+                    key = getFirstKey(nil)
+                else
+                    key = nextKey[key]
+                end
+                return {done = not key, value = {key, items[key]}}
+            end
+        }
+    end
+    function Map.prototype.keys(self)
+        local function getFirstKey()
+            return self.firstKey
+        end
+        local nextKey = self.nextKey
+        local key
+        local started = false
+        return {
+            [Symbol.iterator] = function(self)
+                return self
+            end,
+            next = function(self)
+                if not started then
+                    started = true
+                    key = getFirstKey(nil)
+                else
+                    key = nextKey[key]
+                end
+                return {done = not key, value = key}
+            end
+        }
+    end
+    function Map.prototype.values(self)
+        local function getFirstKey()
+            return self.firstKey
+        end
+        local items = self.items
+        local nextKey = self.nextKey
+        local key
+        local started = false
+        return {
+            [Symbol.iterator] = function(self)
+                return self
+            end,
+            next = function(self)
+                if not started then
+                    started = true
+                    key = getFirstKey(nil)
+                else
+                    key = nextKey[key]
+                end
+                return {done = not key, value = items[key]}
+            end
+        }
+    end
+    Map[Symbol.species] = Map
 end
 local function __TS__MapGroupBy(items, keySelector)
     local result = __TS__New(Map)
@@ -1883,215 +1883,215 @@ local function __TS__PromiseRace(iterable)
 end
 local Set
 do
-Set = __TS__Class()
-Set.name = "Set"
-function Set.prototype.____constructor(self, values)
-    self[Symbol.toStringTag] = "Set"
-    self.size = 0
-    self.nextKey = {}
-    self.previousKey = {}
-    if values == nil then
-        return
-    end
-    local iterable = values
-    if iterable[Symbol.iterator] then
-        local iterator = iterable[Symbol.iterator](iterable)
-        while true do
-            local result = iterator:next()
-            if result.done then
-                break
+    Set = __TS__Class()
+    Set.name = "Set"
+    function Set.prototype.____constructor(self, values)
+        self[Symbol.toStringTag] = "Set"
+        self.size = 0
+        self.nextKey = {}
+        self.previousKey = {}
+        if values == nil then
+            return
+        end
+        local iterable = values
+        if iterable[Symbol.iterator] then
+            local iterator = iterable[Symbol.iterator](iterable)
+            while true do
+                local result = iterator:next()
+                if result.done then
+                    break
+                end
+                self:add(result.value)
             end
-            self:add(result.value)
-        end
-    else
-        local array = values
-        for ____, value in ipairs(array) do
-            self:add(value)
-        end
-    end
-end
-function Set.prototype.add(self, value)
-    local isNewValue = not self:has(value)
-    if isNewValue then
-        self.size = self.size + 1
-    end
-    if self.firstKey == nil then
-        self.firstKey = value
-        self.lastKey = value
-    elseif isNewValue then
-        self.nextKey[self.lastKey] = value
-        self.previousKey[value] = self.lastKey
-        self.lastKey = value
-    end
-    return self
-end
-function Set.prototype.clear(self)
-    self.nextKey = {}
-    self.previousKey = {}
-    self.firstKey = nil
-    self.lastKey = nil
-    self.size = 0
-end
-function Set.prototype.delete(self, value)
-    local contains = self:has(value)
-    if contains then
-        self.size = self.size - 1
-        local next = self.nextKey[value]
-        local previous = self.previousKey[value]
-        if next ~= nil and previous ~= nil then
-            self.nextKey[previous] = next
-            self.previousKey[next] = previous
-        elseif next ~= nil then
-            self.firstKey = next
-            self.previousKey[next] = nil
-        elseif previous ~= nil then
-            self.lastKey = previous
-            self.nextKey[previous] = nil
         else
-            self.firstKey = nil
-            self.lastKey = nil
-        end
-        self.nextKey[value] = nil
-        self.previousKey[value] = nil
-    end
-    return contains
-end
-function Set.prototype.forEach(self, callback)
-    for ____, key in __TS__Iterator(self:keys()) do
-        callback(nil, key, key, self)
-    end
-end
-function Set.prototype.has(self, value)
-    return self.nextKey[value] ~= nil or self.lastKey == value
-end
-Set.prototype[Symbol.iterator] = function(self)
-    return self:values()
-end
-function Set.prototype.entries(self)
-    local function getFirstKey()
-        return self.firstKey
-    end
-    local nextKey = self.nextKey
-    local key
-    local started = false
-    return {
-        [Symbol.iterator] = function(self)
-            return self
-        end,
-        next = function(self)
-            if not started then
-                started = true
-                key = getFirstKey(nil)
-            else
-                key = nextKey[key]
+            local array = values
+            for ____, value in ipairs(array) do
+                self:add(value)
             end
-            return {done = not key, value = {key, key}}
         end
-    }
-end
-function Set.prototype.keys(self)
-    local function getFirstKey()
-        return self.firstKey
     end
-    local nextKey = self.nextKey
-    local key
-    local started = false
-    return {
-        [Symbol.iterator] = function(self)
-            return self
-        end,
-        next = function(self)
-            if not started then
-                started = true
-                key = getFirstKey(nil)
+    function Set.prototype.add(self, value)
+        local isNewValue = not self:has(value)
+        if isNewValue then
+            self.size = self.size + 1
+        end
+        if self.firstKey == nil then
+            self.firstKey = value
+            self.lastKey = value
+        elseif isNewValue then
+            self.nextKey[self.lastKey] = value
+            self.previousKey[value] = self.lastKey
+            self.lastKey = value
+        end
+        return self
+    end
+    function Set.prototype.clear(self)
+        self.nextKey = {}
+        self.previousKey = {}
+        self.firstKey = nil
+        self.lastKey = nil
+        self.size = 0
+    end
+    function Set.prototype.delete(self, value)
+        local contains = self:has(value)
+        if contains then
+            self.size = self.size - 1
+            local next = self.nextKey[value]
+            local previous = self.previousKey[value]
+            if next ~= nil and previous ~= nil then
+                self.nextKey[previous] = next
+                self.previousKey[next] = previous
+            elseif next ~= nil then
+                self.firstKey = next
+                self.previousKey[next] = nil
+            elseif previous ~= nil then
+                self.lastKey = previous
+                self.nextKey[previous] = nil
             else
-                key = nextKey[key]
+                self.firstKey = nil
+                self.lastKey = nil
             end
-            return {done = not key, value = key}
+            self.nextKey[value] = nil
+            self.previousKey[value] = nil
         end
-    }
-end
-function Set.prototype.values(self)
-    local function getFirstKey()
-        return self.firstKey
+        return contains
     end
-    local nextKey = self.nextKey
-    local key
-    local started = false
-    return {
-        [Symbol.iterator] = function(self)
-            return self
-        end,
-        next = function(self)
-            if not started then
-                started = true
-                key = getFirstKey(nil)
-            else
-                key = nextKey[key]
+    function Set.prototype.forEach(self, callback)
+        for ____, key in __TS__Iterator(self:keys()) do
+            callback(nil, key, key, self)
+        end
+    end
+    function Set.prototype.has(self, value)
+        return self.nextKey[value] ~= nil or self.lastKey == value
+    end
+    Set.prototype[Symbol.iterator] = function(self)
+        return self:values()
+    end
+    function Set.prototype.entries(self)
+        local function getFirstKey()
+            return self.firstKey
+        end
+        local nextKey = self.nextKey
+        local key
+        local started = false
+        return {
+            [Symbol.iterator] = function(self)
+                return self
+            end,
+            next = function(self)
+                if not started then
+                    started = true
+                    key = getFirstKey(nil)
+                else
+                    key = nextKey[key]
+                end
+                return {done = not key, value = {key, key}}
             end
-            return {done = not key, value = key}
-        end
-    }
-end
-function Set.prototype.union(self, other)
-    local result = __TS__New(Set, self)
-    for ____, item in __TS__Iterator(other) do
-        result:add(item)
+        }
     end
-    return result
-end
-function Set.prototype.intersection(self, other)
-    local result = __TS__New(Set)
-    for ____, item in __TS__Iterator(self) do
-        if other:has(item) then
+    function Set.prototype.keys(self)
+        local function getFirstKey()
+            return self.firstKey
+        end
+        local nextKey = self.nextKey
+        local key
+        local started = false
+        return {
+            [Symbol.iterator] = function(self)
+                return self
+            end,
+            next = function(self)
+                if not started then
+                    started = true
+                    key = getFirstKey(nil)
+                else
+                    key = nextKey[key]
+                end
+                return {done = not key, value = key}
+            end
+        }
+    end
+    function Set.prototype.values(self)
+        local function getFirstKey()
+            return self.firstKey
+        end
+        local nextKey = self.nextKey
+        local key
+        local started = false
+        return {
+            [Symbol.iterator] = function(self)
+                return self
+            end,
+            next = function(self)
+                if not started then
+                    started = true
+                    key = getFirstKey(nil)
+                else
+                    key = nextKey[key]
+                end
+                return {done = not key, value = key}
+            end
+        }
+    end
+    function Set.prototype.union(self, other)
+        local result = __TS__New(Set, self)
+        for ____, item in __TS__Iterator(other) do
             result:add(item)
         end
+        return result
     end
-    return result
-end
-function Set.prototype.difference(self, other)
-    local result = __TS__New(Set, self)
-    for ____, item in __TS__Iterator(other) do
-        result:delete(item)
+    function Set.prototype.intersection(self, other)
+        local result = __TS__New(Set)
+        for ____, item in __TS__Iterator(self) do
+            if other:has(item) then
+                result:add(item)
+            end
+        end
+        return result
     end
-    return result
-end
-function Set.prototype.symmetricDifference(self, other)
-    local result = __TS__New(Set, self)
-    for ____, item in __TS__Iterator(other) do
-        if self:has(item) then
+    function Set.prototype.difference(self, other)
+        local result = __TS__New(Set, self)
+        for ____, item in __TS__Iterator(other) do
             result:delete(item)
-        else
-            result:add(item)
         end
+        return result
     end
-    return result
-end
-function Set.prototype.isSubsetOf(self, other)
-    for ____, item in __TS__Iterator(self) do
-        if not other:has(item) then
-            return false
+    function Set.prototype.symmetricDifference(self, other)
+        local result = __TS__New(Set, self)
+        for ____, item in __TS__Iterator(other) do
+            if self:has(item) then
+                result:delete(item)
+            else
+                result:add(item)
+            end
         end
+        return result
     end
-    return true
-end
-function Set.prototype.isSupersetOf(self, other)
-    for ____, item in __TS__Iterator(other) do
-        if not self:has(item) then
-            return false
+    function Set.prototype.isSubsetOf(self, other)
+        for ____, item in __TS__Iterator(self) do
+            if not other:has(item) then
+                return false
+            end
         end
+        return true
     end
-    return true
-end
-function Set.prototype.isDisjointFrom(self, other)
-    for ____, item in __TS__Iterator(self) do
-        if other:has(item) then
-            return false
+    function Set.prototype.isSupersetOf(self, other)
+        for ____, item in __TS__Iterator(other) do
+            if not self:has(item) then
+                return false
+            end
         end
+        return true
     end
-    return true
-end
-Set[Symbol.species] = Set
+    function Set.prototype.isDisjointFrom(self, other)
+        for ____, item in __TS__Iterator(self) do
+            if other:has(item) then
+                return false
+            end
+        end
+        return true
+    end
+    Set[Symbol.species] = Set
 end
 local function __TS__SourceMapTraceBack(fileName, sourceMap)
     _G.__TS__sourcemap = _G.__TS__sourcemap or ({})
@@ -2473,89 +2473,89 @@ local function __TS__UsingAsync(self, cb, ...)
 end
 local WeakMap
 do
-WeakMap = __TS__Class()
-WeakMap.name = "WeakMap"
-function WeakMap.prototype.____constructor(self, entries)
-    self[Symbol.toStringTag] = "WeakMap"
-    self.items = {}
-    setmetatable(self.items, {__mode = "k"})
-    if entries == nil then
-        return
-    end
-    local iterable = entries
-    if iterable[Symbol.iterator] then
-        local iterator = iterable[Symbol.iterator](iterable)
-        while true do
-            local result = iterator:next()
-            if result.done then
-                break
+    WeakMap = __TS__Class()
+    WeakMap.name = "WeakMap"
+    function WeakMap.prototype.____constructor(self, entries)
+        self[Symbol.toStringTag] = "WeakMap"
+        self.items = {}
+        setmetatable(self.items, {__mode = "k"})
+        if entries == nil then
+            return
+        end
+        local iterable = entries
+        if iterable[Symbol.iterator] then
+            local iterator = iterable[Symbol.iterator](iterable)
+            while true do
+                local result = iterator:next()
+                if result.done then
+                    break
+                end
+                local value = result.value -- Ensures index is offset when tuple is accessed
+                self.items[value[1]] = value[2]
             end
-            local value = result.value -- Ensures index is offset when tuple is accessed
-            self.items[value[1]] = value[2]
-        end
-    else
-        for ____, kvp in ipairs(entries) do
-            self.items[kvp[1]] = kvp[2]
+        else
+            for ____, kvp in ipairs(entries) do
+                self.items[kvp[1]] = kvp[2]
+            end
         end
     end
-end
-function WeakMap.prototype.delete(self, key)
-    local contains = self:has(key)
-    self.items[key] = nil
-    return contains
-end
-function WeakMap.prototype.get(self, key)
-    return self.items[key]
-end
-function WeakMap.prototype.has(self, key)
-    return self.items[key] ~= nil
-end
-function WeakMap.prototype.set(self, key, value)
-    self.items[key] = value
-    return self
-end
-WeakMap[Symbol.species] = WeakMap
+    function WeakMap.prototype.delete(self, key)
+        local contains = self:has(key)
+        self.items[key] = nil
+        return contains
+    end
+    function WeakMap.prototype.get(self, key)
+        return self.items[key]
+    end
+    function WeakMap.prototype.has(self, key)
+        return self.items[key] ~= nil
+    end
+    function WeakMap.prototype.set(self, key, value)
+        self.items[key] = value
+        return self
+    end
+    WeakMap[Symbol.species] = WeakMap
 end
 local WeakSet
 do
-WeakSet = __TS__Class()
-WeakSet.name = "WeakSet"
-function WeakSet.prototype.____constructor(self, values)
-    self[Symbol.toStringTag] = "WeakSet"
-    self.items = {}
-    setmetatable(self.items, {__mode = "k"})
-    if values == nil then
-        return
-    end
-    local iterable = values
-    if iterable[Symbol.iterator] then
-        local iterator = iterable[Symbol.iterator](iterable)
-        while true do
-            local result = iterator:next()
-            if result.done then
-                break
+    WeakSet = __TS__Class()
+    WeakSet.name = "WeakSet"
+    function WeakSet.prototype.____constructor(self, values)
+        self[Symbol.toStringTag] = "WeakSet"
+        self.items = {}
+        setmetatable(self.items, {__mode = "k"})
+        if values == nil then
+            return
+        end
+        local iterable = values
+        if iterable[Symbol.iterator] then
+            local iterator = iterable[Symbol.iterator](iterable)
+            while true do
+                local result = iterator:next()
+                if result.done then
+                    break
+                end
+                self.items[result.value] = true
             end
-            self.items[result.value] = true
-        end
-    else
-        for ____, value in ipairs(values) do
-            self.items[value] = true
+        else
+            for ____, value in ipairs(values) do
+                self.items[value] = true
+            end
         end
     end
-end
-function WeakSet.prototype.add(self, value)
-    self.items[value] = true
-    return self
-end
-function WeakSet.prototype.delete(self, value)
-    local contains = self:has(value)
-    self.items[value] = nil
-    return contains
-end
-function WeakSet.prototype.has(self, value)
-    return self.items[value] == true
-end
-WeakSet[Symbol.species] = WeakSet
+    function WeakSet.prototype.add(self, value)
+        self.items[value] = true
+        return self
+    end
+    function WeakSet.prototype.delete(self, value)
+        local contains = self:has(value)
+        self.items[value] = nil
+        return contains
+    end
+    function WeakSet.prototype.has(self, value)
+        return self.items[value] == true
+    end
+    WeakSet[Symbol.species] = WeakSet
 end
 local function __TS__MapForOfStep(map, prev)
     local key

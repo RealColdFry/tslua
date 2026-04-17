@@ -165,10 +165,10 @@ func TestWrapFileBody(t *testing.T) {
 		t.Errorf("expected no wrap for non-leaking body; got:\n%s", got)
 	}
 
-	// Leak: forward-decl + do/end wrap, exports sorted.
+	// Leak: forward-decl + do/end wrap, body indented, exports sorted.
 	body2 := "Map = __TS__Class()\nSet = __TS__Class()"
 	got2 := wrapFileBody(body2, []string{"Set", "Map"})
-	want2 := "local Map, Set\ndo\nMap = __TS__Class()\nSet = __TS__Class()\nend"
+	want2 := "local Map, Set\ndo\n    Map = __TS__Class()\n    Set = __TS__Class()\nend"
 	if got2 != want2 {
 		t.Errorf("wrap mismatch:\ngot:\n%s\n\nwant:\n%s", got2, want2)
 	}

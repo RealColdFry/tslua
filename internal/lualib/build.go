@@ -25,6 +25,10 @@ import (
 // in patches.lua. These get added to the bundle's export table.
 var patchExportRe = regexp.MustCompile(`(?m)^local function (__TS__\w+)\(`)
 
+// TODO: replace this string-based leak detection and wrap with an AST-level
+// pass (see TSTL's lualibFileVisitor in extern/tstl/src/lualib-build/plugin.ts,
+// which prepends a VariableDeclaration and wraps the body in a DoStatement).
+
 // hasExportLeak reports whether body assigns to name at file scope without
 // using `local`, which would make name an implicit global once the body is
 // concatenated into the bundle's top-level chunk. Covers:
@@ -72,8 +76,16 @@ func wrapFileBody(body string, exports []string) string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "local %s\n", strings.Join(leaks, ", "))
 	sb.WriteString("do\n")
-	sb.WriteString(body)
-	sb.WriteString("\nend")
+	for _, line := range strings.Split(body, "\n") {
+		if line == "" {
+			sb.WriteByte('\n')
+			continue
+		}
+		sb.WriteString("    ")
+		sb.WriteString(line)
+		sb.WriteByte('\n')
+	}
+	sb.WriteString("end")
 	return sb.String()
 }
 
