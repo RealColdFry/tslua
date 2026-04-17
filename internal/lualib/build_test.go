@@ -29,7 +29,7 @@ func TestCommittedBundleUpToDate(t *testing.T) {
 		t.Skip("extern/tstl not set up (run `just tstl-setup`)")
 	}
 
-	built, err := BuildBundleFromSource(srcDir, langExt, luaTypes, transpiler.LuaTargetUniversal, "universal")
+	built, err := BuildBundleFromSource(srcDir, langExt, luaTypes, transpiler.LuaTargetUniversal, "universal", nil)
 	if err != nil {
 		t.Fatalf("BuildBundleFromSource: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestSelfBuiltBundleExportsStable(t *testing.T) {
 		t.Skip("extern/tstl not set up (run `just tstl-setup`)")
 	}
 
-	built, err := BuildBundleFromSource(srcDir, langExt, luaTypes, transpiler.LuaTargetUniversal, "universal")
+	built, err := BuildBundleFromSource(srcDir, langExt, luaTypes, transpiler.LuaTargetUniversal, "universal", nil)
 	if err != nil {
 		t.Fatalf("BuildBundleFromSource: %v", err)
 	}
@@ -194,7 +194,7 @@ func TestSelfBuiltBundleLeaksNoGlobals(t *testing.T) {
 		t.Skip("extern/tstl not set up (run `just tstl-setup`)")
 	}
 
-	built, err := BuildBundleFromSource(srcDir, langExt, luaTypes, transpiler.LuaTargetUniversal, "universal")
+	built, err := BuildBundleFromSource(srcDir, langExt, luaTypes, transpiler.LuaTargetUniversal, "universal", nil)
 	if err != nil {
 		t.Fatalf("BuildBundleFromSource: %v", err)
 	}

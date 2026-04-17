@@ -39,7 +39,7 @@ func TestTranspile_LualibSmoke(t *testing.T) {
 	langExtPath := filepath.Join(repoRoot, "extern", "tstl", "language-extensions")
 	luaTypesPath := filepath.Join(repoRoot, "extern", "tstl", "node_modules", "lua-types")
 
-	bundle, err := lualib.BuildBundleFromSource(srcDir, langExtPath, luaTypesPath, transpiler.LuaTargetLua54, "universal")
+	bundle, err := lualib.BuildBundleFromSource(srcDir, langExtPath, luaTypesPath, transpiler.LuaTargetLua54, "universal", nil)
 	if err != nil {
 		t.Fatalf("build bundle: %v", err)
 	}

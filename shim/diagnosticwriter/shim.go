@@ -229,6 +229,8 @@ const (
 	CannotAssignToNodeOfKind                 DiagCode = 100046
 	IncompleteFieldDecoratorWarning          DiagCode = 100047
 	UnsupportedArrayWithLengthConstructor    DiagCode = 100048
+	//
+	RuntimeAdapterInvalidSignature DiagCode = 101001
 )
 
 // diagHelp maps error codes to help text shown below the diagnostic.

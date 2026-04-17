@@ -24,5 +24,9 @@ justfile.local
 .vscode-env
 .lua-runtimes/
 
+# Example projects: commit source (src/, vendor/, tsconfig.json, README.md),
+# not generated Lua output.
+examples/*/out/
+
 # macOS-specific files
 .DS_Store

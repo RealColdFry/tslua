@@ -41,7 +41,7 @@ func main() {
 		overrideDir = "universal"
 	}
 
-	data, err := lualib.BuildFeatureDataFromSource(srcDir, langExtPath, luaTypesPath, luaTarget, overrideDir)
+	data, err := lualib.BuildFeatureDataFromSource(srcDir, langExtPath, luaTypesPath, luaTarget, overrideDir, nil)
 	if err != nil {
 		fatal(err)
 	}

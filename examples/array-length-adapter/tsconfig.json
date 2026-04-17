@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": ["esnext"],
+    "strict": true,
+    "moduleResolution": "bundler",
+    "rootDir": "src",
+    "outDir": "out"
+  },
+  "include": ["src/**/*", "vendor/runtime.d.ts"],
+  "tstl": {
+    "luaLibImport": "require-minimal"
+  }
+}
