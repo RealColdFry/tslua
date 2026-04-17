@@ -2597,49 +2597,49 @@ return ____exports`},
         }
 
         await a();
-        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100039}, nil},
+        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100040}, nil},
 		{"cannot await at top-level (\"const b = await a();\")", "module", `async function a() {
             return 42;
         }
 
         const b = await a();
-        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100039}, nil},
+        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100040}, nil},
 		{"cannot await at top-level (\"export const b = await a();\")", "module", `async function a() {
             return 42;
         }
 
         export const b = await a();
-        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100039}, nil},
+        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100040}, nil},
 		{"cannot await at top-level (\"declare function foo(n: number): number; foo(await a());\")", "module", `async function a() {
             return 42;
         }
 
         declare function foo(n: number): number; foo(await a());
-        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100039}, nil},
+        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100040}, nil},
 		{"cannot await at top-level (\"declare function foo(n: number): number; const b = foo(await a());\")", "module", `async function a() {
             return 42;
         }
 
         declare function foo(n: number): number; const b = foo(await a());
-        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100039}, nil},
+        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100040}, nil},
 		{"cannot await at top-level (\"const b = [await a()];\")", "module", `async function a() {
             return 42;
         }
 
         const b = [await a()];
-        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100039}, nil},
+        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100040}, nil},
 		{"cannot await at top-level (\"const b = [4, await a()];\")", "module", `async function a() {
             return 42;
         }
 
         const b = [4, await a()];
-        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100039}, nil},
+        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100040}, nil},
 		{"cannot await at top-level (\"const b = true ? 4 : await a();\")", "module", `async function a() {
             return 42;
         }
 
         const b = true ? 4 : await a();
-        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100039}, nil},
+        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100040}, nil},
 	})
 
 	batchExpectDiagnostics(t, []diagTestCase{
@@ -2653,7 +2653,7 @@ return ____exports`},
             }
             foo().then(value => {
                 result = value;
-            });`, []int32{100028}, nil},
+            });`, []int32{100029}, nil},
 		{"await inside try/catch throws inside async function [5.0]", "module", `export let reason = "";
             async function foo(): Promise<number> {
                 try {
@@ -2664,7 +2664,7 @@ return ____exports`},
             }
             foo().catch(e => {
                 reason = e;
-            });`, []int32{100028}, nil},
+            });`, []int32{100029}, nil},
 		{"await inside try/catch deferred rejection uses catch clause [5.0]", "module", `export let reason = "";
             let reject: (reason: string) => void = () => {};
 
@@ -2678,7 +2678,7 @@ return ____exports`},
             foo().catch(e => {
                 reason = e;
             });
-            reject("test error");`, []int32{100028}, nil},
+            reject("test error");`, []int32{100029}, nil},
 		{"break inside try in async loop (#1706) [5.0]", "module", `export let result = "not set";
             async function fn(): Promise<void> {
                 while (true) {
@@ -2689,7 +2689,7 @@ return ____exports`},
                 }
                 result = "done";
             }
-            fn();`, []int32{100028}, nil},
+            fn();`, []int32{100029}, nil},
 		{"continue inside try in async loop (#1706) [5.0]", "module", `export const results: number[] = [];
             async function fn(): Promise<void> {
                 for (let i = 0; i < 3; i++) {
@@ -2700,7 +2700,7 @@ return ____exports`},
                     results.push(i);
                 }
             }
-            fn();`, []int32{100028}, nil},
+            fn();`, []int32{100029}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetLua50))
 
 	batchExpectDiagnostics(t, []diagTestCase{
@@ -2714,7 +2714,7 @@ return ____exports`},
             }
             foo().then(value => {
                 result = value;
-            });`, []int32{100028}, nil},
+            });`, []int32{100029}, nil},
 		{"await inside try/catch throws inside async function [5.1]", "module", `export let reason = "";
             async function foo(): Promise<number> {
                 try {
@@ -2725,7 +2725,7 @@ return ____exports`},
             }
             foo().catch(e => {
                 reason = e;
-            });`, []int32{100028}, nil},
+            });`, []int32{100029}, nil},
 		{"await inside try/catch deferred rejection uses catch clause [5.1]", "module", `export let reason = "";
             let reject: (reason: string) => void = () => {};
 
@@ -2739,7 +2739,7 @@ return ____exports`},
             foo().catch(e => {
                 reason = e;
             });
-            reject("test error");`, []int32{100028}, nil},
+            reject("test error");`, []int32{100029}, nil},
 		{"break inside try in async loop (#1706) [5.1]", "module", `export let result = "not set";
             async function fn(): Promise<void> {
                 while (true) {
@@ -2750,7 +2750,7 @@ return ____exports`},
                 }
                 result = "done";
             }
-            fn();`, []int32{100028}, nil},
+            fn();`, []int32{100029}, nil},
 		{"continue inside try in async loop (#1706) [5.1]", "module", `export const results: number[] = [];
             async function fn(): Promise<void> {
                 for (let i = 0; i < 3; i++) {
@@ -2761,7 +2761,7 @@ return ____exports`},
                     results.push(i);
                 }
             }
-            fn();`, []int32{100028}, nil},
+            fn();`, []int32{100029}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetLua51))
 
 	batchExpectDiagnostics(t, []diagTestCase{
@@ -2775,7 +2775,7 @@ return ____exports`},
             }
             foo().then(value => {
                 result = value;
-            });`, []int32{100028}, nil},
+            });`, []int32{100029}, nil},
 		{"await inside try/catch throws inside async function [universal]", "module", `export let reason = "";
             async function foo(): Promise<number> {
                 try {
@@ -2786,7 +2786,7 @@ return ____exports`},
             }
             foo().catch(e => {
                 reason = e;
-            });`, []int32{100028}, nil},
+            });`, []int32{100029}, nil},
 		{"await inside try/catch deferred rejection uses catch clause [universal]", "module", `export let reason = "";
             let reject: (reason: string) => void = () => {};
 
@@ -2800,7 +2800,7 @@ return ____exports`},
             foo().catch(e => {
                 reason = e;
             });
-            reject("test error");`, []int32{100028}, nil},
+            reject("test error");`, []int32{100029}, nil},
 		{"break inside try in async loop (#1706) [universal]", "module", `export let result = "not set";
             async function fn(): Promise<void> {
                 while (true) {
@@ -2811,7 +2811,7 @@ return ____exports`},
                 }
                 result = "done";
             }
-            fn();`, []int32{100028}, nil},
+            fn();`, []int32{100029}, nil},
 		{"continue inside try in async loop (#1706) [universal]", "module", `export const results: number[] = [];
             async function fn(): Promise<void> {
                 for (let i = 0; i < 3; i++) {
@@ -2822,7 +2822,7 @@ return ____exports`},
                     results.push(i);
                 }
             }
-            fn();`, []int32{100028}, nil},
+            fn();`, []int32{100029}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetUniversal))
 
 	t.Run("can call async function at top-level", func(t *testing.T) {

@@ -291,116 +291,116 @@ return ____exports`, false, false},
 	})
 
 	batchExpectDiagnostics(t, []diagTestCase{
-		{"Bitop [5.0] (\"~a\")", "expression", `~a`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.0] (\"~a\")", "expression", `~a`, []int32{100028}, []string{`local ____exports = {}
 ____exports.__result = bit.bnot(a)
 return ____exports`}},
-		{"Bitop [5.0] (\"a&b\")", "expression", `a&b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.0] (\"a&b\")", "expression", `a&b`, []int32{100028}, []string{`local ____exports = {}
 ____exports.__result = bit.band(a, b)
 return ____exports`}},
-		{"Bitop [5.0] (\"a&=b\")", "expression", `a&=b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.0] (\"a&=b\")", "expression", `a&=b`, []int32{100028}, []string{`local ____exports = {}
 a = bit.band(a, b)
 ____exports.__result = a
 return ____exports`}},
-		{"Bitop [5.0] (\"a|b\")", "expression", `a|b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.0] (\"a|b\")", "expression", `a|b`, []int32{100028}, []string{`local ____exports = {}
 ____exports.__result = bit.bor(a, b)
 return ____exports`}},
-		{"Bitop [5.0] (\"a|=b\")", "expression", `a|=b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.0] (\"a|=b\")", "expression", `a|=b`, []int32{100028}, []string{`local ____exports = {}
 a = bit.bor(a, b)
 ____exports.__result = a
 return ____exports`}},
-		{"Bitop [5.0] (\"a^b\")", "expression", `a^b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.0] (\"a^b\")", "expression", `a^b`, []int32{100028}, []string{`local ____exports = {}
 ____exports.__result = bit.bxor(a, b)
 return ____exports`}},
-		{"Bitop [5.0] (\"a^=b\")", "expression", `a^=b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.0] (\"a^=b\")", "expression", `a^=b`, []int32{100028}, []string{`local ____exports = {}
 a = bit.bxor(a, b)
 ____exports.__result = a
 return ____exports`}},
-		{"Bitop [5.0] (\"a<<b\")", "expression", `a<<b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.0] (\"a<<b\")", "expression", `a<<b`, []int32{100028}, []string{`local ____exports = {}
 ____exports.__result = bit.lshift(a, b)
 return ____exports`}},
-		{"Bitop [5.0] (\"a<<=b\")", "expression", `a<<=b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.0] (\"a<<=b\")", "expression", `a<<=b`, []int32{100028}, []string{`local ____exports = {}
 a = bit.lshift(a, b)
 ____exports.__result = a
 return ____exports`}},
-		{"Bitop [5.0] (\"a>>>b\")", "expression", `a>>>b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.0] (\"a>>>b\")", "expression", `a>>>b`, []int32{100028}, []string{`local ____exports = {}
 ____exports.__result = bit.rshift(a, b)
 return ____exports`}},
-		{"Bitop [5.0] (\"a>>>=b\")", "expression", `a>>>=b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.0] (\"a>>>=b\")", "expression", `a>>>=b`, []int32{100028}, []string{`local ____exports = {}
 a = bit.rshift(a, b)
 ____exports.__result = a
 return ____exports`}},
-		{"Bitop [5.0] (\"a>>b\")", "expression", `a>>b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.0] (\"a>>b\")", "expression", `a>>b`, []int32{100028}, []string{`local ____exports = {}
 ____exports.__result = bit.arshift(a, b)
 return ____exports`}},
-		{"Bitop [5.0] (\"a>>=b\")", "expression", `a>>=b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.0] (\"a>>=b\")", "expression", `a>>=b`, []int32{100028}, []string{`local ____exports = {}
 a = bit.arshift(a, b)
 ____exports.__result = a
 return ____exports`}},
 	}, WithLuaTarget(transpiler.LuaTargetLua50))
 
 	batchExpectDiagnostics(t, []diagTestCase{
-		{"Bitop [5.1] (\"~a\")", "expression", `~a`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.1] (\"~a\")", "expression", `~a`, []int32{100028}, []string{`local ____exports = {}
 ____exports.__result = bit.bnot(a)
 return ____exports`}},
-		{"Bitop [5.1] (\"a&b\")", "expression", `a&b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.1] (\"a&b\")", "expression", `a&b`, []int32{100028}, []string{`local ____exports = {}
 ____exports.__result = bit.band(a, b)
 return ____exports`}},
-		{"Bitop [5.1] (\"a&=b\")", "expression", `a&=b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.1] (\"a&=b\")", "expression", `a&=b`, []int32{100028}, []string{`local ____exports = {}
 a = bit.band(a, b)
 ____exports.__result = a
 return ____exports`}},
-		{"Bitop [5.1] (\"a|b\")", "expression", `a|b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.1] (\"a|b\")", "expression", `a|b`, []int32{100028}, []string{`local ____exports = {}
 ____exports.__result = bit.bor(a, b)
 return ____exports`}},
-		{"Bitop [5.1] (\"a|=b\")", "expression", `a|=b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.1] (\"a|=b\")", "expression", `a|=b`, []int32{100028}, []string{`local ____exports = {}
 a = bit.bor(a, b)
 ____exports.__result = a
 return ____exports`}},
-		{"Bitop [5.1] (\"a^b\")", "expression", `a^b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.1] (\"a^b\")", "expression", `a^b`, []int32{100028}, []string{`local ____exports = {}
 ____exports.__result = bit.bxor(a, b)
 return ____exports`}},
-		{"Bitop [5.1] (\"a^=b\")", "expression", `a^=b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.1] (\"a^=b\")", "expression", `a^=b`, []int32{100028}, []string{`local ____exports = {}
 a = bit.bxor(a, b)
 ____exports.__result = a
 return ____exports`}},
-		{"Bitop [5.1] (\"a<<b\")", "expression", `a<<b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.1] (\"a<<b\")", "expression", `a<<b`, []int32{100028}, []string{`local ____exports = {}
 ____exports.__result = bit.lshift(a, b)
 return ____exports`}},
-		{"Bitop [5.1] (\"a<<=b\")", "expression", `a<<=b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.1] (\"a<<=b\")", "expression", `a<<=b`, []int32{100028}, []string{`local ____exports = {}
 a = bit.lshift(a, b)
 ____exports.__result = a
 return ____exports`}},
-		{"Bitop [5.1] (\"a>>>b\")", "expression", `a>>>b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.1] (\"a>>>b\")", "expression", `a>>>b`, []int32{100028}, []string{`local ____exports = {}
 ____exports.__result = bit.rshift(a, b)
 return ____exports`}},
-		{"Bitop [5.1] (\"a>>>=b\")", "expression", `a>>>=b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.1] (\"a>>>=b\")", "expression", `a>>>=b`, []int32{100028}, []string{`local ____exports = {}
 a = bit.rshift(a, b)
 ____exports.__result = a
 return ____exports`}},
-		{"Bitop [5.1] (\"a>>b\")", "expression", `a>>b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.1] (\"a>>b\")", "expression", `a>>b`, []int32{100028}, []string{`local ____exports = {}
 ____exports.__result = bit.arshift(a, b)
 return ____exports`}},
-		{"Bitop [5.1] (\"a>>=b\")", "expression", `a>>=b`, []int32{100027}, []string{`local ____exports = {}
+		{"Bitop [5.1] (\"a>>=b\")", "expression", `a>>=b`, []int32{100028}, []string{`local ____exports = {}
 a = bit.arshift(a, b)
 ____exports.__result = a
 return ____exports`}},
 	}, WithLuaTarget(transpiler.LuaTargetLua51))
 
 	batchExpectDiagnostics(t, []diagTestCase{
-		{"Unsupported bitop 5.3 (\"a>>b\")", "expression", `a>>b`, []int32{100026}, []string{`local ____exports = {}
+		{"Unsupported bitop 5.3 (\"a>>b\")", "expression", `a>>b`, []int32{100027}, []string{`local ____exports = {}
 ____exports.__result = a >> b
 return ____exports`}},
-		{"Unsupported bitop 5.3 (\"a>>=b\")", "expression", `a>>=b`, []int32{100026}, []string{`local ____exports = {}
+		{"Unsupported bitop 5.3 (\"a>>=b\")", "expression", `a>>=b`, []int32{100027}, []string{`local ____exports = {}
 a = a >> b
 ____exports.__result = a
 return ____exports`}},
 	}, WithLuaTarget(transpiler.LuaTargetLua53))
 
 	batchExpectDiagnostics(t, []diagTestCase{
-		{"Unsupported bitop 5.4 (\"a>>b\")", "expression", `a>>b`, []int32{100026}, []string{`local ____exports = {}
+		{"Unsupported bitop 5.4 (\"a>>b\")", "expression", `a>>b`, []int32{100027}, []string{`local ____exports = {}
 ____exports.__result = a >> b
 return ____exports`}},
-		{"Unsupported bitop 5.4 (\"a>>=b\")", "expression", `a>>=b`, []int32{100026}, []string{`local ____exports = {}
+		{"Unsupported bitop 5.4 (\"a>>=b\")", "expression", `a>>=b`, []int32{100027}, []string{`local ____exports = {}
 a = a >> b
 ____exports.__result = a
 return ____exports`}},

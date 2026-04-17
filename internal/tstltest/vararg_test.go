@@ -7,14 +7,14 @@ func TestEval_Vararg(t *testing.T) {
 	t.Parallel()
 
 	batchExpectDiagnostics(t, []diagTestCase{
-		{"$vararg invalid use (\"const x = $vararg;\")", "module", `const x = $vararg;`, []int32{100021}, []string{`x = ____`}},
-		{"$vararg invalid use (\"for (const x of $vararg) {}\")", "module", `for (const x of $vararg) {}`, []int32{100021}, []string{`for ____, x in ipairs(____) do
+		{"$vararg invalid use (\"const x = $vararg;\")", "module", `const x = $vararg;`, []int32{100022}, []string{`x = ____`}},
+		{"$vararg invalid use (\"for (const x of $vararg) {}\")", "module", `for (const x of $vararg) {}`, []int32{100022}, []string{`for ____, x in ipairs(____) do
 end`}},
-		{"$vararg invalid use (\"const l = $vararg.length\")", "module", `const l = $vararg.length`, []int32{100021}, []string{`l = #____`}},
-		{"$vararg invalid use (\"function f(s: string[]) {} f($vararg);\")", "module", `function f(s: string[]) {} f($vararg);`, []int32{100021}, []string{`function f(self, s)
+		{"$vararg invalid use (\"const l = $vararg.length\")", "module", `const l = $vararg.length`, []int32{100022}, []string{`l = #____`}},
+		{"$vararg invalid use (\"function f(s: string[]) {} f($vararg);\")", "module", `function f(s: string[]) {} f($vararg);`, []int32{100022}, []string{`function f(self, s)
 end
 f(_G, ____)`}},
-		{"$vararg invalid use (\"function foo(...args: string[]) {} function bar() { foo(...$vararg); }\")", "module", `function foo(...args: string[]) {} function bar() { foo(...$vararg); }`, []int32{100021}, nil},
+		{"$vararg invalid use (\"function foo(...args: string[]) {} function bar() { foo(...$vararg); }\")", "module", `function foo(...args: string[]) {} function bar() { foo(...$vararg); }`, []int32{100022}, nil},
 	}, WithLanguageExtensions())
 
 	batchExpectCodegen(t, []codegenTestCase{

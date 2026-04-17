@@ -3134,12 +3134,12 @@ return ____exports`, extraFiles: map[string]string{"a.ts": `let foo = true;`}},
 	})
 
 	batchExpectDiagnostics(t, []diagTestCase{
-		{"var is disallowed var declaration", "function", `var foo = true;`, []int32{100031}, []string{`local ____exports = {}
+		{"var is disallowed var declaration", "function", `var foo = true;`, []int32{100032}, []string{`local ____exports = {}
 function ____exports.__main(self)
     local foo = true
 end
 return ____exports`}},
-		{"var is disallowed for loop", "function", `for (var foo = 0;;) {}`, []int32{100031}, []string{`local ____exports = {}
+		{"var is disallowed for loop", "function", `for (var foo = 0;;) {}`, []int32{100032}, []string{`local ____exports = {}
 function ____exports.__main(self)
     do
         local foo = 0
@@ -3148,13 +3148,13 @@ function ____exports.__main(self)
     end
 end
 return ____exports`}},
-		{"var is disallowed for...in loop", "function", `for (var foo in {}) {}`, []int32{100031}, []string{`local ____exports = {}
+		{"var is disallowed for...in loop", "function", `for (var foo in {}) {}`, []int32{100032}, []string{`local ____exports = {}
 function ____exports.__main(self)
     for foo in pairs({}) do
     end
 end
 return ____exports`}},
-		{"var is disallowed for...of loop", "function", `for (var foo of []) {}`, []int32{100031}, []string{`local ____exports = {}
+		{"var is disallowed for...of loop", "function", `for (var foo of []) {}`, []int32{100032}, []string{`local ____exports = {}
 function ____exports.__main(self)
     for ____, foo in ipairs({}) do
     end

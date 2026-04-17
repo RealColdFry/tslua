@@ -280,7 +280,7 @@ return ____exports`, false, false},
                 throw "something went wrong";
             }
         }
-        return generator().next();`, []int32{100027}, nil},
+        return generator().next();`, []int32{100028}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetLua50))
 
 	batchExpectDiagnostics(t, []diagTestCase{
@@ -291,7 +291,7 @@ return ____exports`, false, false},
                 throw "something went wrong";
             }
         }
-        return generator().next();`, []int32{100027}, nil},
+        return generator().next();`, []int32{100028}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetLua51))
 
 	batchExpectDiagnostics(t, []diagTestCase{
@@ -302,7 +302,7 @@ return ____exports`, false, false},
                 throw "something went wrong";
             }
         }
-        return generator().next();`, []int32{100027}, nil},
+        return generator().next();`, []int32{100028}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetUniversal))
 
 	t.Run("generator yield inside try/catch [JIT]", func(t *testing.T) {

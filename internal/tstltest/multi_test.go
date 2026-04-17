@@ -12,13 +12,13 @@ func TestEval_Multi(t *testing.T) {
 }
 
         let a; [a] = $multi()
-        export { a };`, []int32{100032}, nil},
+        export { a };`, []int32{100033}, nil},
 		{"invalid direct $multi function use (const [a] = $multi())", "module", `function multi(...args: any[]) {
     return $multi(...args);
 }
 
         const [a] = $multi()
-        export { a };`, []int32{100032}, []string{`local ____exports = {}
+        export { a };`, []int32{100033}, []string{`local ____exports = {}
 local function multi(self, ...)
     return ...
 end
@@ -30,7 +30,7 @@ return ____exports`}},
 }
 
         const [a] = $multi(1)
-        export { a };`, []int32{100032}, []string{`local ____exports = {}
+        export { a };`, []int32{100033}, []string{`local ____exports = {}
 local function multi(self, ...)
     return ...
 end
@@ -42,7 +42,7 @@ return ____exports`}},
 }
 
         const [a = 1] = $multi()
-        export { a };`, []int32{100032}, []string{`local ____exports = {}
+        export { a };`, []int32{100033}, []string{`local ____exports = {}
 local function multi(self, ...)
     return ...
 end
@@ -57,7 +57,7 @@ return ____exports`}},
 }
 
         const [a = 1] = $multi(2)
-        export { a };`, []int32{100032}, []string{`local ____exports = {}
+        export { a };`, []int32{100033}, []string{`local ____exports = {}
 local function multi(self, ...)
     return ...
 end
@@ -72,7 +72,7 @@ return ____exports`}},
 }
 
         const ar = [1]; const [a] = $multi(...ar)
-        export { a };`, []int32{100032}, []string{`local ____exports = {}
+        export { a };`, []int32{100033}, []string{`local ____exports = {}
 local function multi(self, ...)
     return ...
 end
@@ -88,7 +88,7 @@ return ____exports`}},
 }
 
         const _ = null, [a] = $multi(1)
-        export { a };`, []int32{100032}, []string{`local ____exports = {}
+        export { a };`, []int32{100033}, []string{`local ____exports = {}
 local function multi(self, ...)
     return ...
 end
@@ -101,19 +101,19 @@ return ____exports`}},
 }
 
         let a; for (const [a] = $multi(1, 2); false; 1) {}
-        export { a };`, []int32{100032}, nil},
+        export { a };`, []int32{100033}, nil},
 		{"invalid direct $multi function use (let a; for ([a] = $multi(1, 2); false; 1) {})", "module", `function multi(...args: any[]) {
     return $multi(...args);
 }
 
         let a; for ([a] = $multi(1, 2); false; 1) {}
-        export { a };`, []int32{100032}, nil},
+        export { a };`, []int32{100033}, nil},
 		{"invalid direct $multi function use (let a; if ([a] = $multi(1)) { ++a; })", "module", `function multi(...args: any[]) {
     return $multi(...args);
 }
 
         let a; if ([a] = $multi(1)) { ++a; }
-        export { a };`, []int32{100032}, []string{`local ____exports = {}
+        export { a };`, []int32{100033}, []string{`local ____exports = {}
 local function multi(self, ...)
     return ...
 end
@@ -127,13 +127,13 @@ if ____temp_0 then
 end
 ____exports.a = a
 return ____exports`}},
-		{"invalid $multi call ($multi)", "module", `$multi`, []int32{100032}, []string{`local ____ = ____`}},
-		{"invalid $multi call ($multi())", "module", `$multi()`, []int32{100032}, []string{`____(_G)`}},
+		{"invalid $multi call ($multi)", "module", `$multi`, []int32{100033}, []string{`local ____ = ____`}},
+		{"invalid $multi call ($multi())", "module", `$multi()`, []int32{100033}, []string{`____(_G)`}},
 		{"invalid $multi call (({ $multi });)", "module", `({ $multi });`, nil, nil},
-		{"invalid $multi call (const a = $multi();)", "module", `const a = $multi();`, []int32{100032}, []string{`a = {____(_G)}`}},
-		{"invalid $multi call (const {} = $multi();)", "module", `const {} = $multi();`, []int32{100032}, []string{`local ____temp_0 = {{____(_G)}}`}},
-		{"invalid $multi call (([a] = $multi(1)) => {})", "module", `([a] = $multi(1)) => {}`, []int32{100032}, nil},
-		{"invalid $multi call (const [a = 0] = $multi())", "module", `const [a = 0] = $multi()`, []int32{100032}, []string{`a = ____(_G)
+		{"invalid $multi call (const a = $multi();)", "module", `const a = $multi();`, []int32{100033}, []string{`a = {____(_G)}`}},
+		{"invalid $multi call (const {} = $multi();)", "module", `const {} = $multi();`, []int32{100033}, []string{`local ____temp_0 = {{____(_G)}}`}},
+		{"invalid $multi call (([a] = $multi(1)) => {})", "module", `([a] = $multi(1)) => {}`, []int32{100033}, nil},
+		{"invalid $multi call (const [a = 0] = $multi())", "module", `const [a = 0] = $multi()`, []int32{100033}, []string{`a = ____(_G)
 if a == nil then
     a = 0
 end`}},
@@ -141,15 +141,15 @@ end`}},
     return $multi(...args);
 }
 
-        return multi()['forEach'];`, []int32{100034}, nil},
+        return multi()['forEach'];`, []int32{100035}, nil},
 		{"disallow LuaMultiReturn non-numeric access", "function", `function multi(...args: any[]) {
     return $multi(...args);
 }
 
-        return multi().forEach;`, []int32{100034}, nil},
+        return multi().forEach;`, []int32{100035}, nil},
 		{"invalid $multi implicit cast", "module", `function badMulti(): [string, number] {
             return $multi("foo", 42);
-        }`, []int32{100033}, []string{`function badMulti(self)
+        }`, []int32{100034}, []string{`function badMulti(self)
     return "foo", 42
 end`}},
 	}, WithLanguageExtensions())

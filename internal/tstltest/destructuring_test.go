@@ -4779,7 +4779,7 @@ return ____exports`},
 	batchExpectDiagnostics(t, []diagTestCase{
 		{"no exception from semantically invalid TS", "module", `declare function testFunc(value: number): LuaMultiReturn<[number, number]>;
         let [a, b] = testFunc(5) // Missing ;
-        [a, b] = testFunc(b)     // Interpreted as testFunc(5)[a, b]`, []int32{100034}, nil},
+        [a, b] = testFunc(b)     // Interpreted as testFunc(5)[a, b]`, []int32{100035}, nil},
 	}, WithLanguageExtensions())
 
 	batchExpectCodegen(t, []codegenTestCase{

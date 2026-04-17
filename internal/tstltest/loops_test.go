@@ -844,7 +844,7 @@ return ____exports`, false, false},
 
 	batchExpectDiagnostics(t, []diagTestCase{
 		{"forin[Array]", "function", `const array: any[] = [];
-        for (const key in array) {}`, []int32{100014}, []string{`local ____exports = {}
+        for (const key in array) {}`, []int32{100015}, []string{`local ____exports = {}
 function ____exports.__main(self)
     local array = {}
     for key in pairs(array) do
