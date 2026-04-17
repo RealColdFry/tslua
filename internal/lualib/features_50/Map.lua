@@ -1,3 +1,5 @@
+local Map
+do
 Map = __TS__Class()
 Map.name = "Map"
 function Map.prototype.____constructor(self, entries)
@@ -159,3 +161,4 @@ function Map.prototype.values(self)
     }
 end
 Map[Symbol.species] = Map
+end

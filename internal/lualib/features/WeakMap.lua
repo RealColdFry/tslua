@@ -1,3 +1,5 @@
+local WeakMap
+do
 WeakMap = __TS__Class()
 WeakMap.name = "WeakMap"
 function WeakMap.prototype.____constructor(self, entries)
@@ -40,3 +42,4 @@ function WeakMap.prototype.set(self, key, value)
     return self
 end
 WeakMap[Symbol.species] = WeakMap
+end

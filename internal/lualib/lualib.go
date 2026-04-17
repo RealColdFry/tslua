@@ -27,7 +27,20 @@ var moduleInfoJSON []byte
 //go:embed lualib_module_info_50.json
 var moduleInfo50JSON []byte
 
+//go:embed patches.lua
+var patchesLua []byte
+
+// Patches returns the tslua-specific pure-Lua helpers that have no TS source
+// (Map/Set for-of fast paths). BuildBundleFromSource and
+// BuildFeatureDataFromSource fold these in when producing bundles, so they
+// are present in both the committed embedded bundle and any on-demand
+// rebuild.
+func Patches() []byte { return patchesLua }
+
 // BundleForTarget returns the appropriate lualib bundle for the given target.
+// The embedded Bundle / Bundle50 are produced by BuildBundleFromSource at
+// development time (via `just update-lualib`). TestCommittedBundleUpToDate
+// enforces that they stay byte-equivalent to a fresh rebuild from TS sources.
 func BundleForTarget(target string) []byte {
 	if target == "5.0" {
 		return Bundle50

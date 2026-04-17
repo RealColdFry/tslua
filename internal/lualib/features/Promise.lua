@@ -1,3 +1,5 @@
+local __TS__Promise
+do
 local function makeDeferredPromiseFactory()
     local resolve
     local reject
@@ -135,4 +137,5 @@ function __TS__Promise.prototype.handleCallbackValue(self, value, resolve, rejec
     else
         return resolve(nil, value)
     end
+end
 end

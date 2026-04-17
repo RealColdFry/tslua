@@ -1,3 +1,5 @@
+local Set
+do
 Set = __TS__Class()
 Set.name = "Set"
 function Set.prototype.____constructor(self, values)
@@ -207,3 +209,4 @@ function Set.prototype.isDisjointFrom(self, other)
     return true
 end
 Set[Symbol.species] = Set
+end

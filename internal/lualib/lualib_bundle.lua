@@ -5,11 +5,9 @@ local function __TS__ArrayAt(self, relativeIndex)
     end
     return nil
 end
-
 local function __TS__ArrayIsArray(value)
     return type(value) == "table" and (value[1] ~= nil or next(value) == nil)
 end
-
 local function __TS__ArrayConcat(self, ...)
     local items = {...}
     local result = {}
@@ -32,25 +30,20 @@ local function __TS__ArrayConcat(self, ...)
     end
     return result
 end
-
-local __TS__Symbol, Symbol
-do
-    local symbolMetatable = {__tostring = function(self)
-        return ("Symbol(" .. (self.description or "")) .. ")"
-    end}
-    function __TS__Symbol(description)
-        return setmetatable({description = description}, symbolMetatable)
-    end
-    Symbol = {
-        asyncDispose = __TS__Symbol("Symbol.asyncDispose"),
-        dispose = __TS__Symbol("Symbol.dispose"),
-        iterator = __TS__Symbol("Symbol.iterator"),
-        hasInstance = __TS__Symbol("Symbol.hasInstance"),
-        species = __TS__Symbol("Symbol.species"),
-        toStringTag = __TS__Symbol("Symbol.toStringTag")
-    }
+local symbolMetatable = {__tostring = function(self)
+    return ("Symbol(" .. (self.description or "")) .. ")"
+end}
+local function __TS__Symbol(description)
+    return setmetatable({description = description}, symbolMetatable)
 end
-
+local Symbol = {
+    asyncDispose = __TS__Symbol("Symbol.asyncDispose"),
+    dispose = __TS__Symbol("Symbol.dispose"),
+    iterator = __TS__Symbol("Symbol.iterator"),
+    hasInstance = __TS__Symbol("Symbol.hasInstance"),
+    species = __TS__Symbol("Symbol.species"),
+    toStringTag = __TS__Symbol("Symbol.toStringTag")
+}
 local function __TS__ArrayEntries(array)
     local key = 0
     return {
@@ -64,7 +57,6 @@ local function __TS__ArrayEntries(array)
         end
     }
 end
-
 local function __TS__ArrayEvery(self, callbackfn, thisArg)
     for i = 1, #self do
         if not callbackfn(thisArg, self[i], i - 1, self) then
@@ -73,7 +65,6 @@ local function __TS__ArrayEvery(self, callbackfn, thisArg)
     end
     return true
 end
-
 local function __TS__ArrayFill(self, value, start, ____end)
     local relativeStart = start or 0
     local relativeEnd = ____end or #self
@@ -92,7 +83,6 @@ local function __TS__ArrayFill(self, value, start, ____end)
     end
     return self
 end
-
 local function __TS__ArrayFilter(self, callbackfn, thisArg)
     local result = {}
     local len = 0
@@ -104,13 +94,6 @@ local function __TS__ArrayFilter(self, callbackfn, thisArg)
     end
     return result
 end
-
-local function __TS__ArrayForEach(self, callbackFn, thisArg)
-    for i = 1, #self do
-        callbackFn(thisArg, self[i], i - 1, self)
-    end
-end
-
 local function __TS__ArrayFind(self, predicate, thisArg)
     for i = 1, #self do
         local elem = self[i]
@@ -120,7 +103,6 @@ local function __TS__ArrayFind(self, predicate, thisArg)
     end
     return nil
 end
-
 local function __TS__ArrayFindIndex(self, callbackFn, thisArg)
     for i = 1, #self do
         if callbackFn(thisArg, self[i], i - 1, self) then
@@ -129,84 +111,125 @@ local function __TS__ArrayFindIndex(self, callbackFn, thisArg)
     end
     return -1
 end
-
-local __TS__Iterator
-do
-    local function iteratorGeneratorStep(self)
-        local co = self.____coroutine
-        local status, value = coroutine.resume(co)
-        if not status then
-            error(value, 0)
-        end
-        if coroutine.status(co) == "dead" then
-            return
-        end
-        return true, value
+local function __TS__ArrayFlat(self, depth)
+    if depth == nil then
+        depth = 1
     end
-    local function iteratorIteratorStep(self)
-        local result = self:next()
-        if result.done then
-            return
-        end
-        return true, result.value
-    end
-    local function iteratorStringStep(self, index)
-        index = index + 1
-        if index > #self then
-            return
-        end
-        return index, string.sub(self, index, index)
-    end
-    function __TS__Iterator(iterable)
-        if type(iterable) == "string" then
-            return iteratorStringStep, iterable, 0
-        elseif iterable.____coroutine ~= nil then
-            return iteratorGeneratorStep, iterable
-        elseif iterable[Symbol.iterator] then
-            local iterator = iterable[Symbol.iterator](iterable)
-            return iteratorIteratorStep, iterator
-        else
-            return ipairs(iterable)
-        end
-    end
-end
-
-local __TS__ArrayFrom
-do
-    local function arrayLikeStep(self, index)
-        index = index + 1
-        if index > self.length then
-            return
-        end
-        return index, self[index]
-    end
-    local function arrayLikeIterator(arr)
-        if type(arr.length) == "number" then
-            return arrayLikeStep, arr, 0
-        end
-        return __TS__Iterator(arr)
-    end
-    function __TS__ArrayFrom(arrayLike, mapFn, thisArg)
-        local result = {}
-        if mapFn == nil then
-            for ____, v in arrayLikeIterator(arrayLike) do
-                result[#result + 1] = v
+    local result = {}
+    local len = 0
+    for i = 1, #self do
+        local value = self[i]
+        if depth > 0 and __TS__ArrayIsArray(value) then
+            local toAdd
+            if depth == 1 then
+                toAdd = value
+            else
+                toAdd = __TS__ArrayFlat(value, depth - 1)
+            end
+            for j = 1, #toAdd do
+                local val = toAdd[j]
+                len = len + 1
+                result[len] = val
             end
         else
-            local i = 0
-            for ____, v in arrayLikeIterator(arrayLike) do
-                local ____mapFn_3 = mapFn
-                local ____thisArg_1 = thisArg
-                local ____v_2 = v
-                local ____i_0 = i
-                i = ____i_0 + 1
-                result[#result + 1] = ____mapFn_3(____thisArg_1, ____v_2, ____i_0)
-            end
+            len = len + 1
+            result[len] = value
         end
-        return result
+    end
+    return result
+end
+local function __TS__ArrayFlatMap(self, callback, thisArg)
+    local result = {}
+    local len = 0
+    for i = 1, #self do
+        local value = callback(thisArg, self[i], i - 1, self)
+        if __TS__ArrayIsArray(value) then
+            for j = 1, #value do
+                len = len + 1
+                result[len] = value[j]
+            end
+        else
+            len = len + 1
+            result[len] = value
+        end
+    end
+    return result
+end
+local function __TS__ArrayForEach(self, callbackFn, thisArg)
+    for i = 1, #self do
+        callbackFn(thisArg, self[i], i - 1, self)
     end
 end
-
+local function iteratorGeneratorStep(self)
+    local co = self.____coroutine
+    local status, value = coroutine.resume(co)
+    if not status then
+        error(value, 0)
+    end
+    if coroutine.status(co) == "dead" then
+        return
+    end
+    return true, value
+end
+local function iteratorIteratorStep(self)
+    local result = self:next()
+    if result.done then
+        return
+    end
+    return true, result.value
+end
+local function iteratorStringStep(self, index)
+    index = index + 1
+    if index > #self then
+        return
+    end
+    return index, string.sub(self, index, index)
+end
+local function __TS__Iterator(iterable)
+    if type(iterable) == "string" then
+        return iteratorStringStep, iterable, 0
+    elseif iterable.____coroutine ~= nil then
+        return iteratorGeneratorStep, iterable
+    elseif iterable[Symbol.iterator] then
+        local iterator = iterable[Symbol.iterator](iterable)
+        return iteratorIteratorStep, iterator
+    else
+        return ipairs(iterable)
+    end
+end
+local function arrayLikeStep(self, index)
+    index = index + 1
+    if index > self.length then
+        return
+    end
+    return index, self[index]
+end
+local function arrayLikeIterator(arr)
+    if type(arr.length) == "number" then
+        return arrayLikeStep, arr, 0
+    end
+    return __TS__Iterator(arr)
+end
+local function __TS__ArrayFrom(arrayLike, mapFn, thisArg)
+    local result = {}
+    if mapFn == nil then
+        for _, v in arrayLikeIterator(arrayLike) do
+            result[#result + 1] = v
+        end
+    else
+        local i = 0
+        for _, v in arrayLikeIterator(arrayLike) do
+            local ____result_4 = result
+            local ____mapFn_3 = mapFn
+            local ____thisArg_1 = thisArg
+            local ____v_2 = v
+            local ____i_0 = i
+            i = ____i_0 + 1
+            ____result_4[#____result_4 + 1] = ____mapFn_3(____thisArg_1, ____v_2, ____i_0)
+        end
+    end
+    return result
+end
 local function __TS__ArrayIncludes(self, searchElement, fromIndex)
     if fromIndex == nil then
         fromIndex = 0
@@ -226,7 +249,6 @@ local function __TS__ArrayIncludes(self, searchElement, fromIndex)
     end
     return false
 end
-
 local function __TS__ArrayIndexOf(self, searchElement, fromIndex)
     if fromIndex == nil then
         fromIndex = 0
@@ -251,7 +273,6 @@ local function __TS__ArrayIndexOf(self, searchElement, fromIndex)
     end
     return -1
 end
-
 local function __TS__ArrayJoin(self, separator)
     if separator == nil then
         separator = ","
@@ -262,7 +283,6 @@ local function __TS__ArrayJoin(self, separator)
     end
     return table.concat(parts, separator)
 end
-
 local function __TS__ArrayMap(self, callbackfn, thisArg)
     local result = {}
     for i = 1, #self do
@@ -270,7 +290,6 @@ local function __TS__ArrayMap(self, callbackfn, thisArg)
     end
     return result
 end
-
 local function __TS__ArrayPush(self, ...)
     local items = {...}
     local len = #self
@@ -280,7 +299,6 @@ local function __TS__ArrayPush(self, ...)
     end
     return len
 end
-
 local function __TS__ArrayPushArray(self, items)
     local len = #self
     for i = 1, #items do
@@ -289,17 +307,16 @@ local function __TS__ArrayPushArray(self, items)
     end
     return len
 end
-
 local function __TS__CountVarargs(...)
     return select("#", ...)
 end
-
+local __TS__Unpack = table.unpack or unpack
 local function __TS__ArrayReduce(self, callbackFn, ...)
     local len = #self
     local k = 0
     local accumulator = nil
     if __TS__CountVarargs(...) ~= 0 then
-        accumulator = ...
+        accumulator = __TS__Unpack({...})
     elseif len > 0 then
         accumulator = self[1]
         k = 1
@@ -317,13 +334,12 @@ local function __TS__ArrayReduce(self, callbackFn, ...)
     end
     return accumulator
 end
-
 local function __TS__ArrayReduceRight(self, callbackFn, ...)
     local len = #self
     local k = len - 1
     local accumulator = nil
     if __TS__CountVarargs(...) ~= 0 then
-        accumulator = ...
+        accumulator = __TS__Unpack({...})
     elseif len > 0 then
         accumulator = self[k + 1]
         k = k - 1
@@ -341,7 +357,6 @@ local function __TS__ArrayReduceRight(self, callbackFn, ...)
     end
     return accumulator
 end
-
 local function __TS__ArrayReverse(self)
     local i = 1
     local j = #self
@@ -354,34 +369,18 @@ local function __TS__ArrayReverse(self)
     end
     return self
 end
-
-local function __TS__ArrayUnshift(self, ...)
-    local items = {...}
-    local numItemsToInsert = #items
-    if numItemsToInsert == 0 then
-        return #self
-    end
-    for i = #self, 1, -1 do
-        self[i + numItemsToInsert] = self[i]
-    end
-    for i = 1, numItemsToInsert do
-        self[i] = items[i]
-    end
-    return #self
-end
-
-local function __TS__ArraySort(self, compareFn)
-    if compareFn ~= nil then
-        table.sort(
-            self,
-            function(a, b) return compareFn(nil, a, b) < 0 end
+local function __TS__ArraySetLength(self, length)
+    if length < 0 or length ~= length or length == math.huge or math.floor(length) ~= length then
+        error(
+            "invalid array length: " .. tostring(length),
+            0
         )
-    else
-        table.sort(self)
     end
-    return self
+    for i = length + 1, #self do
+        self[i] = nil
+    end
+    return length
 end
-
 local function __TS__ArraySlice(self, first, last)
     local len = #self
     first = first or 0
@@ -417,7 +416,6 @@ local function __TS__ArraySlice(self, first, last)
     end
     return out
 end
-
 local function __TS__ArraySome(self, callbackfn, thisArg)
     for i = 1, #self do
         if callbackfn(thisArg, self[i], i - 1, self) then
@@ -426,7 +424,17 @@ local function __TS__ArraySome(self, callbackfn, thisArg)
     end
     return false
 end
-
+local function __TS__ArraySort(self, compareFn)
+    if compareFn ~= nil then
+        table.sort(
+            self,
+            function(a, b) return compareFn(nil, a, b) < 0 end
+        )
+    else
+        table.sort(self)
+    end
+    return self
+end
 local function __TS__ArraySplice(self, ...)
     local args = {...}
     local len = #self
@@ -500,7 +508,6 @@ local function __TS__ArraySplice(self, ...)
     end
     return out
 end
-
 local function __TS__ArrayToObject(self)
     local object = {}
     for i = 1, #self do
@@ -508,98 +515,45 @@ local function __TS__ArrayToObject(self)
     end
     return object
 end
-
-local function __TS__ArrayFlat(self, depth)
-    if depth == nil then
-        depth = 1
-    end
-    local result = {}
-    local len = 0
-    for i = 1, #self do
-        local value = self[i]
-        if depth > 0 and __TS__ArrayIsArray(value) then
-            local toAdd
-            if depth == 1 then
-                toAdd = value
-            else
-                toAdd = __TS__ArrayFlat(value, depth - 1)
-            end
-            for j = 1, #toAdd do
-                local val = toAdd[j]
-                len = len + 1
-                result[len] = val
-            end
-        else
-            len = len + 1
-            result[len] = value
-        end
-    end
-    return result
-end
-
-local function __TS__ArrayFlatMap(self, callback, thisArg)
-    local result = {}
-    local len = 0
-    for i = 1, #self do
-        local value = callback(thisArg, self[i], i - 1, self)
-        if __TS__ArrayIsArray(value) then
-            for j = 1, #value do
-                len = len + 1
-                result[len] = value[j]
-            end
-        else
-            len = len + 1
-            result[len] = value
-        end
-    end
-    return result
-end
-
-local function __TS__ArraySetLength(self, length)
-    if length < 0 or length ~= length or length == math.huge or math.floor(length) ~= length then
-        error(
-            "invalid array length: " .. tostring(length),
-            0
-        )
-    end
-    for i = length + 1, #self do
-        self[i] = nil
-    end
-    return length
-end
-
-local __TS__Unpack = table.unpack or unpack
-
 local function __TS__ArrayToReversed(self)
     local copy = {__TS__Unpack(self)}
     __TS__ArrayReverse(copy)
     return copy
 end
-
 local function __TS__ArrayToSorted(self, compareFn)
     local copy = {__TS__Unpack(self)}
     __TS__ArraySort(copy, compareFn)
     return copy
 end
-
 local function __TS__ArrayToSpliced(self, start, deleteCount, ...)
     local copy = {__TS__Unpack(self)}
     __TS__ArraySplice(copy, start, deleteCount, ...)
     return copy
 end
-
+local function __TS__ArrayUnshift(self, ...)
+    local items = {...}
+    local numItemsToInsert = #items
+    if numItemsToInsert == 0 then
+        return #self
+    end
+    for i = #self, 1, -1 do
+        self[i + numItemsToInsert] = self[i]
+    end
+    for i = 1, numItemsToInsert do
+        self[i] = items[i]
+    end
+    return #self
+end
 local function __TS__ArrayWith(self, index, value)
     local copy = {__TS__Unpack(self)}
     copy[index + 1] = value
     return copy
 end
-
 local function __TS__New(target, ...)
     local instance = setmetatable({}, target.prototype)
     instance:____constructor(...)
     return instance
 end
-
 local function __TS__InstanceOf(obj, classTbl)
     if type(classTbl) ~= "table" then
         error("Right-hand side of 'instanceof' is not an object", 0)
@@ -618,206 +572,199 @@ local function __TS__InstanceOf(obj, classTbl)
     end
     return false
 end
-
 local function __TS__Class(self)
     local c = {prototype = {}}
     c.prototype.__index = c.prototype
     c.prototype.constructor = c
     return c
 end
-
 local __TS__Promise
 do
-    local function makeDeferredPromiseFactory()
-        local resolve
-        local reject
-        local function executor(____, res, rej)
-            resolve = res
-            reject = rej
-        end
-        return function()
-            local promise = __TS__New(__TS__Promise, executor)
-            return promise, resolve, reject
-        end
+local function makeDeferredPromiseFactory()
+    local resolve
+    local reject
+    local function executor(____, res, rej)
+        resolve = res
+        reject = rej
     end
-    local makeDeferredPromise = makeDeferredPromiseFactory()
-    local function isPromiseLike(value)
-        return __TS__InstanceOf(value, __TS__Promise)
+    return function()
+        local promise = __TS__New(__TS__Promise, executor)
+        return promise, resolve, reject
     end
-    local function doNothing(self)
+end
+local makeDeferredPromise = makeDeferredPromiseFactory()
+local function isPromiseLike(value)
+    return __TS__InstanceOf(value, __TS__Promise)
+end
+local function doNothing(self)
+end
+local ____pcall = _G.pcall
+__TS__Promise = __TS__Class()
+__TS__Promise.name = "__TS__Promise"
+function __TS__Promise.prototype.____constructor(self, executor)
+    self.state = 0
+    self.fulfilledCallbacks = {}
+    self.rejectedCallbacks = {}
+    local success, ____error = ____pcall(
+        executor,
+        nil,
+        function(____, v) return self:resolve(v) end,
+        function(____, err) return self:reject(err) end
+    )
+    if not success then
+        self:reject(____error)
     end
-    local ____pcall = _G.pcall
-    __TS__Promise = __TS__Class()
-    __TS__Promise.name = "__TS__Promise"
-    function __TS__Promise.prototype.____constructor(self, executor)
-        self.state = 0
-        self.fulfilledCallbacks = {}
-        self.rejectedCallbacks = {}
-        local success, ____error = ____pcall(
-            executor,
-            nil,
+end
+function __TS__Promise.resolve(value)
+    if __TS__InstanceOf(value, __TS__Promise) then
+        return value
+    end
+    local promise = __TS__New(__TS__Promise, doNothing)
+    promise.state = 1
+    promise.value = value
+    return promise
+end
+function __TS__Promise.reject(reason)
+    local promise = __TS__New(__TS__Promise, doNothing)
+    promise.state = 2
+    promise.rejectionReason = reason
+    return promise
+end
+__TS__Promise.prototype["then"] = function(self, onFulfilled, onRejected)
+    local promise, resolve, reject = makeDeferredPromise()
+    self:addCallbacks(
+        onFulfilled and self:createPromiseResolvingCallback(onFulfilled, resolve, reject) or resolve,
+        onRejected and self:createPromiseResolvingCallback(onRejected, resolve, reject) or reject
+    )
+    return promise
+end
+function __TS__Promise.prototype.addCallbacks(self, fulfilledCallback, rejectedCallback)
+    if self.state == 1 then
+        return fulfilledCallback(nil, self.value)
+    end
+    if self.state == 2 then
+        return rejectedCallback(nil, self.rejectionReason)
+    end
+    local ____self_fulfilledCallbacks_0 = self.fulfilledCallbacks
+    ____self_fulfilledCallbacks_0[#____self_fulfilledCallbacks_0 + 1] = fulfilledCallback
+    local ____self_rejectedCallbacks_1 = self.rejectedCallbacks
+    ____self_rejectedCallbacks_1[#____self_rejectedCallbacks_1 + 1] = rejectedCallback
+end
+function __TS__Promise.prototype.catch(self, onRejected)
+    return self["then"](self, nil, onRejected)
+end
+function __TS__Promise.prototype.finally(self, onFinally)
+    return self["then"](
+        self,
+        onFinally and (function(____, value)
+            onFinally(nil)
+            return value
+        end) or nil,
+        onFinally and (function(____, reason)
+            onFinally(nil)
+            error(reason, 0)
+        end) or nil
+    )
+end
+function __TS__Promise.prototype.resolve(self, value)
+    if isPromiseLike(value) then
+        return value:addCallbacks(
             function(____, v) return self:resolve(v) end,
             function(____, err) return self:reject(err) end
         )
-        if not success then
-            self:reject(____error)
-        end
     end
-    function __TS__Promise.resolve(value)
-        if __TS__InstanceOf(value, __TS__Promise) then
-            return value
-        end
-        local promise = __TS__New(__TS__Promise, doNothing)
-        promise.state = 1
-        promise.value = value
-        return promise
-    end
-    function __TS__Promise.reject(reason)
-        local promise = __TS__New(__TS__Promise, doNothing)
-        promise.state = 2
-        promise.rejectionReason = reason
-        return promise
-    end
-    __TS__Promise.prototype["then"] = function(self, onFulfilled, onRejected)
-        local promise, resolve, reject = makeDeferredPromise()
-        self:addCallbacks(
-            onFulfilled and self:createPromiseResolvingCallback(onFulfilled, resolve, reject) or resolve,
-            onRejected and self:createPromiseResolvingCallback(onRejected, resolve, reject) or reject
-        )
-        return promise
-    end
-    function __TS__Promise.prototype.addCallbacks(self, fulfilledCallback, rejectedCallback)
-        if self.state == 1 then
-            return fulfilledCallback(nil, self.value)
-        end
-        if self.state == 2 then
-            return rejectedCallback(nil, self.rejectionReason)
-        end
-        local ____self_fulfilledCallbacks_0 = self.fulfilledCallbacks
-        ____self_fulfilledCallbacks_0[#____self_fulfilledCallbacks_0 + 1] = fulfilledCallback
-        local ____self_rejectedCallbacks_1 = self.rejectedCallbacks
-        ____self_rejectedCallbacks_1[#____self_rejectedCallbacks_1 + 1] = rejectedCallback
-    end
-    function __TS__Promise.prototype.catch(self, onRejected)
-        return self["then"](self, nil, onRejected)
-    end
-    function __TS__Promise.prototype.finally(self, onFinally)
-        return self["then"](
-            self,
-            onFinally and (function(____, value)
-                onFinally(nil)
-                return value
-            end) or nil,
-            onFinally and (function(____, reason)
-                onFinally(nil)
-                error(reason, 0)
-            end) or nil
-        )
-    end
-    function __TS__Promise.prototype.resolve(self, value)
-        if isPromiseLike(value) then
-            return value:addCallbacks(
-                function(____, v) return self:resolve(v) end,
-                function(____, err) return self:reject(err) end
-            )
-        end
-        if self.state == 0 then
-            self.state = 1
-            self.value = value
-            return self:invokeCallbacks(self.fulfilledCallbacks, value)
-        end
-    end
-    function __TS__Promise.prototype.reject(self, reason)
-        if self.state == 0 then
-            self.state = 2
-            self.rejectionReason = reason
-            return self:invokeCallbacks(self.rejectedCallbacks, reason)
-        end
-    end
-    function __TS__Promise.prototype.invokeCallbacks(self, callbacks, value)
-        local callbacksLength = #callbacks
-        if callbacksLength ~= 0 then
-            for i = 1, callbacksLength - 1 do
-                callbacks[i](callbacks, value)
-            end
-            return callbacks[callbacksLength](callbacks, value)
-        end
-    end
-    function __TS__Promise.prototype.createPromiseResolvingCallback(self, f, resolve, reject)
-        return function(____, value)
-            local success, resultOrError = ____pcall(f, nil, value)
-            if not success then
-                return reject(nil, resultOrError)
-            end
-            return self:handleCallbackValue(resultOrError, resolve, reject)
-        end
-    end
-    function __TS__Promise.prototype.handleCallbackValue(self, value, resolve, reject)
-        if isPromiseLike(value) then
-            local nextpromise = value
-            if nextpromise.state == 1 then
-                return resolve(nil, nextpromise.value)
-            elseif nextpromise.state == 2 then
-                return reject(nil, nextpromise.rejectionReason)
-            else
-                return nextpromise:addCallbacks(resolve, reject)
-            end
-        else
-            return resolve(nil, value)
-        end
+    if self.state == 0 then
+        self.state = 1
+        self.value = value
+        return self:invokeCallbacks(self.fulfilledCallbacks, value)
     end
 end
-
-local __TS__AsyncAwaiter, __TS__Await
-do
-    local ____coroutine = _G.coroutine or ({})
-    local cocreate = ____coroutine.create
-    local coresume = ____coroutine.resume
-    local costatus = ____coroutine.status
-    local coyield = ____coroutine.yield
-    function __TS__AsyncAwaiter(generator)
-        return __TS__New(
-            __TS__Promise,
-            function(____, resolve, reject)
-                local fulfilled, step, resolved, asyncCoroutine
-                function fulfilled(self, value)
-                    local success, resultOrError = coresume(asyncCoroutine, value)
-                    if success then
-                        return step(resultOrError)
-                    end
-                    return reject(nil, resultOrError)
-                end
-                function step(result)
-                    if resolved then
-                        return
-                    end
-                    if costatus(asyncCoroutine) == "dead" then
-                        return resolve(nil, result)
-                    end
-                    return __TS__Promise.resolve(result):addCallbacks(fulfilled, reject)
-                end
-                resolved = false
-                asyncCoroutine = cocreate(generator)
-                local success, resultOrError = coresume(
-                    asyncCoroutine,
-                    function(____, v)
-                        resolved = true
-                        return __TS__Promise.resolve(v):addCallbacks(resolve, reject)
-                    end
-                )
+function __TS__Promise.prototype.reject(self, reason)
+    if self.state == 0 then
+        self.state = 2
+        self.rejectionReason = reason
+        return self:invokeCallbacks(self.rejectedCallbacks, reason)
+    end
+end
+function __TS__Promise.prototype.invokeCallbacks(self, callbacks, value)
+    local callbacksLength = #callbacks
+    if callbacksLength ~= 0 then
+        for i = 1, callbacksLength - 1 do
+            callbacks[i](callbacks, value)
+        end
+        return callbacks[callbacksLength](callbacks, value)
+    end
+end
+function __TS__Promise.prototype.createPromiseResolvingCallback(self, f, resolve, reject)
+    return function(____, value)
+        local success, resultOrError = ____pcall(f, nil, value)
+        if not success then
+            return reject(nil, resultOrError)
+        end
+        return self:handleCallbackValue(resultOrError, resolve, reject)
+    end
+end
+function __TS__Promise.prototype.handleCallbackValue(self, value, resolve, reject)
+    if isPromiseLike(value) then
+        local nextpromise = value
+        if nextpromise.state == 1 then
+            return resolve(nil, nextpromise.value)
+        elseif nextpromise.state == 2 then
+            return reject(nil, nextpromise.rejectionReason)
+        else
+            return nextpromise:addCallbacks(resolve, reject)
+        end
+    else
+        return resolve(nil, value)
+    end
+end
+end
+local ____coroutine = _G.coroutine or ({})
+local cocreate = ____coroutine.create
+local coresume = ____coroutine.resume
+local costatus = ____coroutine.status
+local coyield = ____coroutine.yield
+local function __TS__AsyncAwaiter(generator)
+    return __TS__New(
+        __TS__Promise,
+        function(____, resolve, reject)
+            local fulfilled, step, resolved, asyncCoroutine
+            function fulfilled(self, value)
+                local success, resultOrError = coresume(asyncCoroutine, value)
                 if success then
                     return step(resultOrError)
-                else
-                    return reject(nil, resultOrError)
                 end
+                return reject(nil, resultOrError)
             end
-        )
-    end
-    function __TS__Await(thing)
-        return coyield(thing)
-    end
+            function step(result)
+                if resolved then
+                    return
+                end
+                if costatus(asyncCoroutine) == "dead" then
+                    return resolve(nil, result)
+                end
+                return __TS__Promise.resolve(result):addCallbacks(fulfilled, reject)
+            end
+            resolved = false
+            asyncCoroutine = cocreate(generator)
+            local success, resultOrError = coresume(
+                asyncCoroutine,
+                function(____, v)
+                    resolved = true
+                    return __TS__Promise.resolve(v):addCallbacks(resolve, reject)
+                end
+            )
+            if success then
+                return step(resultOrError)
+            else
+                return reject(nil, resultOrError)
+            end
+        end
+    )
 end
-
+local function __TS__Await(thing)
+    return coyield(thing)
+end
 local function __TS__ClassExtends(target, base)
     target.____super = base
     local staticMetatable = setmetatable({__index = base}, base)
@@ -842,7 +789,6 @@ local function __TS__ClassExtends(target, base)
         target.prototype.__tostring = base.prototype.__tostring
     end
 end
-
 local function __TS__CloneDescriptor(____bindingPattern0)
     local value
     local writable
@@ -871,7 +817,6 @@ local function __TS__CloneDescriptor(____bindingPattern0)
     end
     return descriptor
 end
-
 local function __TS__Decorate(self, originalValue, decorators, context)
     local result = originalValue
     do
@@ -890,18 +835,6 @@ local function __TS__Decorate(self, originalValue, decorators, context)
     end
     return result
 end
-
-local function __TS__ObjectAssign(target, ...)
-    local sources = {...}
-    for i = 1, #sources do
-        local source = sources[i]
-        for key in pairs(source) do
-            target[key] = source[key]
-        end
-    end
-    return target
-end
-
 local function __TS__ObjectGetOwnPropertyDescriptor(object, key)
     local metatable = getmetatable(object)
     if not metatable then
@@ -912,116 +845,113 @@ local function __TS__ObjectGetOwnPropertyDescriptor(object, key)
     end
     return rawget(metatable, "_descriptors")[key]
 end
-
-local __TS__DescriptorGet
-do
-    local getmetatable = _G.getmetatable
-    local ____rawget = _G.rawget
-    function __TS__DescriptorGet(self, metatable, key)
-        while metatable do
-            local rawResult = ____rawget(metatable, key)
-            if rawResult ~= nil then
-                return rawResult
-            end
-            local descriptors = ____rawget(metatable, "_descriptors")
-            if descriptors then
-                local descriptor = descriptors[key]
-                if descriptor ~= nil then
-                    if descriptor.get then
-                        return descriptor.get(self)
-                    end
-                    return descriptor.value
+local getmetatable = _G.getmetatable
+local ____rawget = _G.rawget
+local function __TS__DescriptorGet(self, metatable, key)
+    while metatable do
+        local rawResult = ____rawget(metatable, key)
+        if rawResult ~= nil then
+            return rawResult
+        end
+        local descriptors = ____rawget(metatable, "_descriptors")
+        if descriptors then
+            local descriptor = descriptors[key]
+            if descriptor ~= nil then
+                if descriptor.get then
+                    return descriptor.get(self)
                 end
+                return descriptor.value
             end
-            metatable = getmetatable(metatable)
         end
+        metatable = getmetatable(metatable)
     end
 end
-
-local __TS__DescriptorSet
-do
-    local getmetatable = _G.getmetatable
-    local ____rawget = _G.rawget
-    local rawset = _G.rawset
-    function __TS__DescriptorSet(self, metatable, key, value)
-        while metatable do
-            local descriptors = ____rawget(metatable, "_descriptors")
-            if descriptors then
-                local descriptor = descriptors[key]
-                if descriptor ~= nil then
-                    if descriptor.set then
-                        descriptor.set(self, value)
-                    else
-                        if descriptor.writable == false then
-                            error(
-                                ((("Cannot assign to read only property '" .. key) .. "' of object '") .. tostring(self)) .. "'",
-                                0
-                            )
-                        end
-                        descriptor.value = value
+local getmetatable = _G.getmetatable
+local ____rawget = _G.rawget
+local ____rawset = _G.rawset
+local function __TS__DescriptorSet(self, metatable, key, value)
+    while metatable do
+        local descriptors = ____rawget(metatable, "_descriptors")
+        if descriptors then
+            local descriptor = descriptors[key]
+            if descriptor ~= nil then
+                if descriptor.set then
+                    descriptor.set(self, value)
+                else
+                    if descriptor.writable == false then
+                        error(
+                            ((("Cannot assign to read only property '" .. key) .. "' of object '") .. tostring(self)) .. "'",
+                            0
+                        )
                     end
-                    return
+                    descriptor.value = value
                 end
+                return
             end
-            metatable = getmetatable(metatable)
         end
-        rawset(self, key, value)
+        metatable = getmetatable(metatable)
     end
+    ____rawset(self, key, value)
 end
-
-local __TS__SetDescriptor
-do
-    local getmetatable = _G.getmetatable
-    local function descriptorIndex(self, key)
-        return __TS__DescriptorGet(
-            self,
-            getmetatable(self),
-            key
-        )
-    end
-    local function descriptorNewIndex(self, key, value)
-        return __TS__DescriptorSet(
-            self,
-            getmetatable(self),
-            key,
-            value
-        )
-    end
-    function __TS__SetDescriptor(target, key, desc, isPrototype)
-        if isPrototype == nil then
-            isPrototype = false
-        end
-        local ____isPrototype_0
-        if isPrototype then
-            ____isPrototype_0 = target
-        else
-            ____isPrototype_0 = getmetatable(target)
-        end
-        local metatable = ____isPrototype_0
-        if not metatable then
-            metatable = {}
-            setmetatable(target, metatable)
-        end
-        if not isPrototype and not rawget(metatable, "_isOwnDescriptorMetatable") then
-            local instanceMetatable = {}
-            instanceMetatable._isOwnDescriptorMetatable = true
-            setmetatable(instanceMetatable, metatable)
-            setmetatable(target, instanceMetatable)
-            metatable = instanceMetatable
-        end
-        local value = rawget(target, key)
-        if value ~= nil then
-            rawset(target, key, nil)
-        end
-        if not rawget(metatable, "_descriptors") then
-            metatable._descriptors = {}
-        end
-        metatable._descriptors[key] = __TS__CloneDescriptor(desc)
-        metatable.__index = descriptorIndex
-        metatable.__newindex = descriptorNewIndex
-    end
+local getmetatable = _G.getmetatable
+local function descriptorIndex(self, key)
+    return __TS__DescriptorGet(
+        self,
+        getmetatable(self),
+        key
+    )
 end
-
+local function descriptorNewIndex(self, key, value)
+    return __TS__DescriptorSet(
+        self,
+        getmetatable(self),
+        key,
+        value
+    )
+end
+local function __TS__SetDescriptor(target, key, desc, isPrototype)
+    if isPrototype == nil then
+        isPrototype = false
+    end
+    local ____isPrototype_0
+    if isPrototype then
+        ____isPrototype_0 = target
+    else
+        ____isPrototype_0 = getmetatable(target)
+    end
+    local metatable = ____isPrototype_0
+    if not metatable then
+        metatable = {}
+        setmetatable(target, metatable)
+    end
+    if not isPrototype and not rawget(metatable, "_isOwnDescriptorMetatable") then
+        local instanceMetatable = {}
+        instanceMetatable._isOwnDescriptorMetatable = true
+        setmetatable(instanceMetatable, metatable)
+        setmetatable(target, instanceMetatable)
+        metatable = instanceMetatable
+    end
+    local value = rawget(target, key)
+    if value ~= nil then
+        rawset(target, key, nil)
+    end
+    if not rawget(metatable, "_descriptors") then
+        metatable._descriptors = {}
+    end
+    metatable._descriptors[key] = __TS__CloneDescriptor(desc)
+    metatable.__index = descriptorIndex
+    metatable.__newindex = descriptorNewIndex
+end
+local function __TS__ObjectAssign(target, ...)
+    local sources = {...}
+    for i = 1, #sources do
+        local source = sources[i]
+        for key in pairs(source) do
+            target[key] = source[key]
+        end
+    end
+    return target
+end
 local function __TS__DecorateLegacy(decorators, target, key, desc)
     local result = target
     do
@@ -1058,140 +988,14 @@ local function __TS__DecorateLegacy(decorators, target, key, desc)
     end
     return result
 end
-
 local function __TS__DecorateParam(paramIndex, decorator)
     return function(____, target, key) return decorator(nil, target, key, paramIndex) end
 end
-
-local function __TS__StringIncludes(self, searchString, position)
-    if not position then
-        position = 1
-    else
-        position = position + 1
-    end
-    local index = string.find(self, searchString, position, true)
-    return index ~= nil
-end
-
-local Error, RangeError, ReferenceError, SyntaxError, TypeError, URIError
-do
-    local function getErrorStack(self, constructor)
-        if debug == nil then
-            return nil
-        end
-        local level = 1
-        while true do
-            local info = debug.getinfo(level, "f")
-            level = level + 1
-            if not info then
-                level = 1
-                break
-            elseif info.func == constructor then
-                break
-            end
-        end
-        if __TS__StringIncludes(_VERSION, "Lua 5.0") then
-            return debug.traceback(("[Level " .. tostring(level)) .. "]")
-        elseif _VERSION == "Lua 5.1" then
-            return string.sub(
-                debug.traceback("", level),
-                2
-            )
-        else
-            return debug.traceback(nil, level)
-        end
-    end
-    local function wrapErrorToString(self, getDescription)
-        return function(self)
-            local description = getDescription(self)
-            local caller = debug.getinfo(3, "f")
-            local isClassicLua = __TS__StringIncludes(_VERSION, "Lua 5.0")
-            if isClassicLua or caller and caller.func ~= error then
-                return description
-            else
-                return (description .. "\n") .. tostring(self.stack)
-            end
-        end
-    end
-    local function initErrorClass(self, Type, name)
-        Type.name = name
-        return setmetatable(
-            Type,
-            {__call = function(____, _self, message) return __TS__New(Type, message) end}
-        )
-    end
-    local ____initErrorClass_1 = initErrorClass
-    local ____class_0 = __TS__Class()
-    ____class_0.name = ""
-    function ____class_0.prototype.____constructor(self, message)
-        if message == nil then
-            message = ""
-        end
-        self.message = message
-        self.name = "Error"
-        self.stack = getErrorStack(nil, __TS__New)
-        local metatable = getmetatable(self)
-        if metatable and not metatable.__errorToStringPatched then
-            metatable.__errorToStringPatched = true
-            metatable.__tostring = wrapErrorToString(nil, metatable.__tostring)
-        end
-    end
-    function ____class_0.prototype.__tostring(self)
-        return self.message ~= "" and (self.name .. ": ") .. self.message or self.name
-    end
-    Error = ____initErrorClass_1(nil, ____class_0, "Error")
-    local function createErrorClass(self, name)
-        local ____initErrorClass_3 = initErrorClass
-        local ____class_2 = __TS__Class()
-        ____class_2.name = ____class_2.name
-        __TS__ClassExtends(____class_2, Error)
-        function ____class_2.prototype.____constructor(self, ...)
-            ____class_2.____super.prototype.____constructor(self, ...)
-            self.name = name
-        end
-        return ____initErrorClass_3(nil, ____class_2, name)
-    end
-    RangeError = createErrorClass(nil, "RangeError")
-    ReferenceError = createErrorClass(nil, "ReferenceError")
-    SyntaxError = createErrorClass(nil, "SyntaxError")
-    TypeError = createErrorClass(nil, "TypeError")
-    URIError = createErrorClass(nil, "URIError")
-end
-
-local function __TS__ObjectGetOwnPropertyDescriptors(object)
-    local metatable = getmetatable(object)
-    if not metatable then
-        return {}
-    end
-    return rawget(metatable, "_descriptors") or ({})
-end
-
-local function __TS__Delete(target, key)
-    local descriptors = __TS__ObjectGetOwnPropertyDescriptors(target)
-    local descriptor = descriptors[key]
-    if descriptor then
-        if not descriptor.configurable then
-            error(
-                __TS__New(
-                    TypeError,
-                    ((("Cannot delete property " .. tostring(key)) .. " of ") .. tostring(target)) .. "."
-                ),
-                0
-            )
-        end
-        descriptors[key] = nil
-        return true
-    end
-    target[key] = nil
-    return true
-end
-
 local function __TS__StringAccess(self, index)
     if index >= 0 and index < #self then
         return string.sub(self, index + 1, index + 1)
     end
 end
-
 local function __TS__DelegatedYield(iterable)
     if type(iterable) == "string" then
         for index = 0, #iterable - 1 do
@@ -1226,7 +1030,122 @@ local function __TS__DelegatedYield(iterable)
         end
     end
 end
-
+local function __TS__ObjectGetOwnPropertyDescriptors(object)
+    local metatable = getmetatable(object)
+    if not metatable then
+        return {}
+    end
+    return rawget(metatable, "_descriptors") or ({})
+end
+local function __TS__StringIncludes(self, searchString, position)
+    if not position then
+        position = 1
+    else
+        position = position + 1
+    end
+    local index = string.find(self, searchString, position, true)
+    return index ~= nil
+end
+local function getErrorStack(self, constructor)
+    if debug == nil then
+        return nil
+    end
+    local level = 1
+    while true do
+        local info = debug.getinfo(level, "f")
+        level = level + 1
+        if not info then
+            level = 1
+            break
+        elseif info.func == constructor then
+            break
+        end
+    end
+    if __TS__StringIncludes(_VERSION, "Lua 5.0") then
+        return debug.traceback(("[Level " .. tostring(level)) .. "]")
+    elseif _VERSION == "Lua 5.1" then
+        return string.sub(
+            debug.traceback("", level),
+            2
+        )
+    else
+        return debug.traceback(nil, level)
+    end
+end
+local function wrapErrorToString(self, getDescription)
+    return function(self)
+        local description = getDescription(self)
+        local caller = debug.getinfo(3, "f")
+        local isClassicLua = __TS__StringIncludes(_VERSION, "Lua 5.0")
+        if isClassicLua or caller and caller.func ~= error then
+            return description
+        else
+            return (description .. "\n") .. tostring(self.stack)
+        end
+    end
+end
+local function initErrorClass(self, Type, name)
+    Type.name = name
+    return setmetatable(
+        Type,
+        {__call = function(____, _self, message) return __TS__New(Type, message) end}
+    )
+end
+local ____initErrorClass_1 = initErrorClass
+local ____class_0 = __TS__Class()
+____class_0.name = ____class_0.name
+function ____class_0.prototype.____constructor(self, message)
+    if message == nil then
+        message = ""
+    end
+    self.name = "Error"
+    self.message = message
+    self.stack = getErrorStack(nil, __TS__New)
+    local metatable = getmetatable(self)
+    if metatable and not metatable.__errorToStringPatched then
+        metatable.__errorToStringPatched = true
+        metatable.__tostring = wrapErrorToString(nil, metatable.__tostring)
+    end
+end
+function ____class_0.prototype.__tostring(self)
+    return self.message ~= "" and (self.name .. ": ") .. self.message or self.name
+end
+local Error = ____initErrorClass_1(nil, ____class_0, "Error")
+local function createErrorClass(self, name)
+    local ____initErrorClass_3 = initErrorClass
+    local ____class_2 = __TS__Class()
+    ____class_2.name = ____class_2.name
+    __TS__ClassExtends(____class_2, Error)
+    function ____class_2.prototype.____constructor(self, ...)
+        ____class_2.____super.prototype.____constructor(self, ...)
+        self.name = name
+    end
+    return ____initErrorClass_3(nil, ____class_2, name)
+end
+local RangeError = createErrorClass(nil, "RangeError")
+local ReferenceError = createErrorClass(nil, "ReferenceError")
+local SyntaxError = createErrorClass(nil, "SyntaxError")
+local TypeError = createErrorClass(nil, "TypeError")
+local URIError = createErrorClass(nil, "URIError")
+local function __TS__Delete(target, key)
+    local descriptors = __TS__ObjectGetOwnPropertyDescriptors(target)
+    local descriptor = descriptors[key]
+    if descriptor then
+        if not descriptor.configurable then
+            error(
+                __TS__New(
+                    TypeError,
+                    ((("Cannot delete property " .. tostring(key)) .. " of ") .. tostring(target)) .. "."
+                ),
+                0
+            )
+        end
+        descriptors[key] = nil
+        return true
+    end
+    target[key] = nil
+    return true
+end
 local function __TS__FunctionBind(fn, ...)
     local boundArgs = {...}
     return function(____, ...)
@@ -1238,44 +1157,38 @@ local function __TS__FunctionBind(fn, ...)
         return fn(__TS__Unpack(args))
     end
 end
-
-local __TS__Generator
-do
-    local function generatorIterator(self)
-        return self
+local function generatorIterator(self)
+    return self
+end
+local function generatorNext(self, ...)
+    local co = self.____coroutine
+    if coroutine.status(co) == "dead" then
+        return {done = true}
     end
-    local function generatorNext(self, ...)
-        local co = self.____coroutine
-        if coroutine.status(co) == "dead" then
-            return {done = true}
-        end
-        local status, value = coroutine.resume(co, ...)
-        if not status then
-            error(value, 0)
-        end
+    local status, value = coroutine.resume(co, ...)
+    if not status then
+        error(value, 0)
+    end
+    return {
+        value = value,
+        done = coroutine.status(co) == "dead"
+    }
+end
+local function __TS__Generator(fn)
+    return function(...)
+        local args = {...}
+        local argsLength = __TS__CountVarargs(...)
         return {
-            value = value,
-            done = coroutine.status(co) == "dead"
+            ____coroutine = coroutine.create(function() return fn(__TS__Unpack(args, 1, argsLength)) end),
+            [Symbol.iterator] = generatorIterator,
+            next = generatorNext
         }
     end
-    function __TS__Generator(fn)
-        return function(...)
-            local args = {...}
-            local argsLength = __TS__CountVarargs(...)
-            return {
-                ____coroutine = coroutine.create(function() return fn(__TS__Unpack(args, 1, argsLength)) end),
-                [Symbol.iterator] = generatorIterator,
-                next = generatorNext
-            }
-        end
-    end
 end
-
 local function __TS__InstanceOfObject(value)
     local valueType = type(value)
     return valueType == "table" or valueType == "function"
 end
-
 local function __TS__LuaIteratorSpread(self, state, firstKey)
     local results = {}
     local key, value = self(state, firstKey)
@@ -1285,172 +1198,170 @@ local function __TS__LuaIteratorSpread(self, state, firstKey)
     end
     return __TS__Unpack(results)
 end
-
 local Map
 do
-    Map = __TS__Class()
-    Map.name = "Map"
-    function Map.prototype.____constructor(self, entries)
-        self[Symbol.toStringTag] = "Map"
-        self.items = {}
-        self.size = 0
-        self.nextKey = {}
-        self.previousKey = {}
-        if entries == nil then
-            return
-        end
-        local iterable = entries
-        if iterable[Symbol.iterator] then
-            local iterator = iterable[Symbol.iterator](iterable)
-            while true do
-                local result = iterator:next()
-                if result.done then
-                    break
-                end
-                local value = result.value
-                self:set(value[1], value[2])
+Map = __TS__Class()
+Map.name = "Map"
+function Map.prototype.____constructor(self, entries)
+    self[Symbol.toStringTag] = "Map"
+    self.items = {}
+    self.size = 0
+    self.nextKey = {}
+    self.previousKey = {}
+    if entries == nil then
+        return
+    end
+    local iterable = entries
+    if iterable[Symbol.iterator] then
+        local iterator = iterable[Symbol.iterator](iterable)
+        while true do
+            local result = iterator:next()
+            if result.done then
+                break
             end
-        else
-            local array = entries
-            for ____, kvp in ipairs(array) do
-                self:set(kvp[1], kvp[2])
-            end
+            local value = result.value -- Ensures index is offset when tuple is accessed
+            self:set(value[1], value[2])
+        end
+    else
+        local array = entries
+        for ____, kvp in ipairs(array) do
+            self:set(kvp[1], kvp[2])
         end
     end
-    function Map.prototype.clear(self)
-        self.items = {}
-        self.nextKey = {}
-        self.previousKey = {}
-        self.firstKey = nil
-        self.lastKey = nil
-        self.size = 0
-    end
-    function Map.prototype.delete(self, key)
-        local contains = self:has(key)
-        if contains then
-            self.size = self.size - 1
-            local next = self.nextKey[key]
-            local previous = self.previousKey[key]
-            if next ~= nil and previous ~= nil then
-                self.nextKey[previous] = next
-                self.previousKey[next] = previous
-            elseif next ~= nil then
-                self.firstKey = next
-                self.previousKey[next] = nil
-            elseif previous ~= nil then
-                self.lastKey = previous
-                self.nextKey[previous] = nil
-            else
-                self.firstKey = nil
-                self.lastKey = nil
-            end
-            self.nextKey[key] = nil
-            self.previousKey[key] = nil
-        end
-        self.items[key] = nil
-        return contains
-    end
-    function Map.prototype.forEach(self, callback)
-        for ____, key in __TS__Iterator(self:keys()) do
-            callback(nil, self.items[key], key, self)
-        end
-    end
-    function Map.prototype.get(self, key)
-        return self.items[key]
-    end
-    function Map.prototype.has(self, key)
-        return self.nextKey[key] ~= nil or self.lastKey == key
-    end
-    function Map.prototype.set(self, key, value)
-        local isNewValue = not self:has(key)
-        if isNewValue then
-            self.size = self.size + 1
-        end
-        self.items[key] = value
-        if self.firstKey == nil then
-            self.firstKey = key
-            self.lastKey = key
-        elseif isNewValue then
-            self.nextKey[self.lastKey] = key
-            self.previousKey[key] = self.lastKey
-            self.lastKey = key
-        end
-        return self
-    end
-    Map.prototype[Symbol.iterator] = function(self)
-        return self:entries()
-    end
-    function Map.prototype.entries(self)
-        local function getFirstKey()
-            return self.firstKey
-        end
-        local items = self.items
-        local nextKey = self.nextKey
-        local key
-        local started = false
-        return {
-            [Symbol.iterator] = function(self)
-                return self
-            end,
-            next = function(self)
-                if not started then
-                    started = true
-                    key = getFirstKey(nil)
-                else
-                    key = nextKey[key]
-                end
-                return {done = not key, value = {key, items[key]}}
-            end
-        }
-    end
-    function Map.prototype.keys(self)
-        local function getFirstKey()
-            return self.firstKey
-        end
-        local nextKey = self.nextKey
-        local key
-        local started = false
-        return {
-            [Symbol.iterator] = function(self)
-                return self
-            end,
-            next = function(self)
-                if not started then
-                    started = true
-                    key = getFirstKey(nil)
-                else
-                    key = nextKey[key]
-                end
-                return {done = not key, value = key}
-            end
-        }
-    end
-    function Map.prototype.values(self)
-        local function getFirstKey()
-            return self.firstKey
-        end
-        local items = self.items
-        local nextKey = self.nextKey
-        local key
-        local started = false
-        return {
-            [Symbol.iterator] = function(self)
-                return self
-            end,
-            next = function(self)
-                if not started then
-                    started = true
-                    key = getFirstKey(nil)
-                else
-                    key = nextKey[key]
-                end
-                return {done = not key, value = items[key]}
-            end
-        }
-    end
-    Map[Symbol.species] = Map
 end
-
+function Map.prototype.clear(self)
+    self.items = {}
+    self.nextKey = {}
+    self.previousKey = {}
+    self.firstKey = nil
+    self.lastKey = nil
+    self.size = 0
+end
+function Map.prototype.delete(self, key)
+    local contains = self:has(key)
+    if contains then
+        self.size = self.size - 1
+        local next = self.nextKey[key]
+        local previous = self.previousKey[key]
+        if next ~= nil and previous ~= nil then
+            self.nextKey[previous] = next
+            self.previousKey[next] = previous
+        elseif next ~= nil then
+            self.firstKey = next
+            self.previousKey[next] = nil
+        elseif previous ~= nil then
+            self.lastKey = previous
+            self.nextKey[previous] = nil
+        else
+            self.firstKey = nil
+            self.lastKey = nil
+        end
+        self.nextKey[key] = nil
+        self.previousKey[key] = nil
+    end
+    self.items[key] = nil
+    return contains
+end
+function Map.prototype.forEach(self, callback)
+    for ____, key in __TS__Iterator(self:keys()) do
+        callback(nil, self.items[key], key, self)
+    end
+end
+function Map.prototype.get(self, key)
+    return self.items[key]
+end
+function Map.prototype.has(self, key)
+    return self.nextKey[key] ~= nil or self.lastKey == key
+end
+function Map.prototype.set(self, key, value)
+    local isNewValue = not self:has(key)
+    if isNewValue then
+        self.size = self.size + 1
+    end
+    self.items[key] = value
+    if self.firstKey == nil then
+        self.firstKey = key
+        self.lastKey = key
+    elseif isNewValue then
+        self.nextKey[self.lastKey] = key
+        self.previousKey[key] = self.lastKey
+        self.lastKey = key
+    end
+    return self
+end
+Map.prototype[Symbol.iterator] = function(self)
+    return self:entries()
+end
+function Map.prototype.entries(self)
+    local function getFirstKey()
+        return self.firstKey
+    end
+    local items = self.items
+    local nextKey = self.nextKey
+    local key
+    local started = false
+    return {
+        [Symbol.iterator] = function(self)
+            return self
+        end,
+        next = function(self)
+            if not started then
+                started = true
+                key = getFirstKey(nil)
+            else
+                key = nextKey[key]
+            end
+            return {done = not key, value = {key, items[key]}}
+        end
+    }
+end
+function Map.prototype.keys(self)
+    local function getFirstKey()
+        return self.firstKey
+    end
+    local nextKey = self.nextKey
+    local key
+    local started = false
+    return {
+        [Symbol.iterator] = function(self)
+            return self
+        end,
+        next = function(self)
+            if not started then
+                started = true
+                key = getFirstKey(nil)
+            else
+                key = nextKey[key]
+            end
+            return {done = not key, value = key}
+        end
+    }
+end
+function Map.prototype.values(self)
+    local function getFirstKey()
+        return self.firstKey
+    end
+    local items = self.items
+    local nextKey = self.nextKey
+    local key
+    local started = false
+    return {
+        [Symbol.iterator] = function(self)
+            return self
+        end,
+        next = function(self)
+            if not started then
+                started = true
+                key = getFirstKey(nil)
+            else
+                key = nextKey[key]
+            end
+            return {done = not key, value = items[key]}
+        end
+    }
+end
+Map[Symbol.species] = Map
+end
 local function __TS__MapGroupBy(items, keySelector)
     local result = __TS__New(Map)
     local i = 0
@@ -1466,17 +1377,12 @@ local function __TS__MapGroupBy(items, keySelector)
     end
     return result
 end
-
 local __TS__Match = string.match
-
 local __TS__MathAtan2 = math.atan2 or math.atan
-
 local __TS__MathModf = math.modf
-
 local function __TS__NumberIsNaN(value)
     return value ~= value
 end
-
 local function __TS__MathSign(val)
     if __TS__NumberIsNaN(val) or val == 0 then
         return val
@@ -1486,18 +1392,15 @@ local function __TS__MathSign(val)
     end
     return 1
 end
-
 local function __TS__NumberIsFinite(value)
     return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
 end
-
 local function __TS__MathTrunc(val)
     if not __TS__NumberIsFinite(val) or val == 0 then
         return val
     end
     return val > 0 and math.floor(val) or math.ceil(val)
 end
-
 local function __TS__Number(value)
     local valueType = type(value)
     if valueType == "number" then
@@ -1524,112 +1427,9 @@ local function __TS__Number(value)
         return 0 / 0
     end
 end
-
 local function __TS__NumberIsInteger(value)
     return __TS__NumberIsFinite(value) and math.floor(value) == value
 end
-
-local function __TS__StringSubstring(self, start, ____end)
-    if ____end ~= ____end then
-        ____end = 0
-    end
-    if ____end ~= nil and start > ____end then
-        start, ____end = ____end, start
-    end
-    if start >= 0 then
-        start = start + 1
-    else
-        start = 1
-    end
-    if ____end ~= nil and ____end < 0 then
-        ____end = 0
-    end
-    return string.sub(self, start, ____end)
-end
-
-local __TS__ParseInt
-do
-    local parseIntBasePattern = "0123456789aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTvVwWxXyYzZ"
-    function __TS__ParseInt(numberString, base)
-        if base == nil then
-            base = 10
-            local hexMatch = __TS__Match(numberString, "^%s*-?0[xX]")
-            if hexMatch ~= nil then
-                base = 16
-                numberString = (__TS__Match(hexMatch, "-")) and "-" .. __TS__StringSubstring(numberString, #hexMatch) or __TS__StringSubstring(numberString, #hexMatch)
-            end
-        end
-        if base < 2 or base > 36 then
-            return 0 / 0
-        end
-        local allowedDigits = base <= 10 and __TS__StringSubstring(parseIntBasePattern, 0, base) or __TS__StringSubstring(parseIntBasePattern, 0, 10 + 2 * (base - 10))
-        local pattern = ("^%s*(-?[" .. allowedDigits) .. "]*)"
-        local number = tonumber((__TS__Match(numberString, pattern)), base)
-        if number == nil then
-            return 0 / 0
-        end
-        if number >= 0 then
-            return math.floor(number)
-        else
-            return math.ceil(number)
-        end
-    end
-end
-
-local function __TS__ParseFloat(numberString)
-    local infinityMatch = __TS__Match(numberString, "^%s*(-?Infinity)")
-    if infinityMatch ~= nil then
-        return __TS__StringAccess(infinityMatch, 0) == "-" and -math.huge or math.huge
-    end
-    local number = tonumber((__TS__Match(numberString, "^%s*(-?%d+%.?%d*)")))
-    return number or 0 / 0
-end
-
-local __TS__NumberToString
-do
-    local radixChars = "0123456789abcdefghijklmnopqrstuvwxyz"
-    function __TS__NumberToString(self, radix)
-        if radix == nil or radix == 10 or self == math.huge or self == -math.huge or self ~= self then
-            return tostring(self)
-        end
-        radix = math.floor(radix)
-        if radix < 2 or radix > 36 then
-            error("toString() radix argument must be between 2 and 36", 0)
-        end
-        local integer, fraction = __TS__MathModf(math.abs(self))
-        local result = ""
-        if radix == 8 then
-            result = string.format("%o", integer)
-        elseif radix == 16 then
-            result = string.format("%x", integer)
-        else
-            repeat
-                do
-                    result = __TS__StringAccess(radixChars, integer % radix) .. result
-                    integer = math.floor(integer / radix)
-                end
-            until not (integer ~= 0)
-        end
-        if fraction ~= 0 then
-            result = result .. "."
-            local delta = 1e-16
-            repeat
-                do
-                    fraction = fraction * radix
-                    delta = delta * radix
-                    local digit = math.floor(fraction)
-                    result = result .. __TS__StringAccess(radixChars, digit)
-                    fraction = fraction - digit
-                end
-            until not (fraction >= delta)
-        end
-        if self < 0 then
-            result = "-" .. result
-        end
-        return result
-    end
-end
-
 local function __TS__NumberToFixed(self, fractionDigits)
     if math.abs(self) >= 1e+21 or self ~= self then
         return tostring(self)
@@ -1643,7 +1443,47 @@ local function __TS__NumberToFixed(self, fractionDigits)
         self
     )
 end
-
+local radixChars = "0123456789abcdefghijklmnopqrstuvwxyz"
+local function __TS__NumberToString(self, radix)
+    if radix == nil or radix == 10 or self == math.huge or self == -math.huge or self ~= self then
+        return tostring(self)
+    end
+    radix = math.floor(radix)
+    if radix < 2 or radix > 36 then
+        error("toString() radix argument must be between 2 and 36", 0)
+    end
+    local integer, fraction = __TS__MathModf(math.abs(self))
+    local result = ""
+    if radix == 8 then
+        result = string.format("%o", integer)
+    elseif radix == 16 then
+        result = string.format("%x", integer)
+    else
+        repeat
+            do
+                result = __TS__StringAccess(radixChars, integer % radix) .. result
+                integer = math.floor(integer / radix)
+            end
+        until not (integer ~= 0)
+    end
+    if fraction ~= 0 then
+        result = result .. "."
+        local delta = 1e-16
+        repeat
+            do
+                fraction = fraction * radix
+                delta = delta * radix
+                local digit = math.floor(fraction)
+                result = result .. __TS__StringAccess(radixChars, digit)
+                fraction = fraction - digit
+            end
+        until not (fraction >= delta)
+    end
+    if self < 0 then
+        result = "-" .. result
+    end
+    return result
+end
 local function __TS__ObjectDefineProperty(target, key, desc)
     local luaKey = type(key) == "number" and key + 1 or key
     local value = rawget(target, luaKey)
@@ -1691,7 +1531,6 @@ local function __TS__ObjectDefineProperty(target, key, desc)
     __TS__SetDescriptor(target, luaKey, descriptor)
     return target
 end
-
 local function __TS__ObjectEntries(obj)
     local result = {}
     local len = 0
@@ -1701,7 +1540,6 @@ local function __TS__ObjectEntries(obj)
     end
     return result
 end
-
 local function __TS__ObjectFromEntries(entries)
     local obj = {}
     local iterable = entries
@@ -1722,7 +1560,6 @@ local function __TS__ObjectFromEntries(entries)
     end
     return obj
 end
-
 local function __TS__ObjectGroupBy(items, keySelector)
     local result = {}
     local i = 0
@@ -1738,7 +1575,6 @@ local function __TS__ObjectGroupBy(items, keySelector)
     end
     return result
 end
-
 local function __TS__ObjectKeys(obj)
     local result = {}
     local len = 0
@@ -1748,7 +1584,6 @@ local function __TS__ObjectKeys(obj)
     end
     return result
 end
-
 local function __TS__ObjectRest(target, usedProperties)
     local result = {}
     for property in pairs(target) do
@@ -1758,7 +1593,6 @@ local function __TS__ObjectRest(target, usedProperties)
     end
     return result
 end
-
 local function __TS__ObjectValues(obj)
     local result = {}
     local len = 0
@@ -1768,7 +1602,56 @@ local function __TS__ObjectValues(obj)
     end
     return result
 end
-
+local function __TS__ParseFloat(numberString)
+    local infinityMatch = __TS__Match(numberString, "^%s*(-?Infinity)")
+    if infinityMatch ~= nil then
+        return __TS__StringAccess(infinityMatch, 0) == "-" and -math.huge or math.huge
+    end
+    local number = tonumber((__TS__Match(numberString, "^%s*(-?%d+%.?%d*)")))
+    return number or 0 / 0
+end
+local function __TS__StringSubstring(self, start, ____end)
+    if ____end ~= ____end then
+        ____end = 0
+    end
+    if ____end ~= nil and start > ____end then
+        start, ____end = __TS__Unpack({____end, start})
+    end
+    if start >= 0 then
+        start = start + 1
+    else
+        start = 1
+    end
+    if ____end ~= nil and ____end < 0 then
+        ____end = 0
+    end
+    return string.sub(self, start, ____end)
+end
+local parseIntBasePattern = "0123456789aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTvVwWxXyYzZ"
+local function __TS__ParseInt(numberString, base)
+    if base == nil then
+        base = 10
+        local hexMatch = __TS__Match(numberString, "^%s*-?0[xX]")
+        if hexMatch ~= nil then
+            base = 16
+            numberString = (__TS__Match(hexMatch, "-")) and "-" .. __TS__StringSubstring(numberString, #hexMatch) or __TS__StringSubstring(numberString, #hexMatch)
+        end
+    end
+    if base < 2 or base > 36 then
+        return 0 / 0
+    end
+    local allowedDigits = base <= 10 and __TS__StringSubstring(parseIntBasePattern, 0, base) or __TS__StringSubstring(parseIntBasePattern, 0, 10 + 2 * (base - 10))
+    local pattern = ("^%s*(-?[" .. allowedDigits) .. "]*)"
+    local number = tonumber((__TS__Match(numberString, pattern)), base)
+    if number == nil then
+        return 0 / 0
+    end
+    if number >= 0 then
+        return math.floor(number)
+    else
+        return math.ceil(number)
+    end
+end
 local function __TS__PromiseAll(iterable)
     local results = {}
     local toResolve = {}
@@ -1813,7 +1696,6 @@ local function __TS__PromiseAll(iterable)
         end
     )
 end
-
 local function __TS__PromiseAllSettled(iterable)
     local results = {}
     local toResolve = {}
@@ -1862,7 +1744,6 @@ local function __TS__PromiseAllSettled(iterable)
         end
     )
 end
-
 local function __TS__PromiseAny(iterable)
     local rejections = {}
     local pending = {}
@@ -1904,7 +1785,6 @@ local function __TS__PromiseAny(iterable)
         end
     )
 end
-
 local function __TS__PromiseRace(iterable)
     local pending = {}
     for ____, item in __TS__Iterator(iterable) do
@@ -1933,329 +1813,218 @@ local function __TS__PromiseRace(iterable)
         end
     )
 end
-
 local Set
 do
-    Set = __TS__Class()
-    Set.name = "Set"
-    function Set.prototype.____constructor(self, values)
-        self[Symbol.toStringTag] = "Set"
-        self.size = 0
-        self.nextKey = {}
-        self.previousKey = {}
-        if values == nil then
-            return
-        end
-        local iterable = values
-        if iterable[Symbol.iterator] then
-            local iterator = iterable[Symbol.iterator](iterable)
-            while true do
-                local result = iterator:next()
-                if result.done then
-                    break
-                end
-                self:add(result.value)
+Set = __TS__Class()
+Set.name = "Set"
+function Set.prototype.____constructor(self, values)
+    self[Symbol.toStringTag] = "Set"
+    self.size = 0
+    self.nextKey = {}
+    self.previousKey = {}
+    if values == nil then
+        return
+    end
+    local iterable = values
+    if iterable[Symbol.iterator] then
+        local iterator = iterable[Symbol.iterator](iterable)
+        while true do
+            local result = iterator:next()
+            if result.done then
+                break
             end
+            self:add(result.value)
+        end
+    else
+        local array = values
+        for ____, value in ipairs(array) do
+            self:add(value)
+        end
+    end
+end
+function Set.prototype.add(self, value)
+    local isNewValue = not self:has(value)
+    if isNewValue then
+        self.size = self.size + 1
+    end
+    if self.firstKey == nil then
+        self.firstKey = value
+        self.lastKey = value
+    elseif isNewValue then
+        self.nextKey[self.lastKey] = value
+        self.previousKey[value] = self.lastKey
+        self.lastKey = value
+    end
+    return self
+end
+function Set.prototype.clear(self)
+    self.nextKey = {}
+    self.previousKey = {}
+    self.firstKey = nil
+    self.lastKey = nil
+    self.size = 0
+end
+function Set.prototype.delete(self, value)
+    local contains = self:has(value)
+    if contains then
+        self.size = self.size - 1
+        local next = self.nextKey[value]
+        local previous = self.previousKey[value]
+        if next ~= nil and previous ~= nil then
+            self.nextKey[previous] = next
+            self.previousKey[next] = previous
+        elseif next ~= nil then
+            self.firstKey = next
+            self.previousKey[next] = nil
+        elseif previous ~= nil then
+            self.lastKey = previous
+            self.nextKey[previous] = nil
         else
-            local array = values
-            for ____, value in ipairs(array) do
-                self:add(value)
-            end
+            self.firstKey = nil
+            self.lastKey = nil
         end
+        self.nextKey[value] = nil
+        self.previousKey[value] = nil
     end
-    function Set.prototype.add(self, value)
-        local isNewValue = not self:has(value)
-        if isNewValue then
-            self.size = self.size + 1
-        end
-        if self.firstKey == nil then
-            self.firstKey = value
-            self.lastKey = value
-        elseif isNewValue then
-            self.nextKey[self.lastKey] = value
-            self.previousKey[value] = self.lastKey
-            self.lastKey = value
-        end
-        return self
+    return contains
+end
+function Set.prototype.forEach(self, callback)
+    for ____, key in __TS__Iterator(self:keys()) do
+        callback(nil, key, key, self)
     end
-    function Set.prototype.clear(self)
-        self.nextKey = {}
-        self.previousKey = {}
-        self.firstKey = nil
-        self.lastKey = nil
-        self.size = 0
+end
+function Set.prototype.has(self, value)
+    return self.nextKey[value] ~= nil or self.lastKey == value
+end
+Set.prototype[Symbol.iterator] = function(self)
+    return self:values()
+end
+function Set.prototype.entries(self)
+    local function getFirstKey()
+        return self.firstKey
     end
-    function Set.prototype.delete(self, value)
-        local contains = self:has(value)
-        if contains then
-            self.size = self.size - 1
-            local next = self.nextKey[value]
-            local previous = self.previousKey[value]
-            if next ~= nil and previous ~= nil then
-                self.nextKey[previous] = next
-                self.previousKey[next] = previous
-            elseif next ~= nil then
-                self.firstKey = next
-                self.previousKey[next] = nil
-            elseif previous ~= nil then
-                self.lastKey = previous
-                self.nextKey[previous] = nil
+    local nextKey = self.nextKey
+    local key
+    local started = false
+    return {
+        [Symbol.iterator] = function(self)
+            return self
+        end,
+        next = function(self)
+            if not started then
+                started = true
+                key = getFirstKey(nil)
             else
-                self.firstKey = nil
-                self.lastKey = nil
+                key = nextKey[key]
             end
-            self.nextKey[value] = nil
-            self.previousKey[value] = nil
+            return {done = not key, value = {key, key}}
         end
-        return contains
+    }
+end
+function Set.prototype.keys(self)
+    local function getFirstKey()
+        return self.firstKey
     end
-    function Set.prototype.forEach(self, callback)
-        for ____, key in __TS__Iterator(self:keys()) do
-            callback(nil, key, key, self)
-        end
-    end
-    function Set.prototype.has(self, value)
-        return self.nextKey[value] ~= nil or self.lastKey == value
-    end
-    Set.prototype[Symbol.iterator] = function(self)
-        return self:values()
-    end
-    function Set.prototype.entries(self)
-        local function getFirstKey()
-            return self.firstKey
-        end
-        local nextKey = self.nextKey
-        local key
-        local started = false
-        return {
-            [Symbol.iterator] = function(self)
-                return self
-            end,
-            next = function(self)
-                if not started then
-                    started = true
-                    key = getFirstKey(nil)
-                else
-                    key = nextKey[key]
-                end
-                return {done = not key, value = {key, key}}
+    local nextKey = self.nextKey
+    local key
+    local started = false
+    return {
+        [Symbol.iterator] = function(self)
+            return self
+        end,
+        next = function(self)
+            if not started then
+                started = true
+                key = getFirstKey(nil)
+            else
+                key = nextKey[key]
             end
-        }
-    end
-    function Set.prototype.keys(self)
-        local function getFirstKey()
-            return self.firstKey
+            return {done = not key, value = key}
         end
-        local nextKey = self.nextKey
-        local key
-        local started = false
-        return {
-            [Symbol.iterator] = function(self)
-                return self
-            end,
-            next = function(self)
-                if not started then
-                    started = true
-                    key = getFirstKey(nil)
-                else
-                    key = nextKey[key]
-                end
-                return {done = not key, value = key}
-            end
-        }
+    }
+end
+function Set.prototype.values(self)
+    local function getFirstKey()
+        return self.firstKey
     end
-    function Set.prototype.values(self)
-        local function getFirstKey()
-            return self.firstKey
+    local nextKey = self.nextKey
+    local key
+    local started = false
+    return {
+        [Symbol.iterator] = function(self)
+            return self
+        end,
+        next = function(self)
+            if not started then
+                started = true
+                key = getFirstKey(nil)
+            else
+                key = nextKey[key]
+            end
+            return {done = not key, value = key}
         end
-        local nextKey = self.nextKey
-        local key
-        local started = false
-        return {
-            [Symbol.iterator] = function(self)
-                return self
-            end,
-            next = function(self)
-                if not started then
-                    started = true
-                    key = getFirstKey(nil)
-                else
-                    key = nextKey[key]
-                end
-                return {done = not key, value = key}
-            end
-        }
+    }
+end
+function Set.prototype.union(self, other)
+    local result = __TS__New(Set, self)
+    for ____, item in __TS__Iterator(other) do
+        result:add(item)
     end
-    function Set.prototype.union(self, other)
-        local result = __TS__New(Set, self)
-        for ____, item in __TS__Iterator(other) do
+    return result
+end
+function Set.prototype.intersection(self, other)
+    local result = __TS__New(Set)
+    for ____, item in __TS__Iterator(self) do
+        if other:has(item) then
             result:add(item)
         end
-        return result
     end
-    function Set.prototype.intersection(self, other)
-        local result = __TS__New(Set)
-        for ____, item in __TS__Iterator(self) do
-            if other:has(item) then
-                result:add(item)
-            end
-        end
-        return result
+    return result
+end
+function Set.prototype.difference(self, other)
+    local result = __TS__New(Set, self)
+    for ____, item in __TS__Iterator(other) do
+        result:delete(item)
     end
-    function Set.prototype.difference(self, other)
-        local result = __TS__New(Set, self)
-        for ____, item in __TS__Iterator(other) do
+    return result
+end
+function Set.prototype.symmetricDifference(self, other)
+    local result = __TS__New(Set, self)
+    for ____, item in __TS__Iterator(other) do
+        if self:has(item) then
             result:delete(item)
-        end
-        return result
-    end
-    function Set.prototype.symmetricDifference(self, other)
-        local result = __TS__New(Set, self)
-        for ____, item in __TS__Iterator(other) do
-            if self:has(item) then
-                result:delete(item)
-            else
-                result:add(item)
-            end
-        end
-        return result
-    end
-    function Set.prototype.isSubsetOf(self, other)
-        for ____, item in __TS__Iterator(self) do
-            if not other:has(item) then
-                return false
-            end
-        end
-        return true
-    end
-    function Set.prototype.isSupersetOf(self, other)
-        for ____, item in __TS__Iterator(other) do
-            if not self:has(item) then
-                return false
-            end
-        end
-        return true
-    end
-    function Set.prototype.isDisjointFrom(self, other)
-        for ____, item in __TS__Iterator(self) do
-            if other:has(item) then
-                return false
-            end
-        end
-        return true
-    end
-    Set[Symbol.species] = Set
-end
-
-local function __TS__SparseArrayNew(...)
-    local sparseArray = {...}
-    sparseArray.sparseLength = __TS__CountVarargs(...)
-    return sparseArray
-end
-
-local function __TS__SparseArrayPush(sparseArray, ...)
-    local args = {...}
-    local argsLen = __TS__CountVarargs(...)
-    local listLen = sparseArray.sparseLength
-    for i = 1, argsLen do
-        sparseArray[listLen + i] = args[i]
-    end
-    sparseArray.sparseLength = listLen + argsLen
-end
-
-local function __TS__SparseArraySpread(sparseArray)
-    local _unpack = unpack or table.unpack
-    return _unpack(sparseArray, 1, sparseArray.sparseLength)
-end
-
-local WeakMap
-do
-    WeakMap = __TS__Class()
-    WeakMap.name = "WeakMap"
-    function WeakMap.prototype.____constructor(self, entries)
-        self[Symbol.toStringTag] = "WeakMap"
-        self.items = {}
-        setmetatable(self.items, {__mode = "k"})
-        if entries == nil then
-            return
-        end
-        local iterable = entries
-        if iterable[Symbol.iterator] then
-            local iterator = iterable[Symbol.iterator](iterable)
-            while true do
-                local result = iterator:next()
-                if result.done then
-                    break
-                end
-                local value = result.value
-                self.items[value[1]] = value[2]
-            end
         else
-            for ____, kvp in ipairs(entries) do
-                self.items[kvp[1]] = kvp[2]
-            end
+            result:add(item)
         end
     end
-    function WeakMap.prototype.delete(self, key)
-        local contains = self:has(key)
-        self.items[key] = nil
-        return contains
-    end
-    function WeakMap.prototype.get(self, key)
-        return self.items[key]
-    end
-    function WeakMap.prototype.has(self, key)
-        return self.items[key] ~= nil
-    end
-    function WeakMap.prototype.set(self, key, value)
-        self.items[key] = value
-        return self
-    end
-    WeakMap[Symbol.species] = WeakMap
+    return result
 end
-
-local WeakSet
-do
-    WeakSet = __TS__Class()
-    WeakSet.name = "WeakSet"
-    function WeakSet.prototype.____constructor(self, values)
-        self[Symbol.toStringTag] = "WeakSet"
-        self.items = {}
-        setmetatable(self.items, {__mode = "k"})
-        if values == nil then
-            return
-        end
-        local iterable = values
-        if iterable[Symbol.iterator] then
-            local iterator = iterable[Symbol.iterator](iterable)
-            while true do
-                local result = iterator:next()
-                if result.done then
-                    break
-                end
-                self.items[result.value] = true
-            end
-        else
-            for ____, value in ipairs(values) do
-                self.items[value] = true
-            end
+function Set.prototype.isSubsetOf(self, other)
+    for ____, item in __TS__Iterator(self) do
+        if not other:has(item) then
+            return false
         end
     end
-    function WeakSet.prototype.add(self, value)
-        self.items[value] = true
-        return self
-    end
-    function WeakSet.prototype.delete(self, value)
-        local contains = self:has(value)
-        self.items[value] = nil
-        return contains
-    end
-    function WeakSet.prototype.has(self, value)
-        return self.items[value] == true
-    end
-    WeakSet[Symbol.species] = WeakSet
+    return true
 end
-
+function Set.prototype.isSupersetOf(self, other)
+    for ____, item in __TS__Iterator(other) do
+        if not self:has(item) then
+            return false
+        end
+    end
+    return true
+end
+function Set.prototype.isDisjointFrom(self, other)
+    for ____, item in __TS__Iterator(self) do
+        if other:has(item) then
+            return false
+        end
+    end
+    return true
+end
+Set[Symbol.species] = Set
+end
 local function __TS__SourceMapTraceBack(fileName, sourceMap)
     _G.__TS__sourcemap = _G.__TS__sourcemap or ({})
     _G.__TS__sourcemap[fileName] = sourceMap
@@ -2312,7 +2081,24 @@ local function __TS__SourceMapTraceBack(fileName, sourceMap)
         end
     end
 end
-
+local function __TS__SparseArrayNew(...)
+    local sparseArray = {...}
+    sparseArray.sparseLength = __TS__CountVarargs(...)
+    return sparseArray
+end
+local function __TS__SparseArrayPush(sparseArray, ...)
+    local args = {...}
+    local argsLen = __TS__CountVarargs(...)
+    local listLen = sparseArray.sparseLength
+    for i = 1, argsLen do
+        sparseArray[listLen + i] = args[i]
+    end
+    sparseArray.sparseLength = listLen + argsLen
+end
+local function __TS__SparseArraySpread(sparseArray)
+    local _unpack = unpack or table.unpack
+    return _unpack(sparseArray, 1, sparseArray.sparseLength)
+end
 local function __TS__Spread(iterable)
     local arr = {}
     if type(iterable) == "string" then
@@ -2328,7 +2114,6 @@ local function __TS__Spread(iterable)
     end
     return __TS__Unpack(arr)
 end
-
 local function __TS__StringCharAt(self, pos)
     if pos ~= pos then
         pos = 0
@@ -2338,7 +2123,6 @@ local function __TS__StringCharAt(self, pos)
     end
     return string.sub(self, pos + 1, pos + 1)
 end
-
 local function __TS__StringCharCodeAt(self, index)
     if index ~= index then
         index = 0
@@ -2348,14 +2132,12 @@ local function __TS__StringCharCodeAt(self, index)
     end
     return string.byte(self, index + 1) or 0 / 0
 end
-
 local function __TS__StringEndsWith(self, searchString, endPosition)
     if endPosition == nil or endPosition > #self then
         endPosition = #self
     end
     return string.sub(self, endPosition - #searchString + 1, endPosition) == searchString
 end
-
 local function __TS__StringPadEnd(self, maxLength, fillString)
     if fillString == nil then
         fillString = " "
@@ -2382,7 +2164,6 @@ local function __TS__StringPadEnd(self, maxLength, fillString)
         math.floor(maxLength)
     )
 end
-
 local function __TS__StringPadStart(self, maxLength, fillString)
     if fillString == nil then
         fillString = " "
@@ -2409,102 +2190,95 @@ local function __TS__StringPadStart(self, maxLength, fillString)
         math.floor(maxLength)
     ) .. self
 end
-
-local __TS__StringReplace
-do
-    local sub = string.sub
-    function __TS__StringReplace(source, searchValue, replaceValue)
-        local startPos, endPos = string.find(source, searchValue, nil, true)
-        if not startPos then
-            return source
-        end
-        local before = sub(source, 1, startPos - 1)
-        local replacement = type(replaceValue) == "string" and replaceValue or replaceValue(nil, searchValue, startPos - 1, source)
-        local after = sub(source, endPos + 1)
-        return (before .. replacement) .. after
+local sub = string.sub
+local function __TS__StringReplace(source, searchValue, replaceValue)
+    local startPos, endPos = string.find(source, searchValue, nil, true)
+    if not startPos then
+        return source
     end
-end
-
-local __TS__StringSplit
-do
-    local sub = string.sub
-    local find = string.find
-    function __TS__StringSplit(source, separator, limit)
-        if limit == nil then
-            limit = 4294967295
-        end
-        if limit == 0 then
-            return {}
-        end
-        local result = {}
-        local resultIndex = 1
-        if separator == nil or separator == "" then
-            for i = 1, #source do
-                result[resultIndex] = sub(source, i, i)
-                resultIndex = resultIndex + 1
-            end
-        else
-            local currentPos = 1
-            while resultIndex <= limit do
-                local startPos, endPos = find(source, separator, currentPos, true)
-                if not startPos then
-                    break
-                end
-                result[resultIndex] = sub(source, currentPos, startPos - 1)
-                resultIndex = resultIndex + 1
-                currentPos = endPos + 1
-            end
-            if resultIndex <= limit then
-                result[resultIndex] = sub(source, currentPos)
-            end
-        end
-        return result
+    local before = sub(source, 1, startPos - 1)
+    local ____temp_0
+    if type(replaceValue) == "string" then
+        ____temp_0 = replaceValue
+    else
+        ____temp_0 = replaceValue(nil, searchValue, startPos - 1, source)
     end
+    local replacement = ____temp_0
+    local after = sub(source, endPos + 1)
+    return (before .. replacement) .. after
 end
-
-local __TS__StringReplaceAll
-do
-    local sub = string.sub
-    local find = string.find
-    function __TS__StringReplaceAll(source, searchValue, replaceValue)
-        if type(replaceValue) == "string" then
-            local concat = table.concat(
-                __TS__StringSplit(source, searchValue),
-                replaceValue
-            )
-            if #searchValue == 0 then
-                return (replaceValue .. concat) .. replaceValue
-            end
-            return concat
+local sub = string.sub
+local find = string.find
+local function __TS__StringSplit(source, separator, limit)
+    if limit == nil then
+        limit = 4294967295
+    end
+    if limit == 0 then
+        return {}
+    end
+    local result = {}
+    local resultIndex = 1
+    if separator == nil or separator == "" then
+        for i = 1, #source do
+            result[resultIndex] = sub(source, i, i)
+            resultIndex = resultIndex + 1
         end
-        local parts = {}
-        local partsIndex = 1
+    else
+        local currentPos = 1
+        while resultIndex <= limit do
+            local startPos, endPos = find(source, separator, currentPos, true)
+            if not startPos then
+                break
+            end
+            result[resultIndex] = sub(source, currentPos, startPos - 1)
+            resultIndex = resultIndex + 1
+            currentPos = endPos + 1
+        end
+        if resultIndex <= limit then
+            result[resultIndex] = sub(source, currentPos)
+        end
+    end
+    return result
+end
+local sub = string.sub
+local find = string.find
+local function __TS__StringReplaceAll(source, searchValue, replaceValue)
+    if type(replaceValue) == "string" then
+        local concat = table.concat(
+            __TS__StringSplit(source, searchValue),
+            replaceValue
+        )
         if #searchValue == 0 then
-            parts[1] = replaceValue(nil, "", 0, source)
-            partsIndex = 2
-            for i = 1, #source do
-                parts[partsIndex] = sub(source, i, i)
-                parts[partsIndex + 1] = replaceValue(nil, "", i, source)
-                partsIndex = partsIndex + 2
-            end
-        else
-            local currentPos = 1
-            while true do
-                local startPos, endPos = find(source, searchValue, currentPos, true)
-                if not startPos then
-                    break
-                end
-                parts[partsIndex] = sub(source, currentPos, startPos - 1)
-                parts[partsIndex + 1] = replaceValue(nil, searchValue, startPos - 1, source)
-                partsIndex = partsIndex + 2
-                currentPos = endPos + 1
-            end
-            parts[partsIndex] = sub(source, currentPos)
+            return (replaceValue .. concat) .. replaceValue
         end
-        return table.concat(parts)
+        return concat
     end
+    local parts = {}
+    local partsIndex = 1
+    if #searchValue == 0 then
+        parts[1] = replaceValue(nil, "", 0, source)
+        partsIndex = 2
+        for i = 1, #source do
+            parts[partsIndex] = sub(source, i, i)
+            parts[partsIndex + 1] = replaceValue(nil, "", i, source)
+            partsIndex = partsIndex + 2
+        end
+    else
+        local currentPos = 1
+        while true do
+            local startPos, endPos = find(source, searchValue, currentPos, true)
+            if not startPos then
+                break
+            end
+            parts[partsIndex] = sub(source, currentPos, startPos - 1)
+            parts[partsIndex + 1] = replaceValue(nil, searchValue, startPos - 1, source)
+            partsIndex = partsIndex + 2
+            currentPos = endPos + 1
+        end
+        parts[partsIndex] = sub(source, currentPos)
+    end
+    return table.concat(parts)
 end
-
 local function __TS__StringSlice(self, start, ____end)
     if start == nil or start ~= start then
         start = 0
@@ -2520,14 +2294,12 @@ local function __TS__StringSlice(self, start, ____end)
     end
     return string.sub(self, start, ____end)
 end
-
 local function __TS__StringStartsWith(self, searchString, position)
     if position == nil or position < 0 then
         position = 0
     end
     return string.sub(self, position + 1, #searchString + position) == searchString
 end
-
 local function __TS__StringSubstr(self, from, length)
     if from ~= from then
         from = 0
@@ -2543,41 +2315,33 @@ local function __TS__StringSubstr(self, from, length)
     end
     return string.sub(self, from, length)
 end
-
 local function __TS__StringTrim(self)
     local result = string.gsub(self, "^[%s ﻿]*(.-)[%s ﻿]*$", "%1")
     return result
 end
-
 local function __TS__StringTrimEnd(self)
     local result = string.gsub(self, "[%s ﻿]*$", "")
     return result
 end
-
 local function __TS__StringTrimStart(self)
     local result = string.gsub(self, "^[%s ﻿]*", "")
     return result
 end
-
-local __TS__SymbolRegistryFor, __TS__SymbolRegistryKeyFor
-do
-    local symbolRegistry = {}
-    function __TS__SymbolRegistryFor(key)
-        if not symbolRegistry[key] then
-            symbolRegistry[key] = __TS__Symbol(key)
-        end
-        return symbolRegistry[key]
+local symbolRegistry = {}
+local function __TS__SymbolRegistryFor(key)
+    if not symbolRegistry[key] then
+        symbolRegistry[key] = __TS__Symbol(key)
     end
-    function __TS__SymbolRegistryKeyFor(sym)
-        for key in pairs(symbolRegistry) do
-            if symbolRegistry[key] == sym then
-                return key
-            end
-        end
-        return nil
-    end
+    return symbolRegistry[key]
 end
-
+local function __TS__SymbolRegistryKeyFor(sym)
+    for key in pairs(symbolRegistry) do
+        if symbolRegistry[key] == sym then
+            return key
+        end
+    end
+    return nil
+end
 local function __TS__TypeOf(value)
     local luaType = type(value)
     if luaType == "table" then
@@ -2588,7 +2352,6 @@ local function __TS__TypeOf(value)
         return luaType
     end
 end
-
 local function __TS__Using(self, cb, ...)
     local args = {...}
     local thrownError
@@ -2599,7 +2362,7 @@ local function __TS__Using(self, cb, ...)
             return thrownError
         end
     )
-    local argArray = {__TS__Unpack(args)}
+    local argArray = {...}
     do
         local i = #argArray - 1
         while i >= 0 do
@@ -2613,7 +2376,6 @@ local function __TS__Using(self, cb, ...)
     end
     return result
 end
-
 local function __TS__UsingAsync(self, cb, ...)
     local args = {...}
     return __TS__AsyncAwaiter(function(____awaiter_resolve)
@@ -2649,7 +2411,92 @@ local function __TS__UsingAsync(self, cb, ...)
         return ____awaiter_resolve(nil, result)
     end)
 end
-
+local WeakMap
+do
+WeakMap = __TS__Class()
+WeakMap.name = "WeakMap"
+function WeakMap.prototype.____constructor(self, entries)
+    self[Symbol.toStringTag] = "WeakMap"
+    self.items = {}
+    setmetatable(self.items, {__mode = "k"})
+    if entries == nil then
+        return
+    end
+    local iterable = entries
+    if iterable[Symbol.iterator] then
+        local iterator = iterable[Symbol.iterator](iterable)
+        while true do
+            local result = iterator:next()
+            if result.done then
+                break
+            end
+            local value = result.value -- Ensures index is offset when tuple is accessed
+            self.items[value[1]] = value[2]
+        end
+    else
+        for ____, kvp in ipairs(entries) do
+            self.items[kvp[1]] = kvp[2]
+        end
+    end
+end
+function WeakMap.prototype.delete(self, key)
+    local contains = self:has(key)
+    self.items[key] = nil
+    return contains
+end
+function WeakMap.prototype.get(self, key)
+    return self.items[key]
+end
+function WeakMap.prototype.has(self, key)
+    return self.items[key] ~= nil
+end
+function WeakMap.prototype.set(self, key, value)
+    self.items[key] = value
+    return self
+end
+WeakMap[Symbol.species] = WeakMap
+end
+local WeakSet
+do
+WeakSet = __TS__Class()
+WeakSet.name = "WeakSet"
+function WeakSet.prototype.____constructor(self, values)
+    self[Symbol.toStringTag] = "WeakSet"
+    self.items = {}
+    setmetatable(self.items, {__mode = "k"})
+    if values == nil then
+        return
+    end
+    local iterable = values
+    if iterable[Symbol.iterator] then
+        local iterator = iterable[Symbol.iterator](iterable)
+        while true do
+            local result = iterator:next()
+            if result.done then
+                break
+            end
+            self.items[result.value] = true
+        end
+    else
+        for ____, value in ipairs(values) do
+            self.items[value] = true
+        end
+    end
+end
+function WeakSet.prototype.add(self, value)
+    self.items[value] = true
+    return self
+end
+function WeakSet.prototype.delete(self, value)
+    local contains = self:has(value)
+    self.items[value] = nil
+    return contains
+end
+function WeakSet.prototype.has(self, value)
+    return self.items[value] == true
+end
+WeakSet[Symbol.species] = WeakSet
+end
 local function __TS__MapForOfStep(map, prev)
     local key
     if prev == nil then
@@ -2713,25 +2560,29 @@ end
 local function __TS__SetForOf(set)
     return __TS__SetForOfStep, set, nil
 end
-
 return {
-  __TS__MapForOf = __TS__MapForOf,
-  __TS__MapForOfStep = __TS__MapForOfStep,
-  __TS__MapKeysForOf = __TS__MapKeysForOf,
-  __TS__MapKeysForOfStep = __TS__MapKeysForOfStep,
-  __TS__MapValuesForOf = __TS__MapValuesForOf,
-  __TS__MapValuesForOfStep = __TS__MapValuesForOfStep,
-  __TS__SetForOf = __TS__SetForOf,
-  __TS__SetForOfStep = __TS__SetForOfStep,
+  Error = Error,
+  Map = Map,
+  RangeError = RangeError,
+  ReferenceError = ReferenceError,
+  Set = Set,
+  Symbol = Symbol,
+  SyntaxError = SyntaxError,
+  TypeError = TypeError,
+  URIError = URIError,
+  WeakMap = WeakMap,
+  WeakSet = WeakSet,
   __TS__ArrayAt = __TS__ArrayAt,
   __TS__ArrayConcat = __TS__ArrayConcat,
   __TS__ArrayEntries = __TS__ArrayEntries,
   __TS__ArrayEvery = __TS__ArrayEvery,
   __TS__ArrayFill = __TS__ArrayFill,
   __TS__ArrayFilter = __TS__ArrayFilter,
-  __TS__ArrayForEach = __TS__ArrayForEach,
   __TS__ArrayFind = __TS__ArrayFind,
   __TS__ArrayFindIndex = __TS__ArrayFindIndex,
+  __TS__ArrayFlat = __TS__ArrayFlat,
+  __TS__ArrayFlatMap = __TS__ArrayFlatMap,
+  __TS__ArrayForEach = __TS__ArrayForEach,
   __TS__ArrayFrom = __TS__ArrayFrom,
   __TS__ArrayIncludes = __TS__ArrayIncludes,
   __TS__ArrayIndexOf = __TS__ArrayIndexOf,
@@ -2743,18 +2594,16 @@ return {
   __TS__ArrayReduce = __TS__ArrayReduce,
   __TS__ArrayReduceRight = __TS__ArrayReduceRight,
   __TS__ArrayReverse = __TS__ArrayReverse,
-  __TS__ArrayUnshift = __TS__ArrayUnshift,
-  __TS__ArraySort = __TS__ArraySort,
+  __TS__ArraySetLength = __TS__ArraySetLength,
   __TS__ArraySlice = __TS__ArraySlice,
   __TS__ArraySome = __TS__ArraySome,
+  __TS__ArraySort = __TS__ArraySort,
   __TS__ArraySplice = __TS__ArraySplice,
   __TS__ArrayToObject = __TS__ArrayToObject,
-  __TS__ArrayFlat = __TS__ArrayFlat,
-  __TS__ArrayFlatMap = __TS__ArrayFlatMap,
-  __TS__ArraySetLength = __TS__ArraySetLength,
   __TS__ArrayToReversed = __TS__ArrayToReversed,
   __TS__ArrayToSorted = __TS__ArrayToSorted,
   __TS__ArrayToSpliced = __TS__ArrayToSpliced,
+  __TS__ArrayUnshift = __TS__ArrayUnshift,
   __TS__ArrayWith = __TS__ArrayWith,
   __TS__AsyncAwaiter = __TS__AsyncAwaiter,
   __TS__Await = __TS__Await,
@@ -2765,24 +2614,23 @@ return {
   __TS__Decorate = __TS__Decorate,
   __TS__DecorateLegacy = __TS__DecorateLegacy,
   __TS__DecorateParam = __TS__DecorateParam,
-  __TS__Delete = __TS__Delete,
   __TS__DelegatedYield = __TS__DelegatedYield,
+  __TS__Delete = __TS__Delete,
   __TS__DescriptorGet = __TS__DescriptorGet,
   __TS__DescriptorSet = __TS__DescriptorSet,
-  Error = Error,
-  RangeError = RangeError,
-  ReferenceError = ReferenceError,
-  SyntaxError = SyntaxError,
-  TypeError = TypeError,
-  URIError = URIError,
   __TS__FunctionBind = __TS__FunctionBind,
   __TS__Generator = __TS__Generator,
   __TS__InstanceOf = __TS__InstanceOf,
   __TS__InstanceOfObject = __TS__InstanceOfObject,
   __TS__Iterator = __TS__Iterator,
   __TS__LuaIteratorSpread = __TS__LuaIteratorSpread,
-  Map = Map,
+  __TS__MapForOf = __TS__MapForOf,
+  __TS__MapForOfStep = __TS__MapForOfStep,
   __TS__MapGroupBy = __TS__MapGroupBy,
+  __TS__MapKeysForOf = __TS__MapKeysForOf,
+  __TS__MapKeysForOfStep = __TS__MapKeysForOfStep,
+  __TS__MapValuesForOf = __TS__MapValuesForOf,
+  __TS__MapValuesForOfStep = __TS__MapValuesForOfStep,
   __TS__Match = __TS__Match,
   __TS__MathAtan2 = __TS__MathAtan2,
   __TS__MathModf = __TS__MathModf,
@@ -2793,10 +2641,8 @@ return {
   __TS__NumberIsFinite = __TS__NumberIsFinite,
   __TS__NumberIsInteger = __TS__NumberIsInteger,
   __TS__NumberIsNaN = __TS__NumberIsNaN,
-  __TS__ParseInt = __TS__ParseInt,
-  __TS__ParseFloat = __TS__ParseFloat,
-  __TS__NumberToString = __TS__NumberToString,
   __TS__NumberToFixed = __TS__NumberToFixed,
+  __TS__NumberToString = __TS__NumberToString,
   __TS__ObjectAssign = __TS__ObjectAssign,
   __TS__ObjectDefineProperty = __TS__ObjectDefineProperty,
   __TS__ObjectEntries = __TS__ObjectEntries,
@@ -2814,14 +2660,13 @@ return {
   __TS__PromiseAllSettled = __TS__PromiseAllSettled,
   __TS__PromiseAny = __TS__PromiseAny,
   __TS__PromiseRace = __TS__PromiseRace,
-  Set = Set,
   __TS__SetDescriptor = __TS__SetDescriptor,
+  __TS__SetForOf = __TS__SetForOf,
+  __TS__SetForOfStep = __TS__SetForOfStep,
+  __TS__SourceMapTraceBack = __TS__SourceMapTraceBack,
   __TS__SparseArrayNew = __TS__SparseArrayNew,
   __TS__SparseArrayPush = __TS__SparseArrayPush,
   __TS__SparseArraySpread = __TS__SparseArraySpread,
-  WeakMap = WeakMap,
-  WeakSet = WeakSet,
-  __TS__SourceMapTraceBack = __TS__SourceMapTraceBack,
   __TS__Spread = __TS__Spread,
   __TS__StringAccess = __TS__StringAccess,
   __TS__StringCharAt = __TS__StringCharAt,
@@ -2841,11 +2686,10 @@ return {
   __TS__StringTrimEnd = __TS__StringTrimEnd,
   __TS__StringTrimStart = __TS__StringTrimStart,
   __TS__Symbol = __TS__Symbol,
-  Symbol = Symbol,
   __TS__SymbolRegistryFor = __TS__SymbolRegistryFor,
   __TS__SymbolRegistryKeyFor = __TS__SymbolRegistryKeyFor,
   __TS__TypeOf = __TS__TypeOf,
   __TS__Unpack = __TS__Unpack,
   __TS__Using = __TS__Using,
-  __TS__UsingAsync = __TS__UsingAsync
+  __TS__UsingAsync = __TS__UsingAsync,
 }

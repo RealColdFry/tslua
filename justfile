@@ -71,13 +71,8 @@ bench-lua:
     go run ./cmd/luabench/ --show-lua
 
 # Run all 100%-passing Go tests
-testall: tstlgen
-    FORCE_COLOR=1 gotestsum --format short \
-        ./internal/transpiler/ \
-        ./internal/lua/... \
-        ./internal/luatest/ \
-        ./internal/resolve/ \
-        ./internal/tstltest/ -skip TestCodegen_
+testall *ARGS: tstlgen
+    FORCE_COLOR=1 gotestsum --format short ./internal/... -skip TestCodegen_ {{ ARGS }}
 
 # Run tests with coverage profiling
 coverage:
@@ -121,6 +116,16 @@ migrate-all:
 update-lualib:
     ./scripts/update-lualib.sh
 
+# Diff the committed lualib bundle against a fresh rebuild (sanity check
+# equivalent to TestCommittedBundleUpToDate). Empty output means in-sync.
+lualib-diff: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmp=$(mktemp)
+    trap 'rm -f "$tmp"' EXIT
+    ./tslua lualib > "$tmp"
+    diff -u internal/lualib/lualib_bundle.lua "$tmp" || true
+
 # Setup TSTL test suite (one-time)
 tstl-setup:
     #!/usr/bin/env bash
@@ -145,7 +150,7 @@ tstl-test *ARGS: build
     SERVER_PID=$!
     trap 'kill $SERVER_PID 2>/dev/null; rm -f "$SOCKET"; cd "$ROOT/extern/tstl" && git checkout -- test/util.ts' EXIT
     for i in $(seq 1 50); do [ -S "$SOCKET" ] && break; sleep 0.1; done
-    WORKERS=$(( $(getconf _NPROCESSORS_ONLN) / 2 ))
+    WORKERS=$(( $(getconf _NPROCESSORS_ONLN) / 3 ))
     [ "$WORKERS" -lt 1 ] && WORKERS=1
     cd "$ROOT/extern/tstl" && TSTL_GO=1 npx jest --no-coverage --maxWorkers="$WORKERS" {{ ARGS }} || true
 

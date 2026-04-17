@@ -1,3 +1,5 @@
+local WeakSet
+do
 WeakSet = __TS__Class()
 WeakSet.name = "WeakSet"
 function WeakSet.prototype.____constructor(self, values)
@@ -36,3 +38,4 @@ function WeakSet.prototype.has(self, value)
     return self.items[value] == true
 end
 WeakSet[Symbol.species] = WeakSet
+end
