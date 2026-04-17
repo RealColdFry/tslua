@@ -80,7 +80,7 @@ coverage:
         -coverpkg=./internal/transpiler/,./internal/lua/,./internal/lualib/,./internal/lualibinfo/,./internal/sourcemap/ \
         -coverprofile=coverage.out \
         -covermode=atomic \
-        ./internal/transpiler/ ./internal/lua/... ./internal/luatest/ ./internal/tstltest/ \
+        ./internal/... \
         -skip TestCodegen_
     go tool cover -func=coverage.out | grep '^total:'
 
@@ -112,7 +112,9 @@ migrate SPEC:
 migrate-all:
     node --require tsx/cjs scripts/migrate/cli.ts
 
-# Copy TSTL's built lualib bundles and apply tslua patches
+# Regenerate internal/lualib/ by self-transpiling extern/tstl/src/lualib/
+# (TSTL's TypeScript sources) through tslua. Run this after changing the
+# transpiler or bumping extern/tstl.
 update-lualib:
     ./scripts/update-lualib.sh
 

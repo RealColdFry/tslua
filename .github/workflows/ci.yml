@@ -80,7 +80,7 @@ jobs:
             -coverpkg=./internal/transpiler/,./internal/lua/,./internal/lualib/,./internal/lualibinfo/,./internal/sourcemap/ \
             -coverprofile=coverage.out \
             -covermode=atomic \
-            ./internal/transpiler/ ./internal/lua/... ./internal/luatest/ ./internal/tstltest/ \
+            ./internal/... \
             -skip TestCodegen_
 
       - name: Upload coverage to Codecov
