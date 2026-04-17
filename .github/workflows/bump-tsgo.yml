@@ -7,8 +7,8 @@ permissions:
 on:
   workflow_dispatch:
   schedule:
-    # 04:00 UTC daily (before nightly at 06:00)
-    - cron: "0 4 * * *"
+    # 04:23 UTC daily (off-hour to avoid GH Actions peak load; before nightly at 06:47)
+    - cron: "23 4 * * *"
 
 concurrency:
   group: bump-tsgo

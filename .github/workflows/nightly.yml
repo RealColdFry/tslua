@@ -7,8 +7,8 @@ permissions:
 on:
   workflow_dispatch:
   schedule:
-    # 06:00 UTC daily
-    - cron: "0 6 * * *"
+    # 06:47 UTC daily (off-hour to avoid GH Actions peak load)
+    - cron: "47 6 * * *"
 
 concurrency:
   group: nightly
