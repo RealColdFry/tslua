@@ -1,130 +1,49 @@
 #!/usr/bin/env bash
-# Copies TSTL's built lualib bundles into internal/lualib/ and applies
-# tslua-specific patches (custom Lua functions not expressible in TS).
-# Also generates per-feature .lua files and module info for selective inlining.
+# Regenerates internal/lualib/* from tslua's own transpile of TSTL's lualib
+# TypeScript source (extern/tstl/src/lualib/). No longer depends on TSTL's
+# prebuilt dist/lualib/ output; tslua now owns the runtime.
+#
+# Outputs:
+#   internal/lualib/lualib_bundle.lua          (universal, Lua 5.1+)
+#   internal/lualib/lualib_bundle_50.lua       (Lua 5.0)
+#   internal/lualib/features/*.lua             (per-feature bodies, universal)
+#   internal/lualib/features_50/*.lua          (per-feature bodies, 5.0)
+#   internal/lualib/lualib_module_info.json    (feature graph, universal)
+#   internal/lualib/lualib_module_info_50.json (feature graph, 5.0)
+#
+# Patches (patches.lua) are folded in by BuildBundleFromSource and
+# BuildFeatureDataFromSource; no post-hoc shell injection.
 #
 # Usage: just update-lualib
-# Prerequisites: extern/tstl must be built (just tstl-setup)
+# Prerequisites: extern/tstl submodule initialized (src/lualib/ must exist).
+#                lua-types is vendored via extern/tstl/node_modules; for a
+#                fresh checkout run `just tstl-setup` once.
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-TSTL_LUALIB="extern/tstl/dist/lualib"
-TARGET="internal/lualib"
-PATCHES="$TARGET/patches.lua"
-
-# Extract export names from patches.lua (lines like "local function __TS__Foo(")
-patch_exports() {
-    grep '^local function __TS__' "$PATCHES" | sed 's/local function \(__TS__[A-Za-z0-9_]*\).*/\1/' | sort -u
-}
-
-# Apply patches to a bundle: insert functions before "return {" and add exports
-strip_lua_comments() {
-    local file="$1"
-    local tmp
-    tmp=$(mktemp)
-    # Remove pure comment lines (-- ...) and collapse resulting blank lines
-    sed '/^[[:space:]]*--/d' "$file" | sed '/^$/N;/^\n$/d' > "$tmp"
-    mv "$tmp" "$file"
-}
-
-apply_patches() {
-    local bundle="$1"
-    local tmp
-    tmp=$(mktemp)
-
-    # Build export lines for the return table
-    local exports=""
-    for name in $(patch_exports); do
-        exports="$exports  $name = $name,\n"
-    done
-
-    # 1. Insert patch functions before "return {"
-    # 2. Insert export entries after "return {"
-    awk -v patches="$PATCHES" -v exports="$exports" '
-        /^return \{/ {
-            # Insert patch file contents before return
-            while ((getline line < patches) > 0) print line
-            close(patches)
-            print ""
-            print $0
-            # Insert exports after "return {"
-            printf "%s", exports
-            next
-        }
-        { print }
-    ' "$bundle" > "$tmp"
-
-    mv "$tmp" "$bundle"
-}
-
-# Apply patches to per-feature data: copy patches.lua as a feature file
-# and add its entries to the module info JSON.
-apply_patches_to_features() {
-    local features_dir="$1"
-    local info_file="$2"
-
-    # Map iterators depend on the Map/Set features (they access internal structure)
-    cp "$PATCHES" "$features_dir/TsluaIterators.lua"
-
-    # Build the patch feature JSON entry
-    local exports=""
-    for name in $(patch_exports); do
-        if [ -n "$exports" ]; then
-            exports="$exports,\"$name\""
-        else
-            exports="\"$name\""
-        fi
-    done
-
-    # Insert the patch feature entry into the module info JSON (before the closing })
-    local tmp
-    tmp=$(mktemp)
-    sed '$d' "$info_file" > "$tmp"  # remove closing }
-    # Ensure trailing comma on last real entry
-    local tmp2
-    tmp2=$(mktemp)
-    sed '$ s/}$/},/' "$tmp" > "$tmp2" && mv "$tmp2" "$tmp"
-    echo "  \"TsluaIterators\": {\"exports\":[$exports],\"dependencies\":[\"Map\",\"Set\"]}" >> "$tmp"
-    echo "}" >> "$tmp"
-    mv "$tmp" "$info_file"
-}
-
-# --- Full bundles (for require mode) ---
-
-if [ ! -f "$TSTL_LUALIB/universal/lualib_bundle.lua" ]; then
-    echo "error: $TSTL_LUALIB/universal/lualib_bundle.lua not found. Run 'just tstl-setup' first." >&2
+if [ ! -d "extern/tstl/src/lualib" ]; then
+    echo "error: extern/tstl/src/lualib not found (init submodules)" >&2
     exit 1
 fi
-cp "$TSTL_LUALIB/universal/lualib_bundle.lua" "$TARGET/lualib_bundle.lua"
-apply_patches "$TARGET/lualib_bundle.lua"
-strip_lua_comments "$TARGET/lualib_bundle.lua"
-echo "  updated $TARGET/lualib_bundle.lua"
-
-if [ -f "$TSTL_LUALIB/5.0/lualib_bundle.lua" ]; then
-    cp "$TSTL_LUALIB/5.0/lualib_bundle.lua" "$TARGET/lualib_bundle_50.lua"
-    apply_patches "$TARGET/lualib_bundle_50.lua"
-    strip_lua_comments "$TARGET/lualib_bundle_50.lua"
-    echo "  updated $TARGET/lualib_bundle_50.lua"
+if [ ! -d "extern/tstl/node_modules/lua-types" ]; then
+    echo "error: extern/tstl/node_modules/lua-types not found (run 'just tstl-setup')" >&2
+    exit 1
 fi
 
-# --- Per-feature files (for inline mode) ---
+echo "building tslua..."
+go build -o tslua ./cmd/tslua/
 
-echo "  generating per-feature files..."
-# Create placeholder dirs so //go:embed doesn't fail during compilation
-mkdir -p "$TARGET/features" "$TARGET/features_50"
-[ "$(ls -A "$TARGET/features" 2>/dev/null)" ] || echo '-- placeholder' > "$TARGET/features/placeholder.lua"
-[ "$(ls -A "$TARGET/features_50" 2>/dev/null)" ] || echo '-- placeholder' > "$TARGET/features_50/placeholder.lua"
-# Create placeholder JSON files if missing
-[ -f "$TARGET/lualib_module_info.json" ] || echo '{}' > "$TARGET/lualib_module_info.json"
-[ -f "$TARGET/lualib_module_info_50.json" ] || echo '{}' > "$TARGET/lualib_module_info_50.json"
+echo "transpiling lualib bundles..."
+./tslua lualib --luaTarget universal > internal/lualib/lualib_bundle.lua
+./tslua lualib --luaTarget 5.0       > internal/lualib/lualib_bundle_50.lua
+
+echo "  internal/lualib/lualib_bundle.lua    ($(wc -c < internal/lualib/lualib_bundle.lua) bytes)"
+echo "  internal/lualib/lualib_bundle_50.lua ($(wc -c < internal/lualib/lualib_bundle_50.lua) bytes)"
+
+echo "generating per-feature files..."
 go run ./scripts/gen-lualib-features
 go run ./scripts/gen-lualib-features --target 5.0
-
-# Apply patches as a synthetic feature
-apply_patches_to_features "$TARGET/features" "$TARGET/lualib_module_info.json"
-apply_patches_to_features "$TARGET/features_50" "$TARGET/lualib_module_info_50.json"
-echo "  updated per-feature files"
 
 echo "done"

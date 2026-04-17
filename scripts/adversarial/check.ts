@@ -254,8 +254,10 @@ try {
 
 const serializeLuaCode = fs.readFileSync(path.resolve("scripts/serialize.lua"), "utf-8");
 const lualibSrc = path.resolve("internal/lualib/lualib_bundle.lua");
-// TSTL has its own lualib
-const tstlLualibSrc = path.resolve("extern/tstl/dist/lualib_bundle.lua");
+// TSTL has its own lualib. Read from its dist output so TSTL-emitted Lua
+// runs on TSTL's own runtime (adversarial check compares emitters on their
+// respective native runtimes).
+const tstlLualibSrc = path.resolve("extern/tstl/dist/lualib/universal/lualib_bundle.lua");
 
 function evalLua(lua: string, useTstlLualib: boolean): string {
   const tmpDir = fs.mkdtempSync(path.join(require("os").tmpdir(), "tslua-adv-"));

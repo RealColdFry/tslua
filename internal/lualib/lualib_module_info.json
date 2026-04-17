@@ -108,11 +108,11 @@
   "StringTrimStart": {"exports":["__TS__StringTrimStart"]},
   "Symbol": {"exports":["Symbol","__TS__Symbol"]},
   "SymbolRegistry": {"exports":["__TS__SymbolRegistryFor","__TS__SymbolRegistryKeyFor"],"dependencies":["Symbol"]},
+  "TsluaIterators": {"exports":["__TS__MapForOfStep","__TS__MapForOf","__TS__MapKeysForOfStep","__TS__MapKeysForOf","__TS__MapValuesForOfStep","__TS__MapValuesForOf","__TS__SetForOfStep","__TS__SetForOf"],"dependencies":["Map","Set"]},
   "TypeOf": {"exports":["__TS__TypeOf"]},
   "Unpack": {"exports":["__TS__Unpack"]},
   "Using": {"exports":["__TS__Using"],"dependencies":["Symbol","Unpack"]},
   "UsingAsync": {"exports":["__TS__UsingAsync"],"dependencies":["Await","Symbol","Unpack"]},
   "WeakMap": {"exports":["WeakMap"],"dependencies":["Class","Symbol"]},
-  "WeakSet": {"exports":["WeakSet"],"dependencies":["Class","Symbol"]},
-  "TsluaIterators": {"exports":["__TS__MapForOf","__TS__MapForOfStep","__TS__MapKeysForOf","__TS__MapKeysForOfStep","__TS__MapValuesForOf","__TS__MapValuesForOfStep","__TS__SetForOf","__TS__SetForOfStep"],"dependencies":["Map","Set"]}
+  "WeakSet": {"exports":["WeakSet"],"dependencies":["Class","Symbol"]}
 }

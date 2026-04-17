@@ -182,14 +182,9 @@ func trackResult(t *testing.T) {
 }
 
 // getLualibBundle returns the appropriate lualib bundle for the target.
-// Uses tslua-built bundle if TSLUA_LUALIB=tslua, otherwise the embedded TSTL bundle.
+// Always the embedded bundle, which is itself produced by tslua's own
+// transpile of the TS sources (see scripts/update-lualib.sh).
 func getLualibBundle(target transpiler.LuaTarget) []byte {
-	if tsluaLualibBundle != nil {
-		if target == transpiler.LuaTargetLua50 && tsluaLualibBundle50 != nil {
-			return tsluaLualibBundle50
-		}
-		return tsluaLualibBundle
-	}
 	return lualib.BundleForTarget(string(target))
 }
 
@@ -217,38 +212,10 @@ func bundleForResults(o testOpts, target transpiler.LuaTarget, results []transpi
 	return getLualibBundle(target)
 }
 
-// tslua-built lualib bundles when TSLUA_LUALIB=tslua is set.
-var tsluaLualibBundle []byte   // universal (Lua 5.1+)
-var tsluaLualibBundle50 []byte // Lua 5.0
-
 func TestMain(m *testing.M) {
 	flag.Parse()
 	if *globalEmitMode != "" {
 		fmt.Fprintf(os.Stderr, "=== EMIT MODE: %s ===\n", *globalEmitMode)
-	}
-	if os.Getenv("TSLUA_LUALIB") == "tslua" {
-		fmt.Fprintln(os.Stderr, "=== LUALIB: tslua-built ===")
-		repoRoot := luatest.FindRepoFile("go.mod")
-		if repoRoot != "" {
-			repoRoot = filepath.Dir(repoRoot)
-			srcDir := filepath.Join(repoRoot, "extern", "tstl", "src", "lualib")
-			langExtPath := filepath.Join(repoRoot, "extern", "tstl", "language-extensions")
-			luaTypesPath := filepath.Join(repoRoot, "extern", "tstl", "node_modules", "lua-types")
-			bundle, err := lualib.BuildBundleFromSource(srcDir, langExtPath, luaTypesPath, transpiler.LuaTargetUniversal, "universal")
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "FATAL: build tslua lualib: %v\n", err)
-				os.Exit(1)
-			}
-			tsluaLualibBundle = []byte(bundle)
-			fmt.Fprintf(os.Stderr, "  bundle size: %d bytes\n", len(tsluaLualibBundle))
-			bundle50, err := lualib.BuildBundleFromSource(srcDir, langExtPath, luaTypesPath, transpiler.LuaTargetLua50, "5.0")
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "WARNING: build tslua lualib 5.0: %v\n", err)
-			} else {
-				tsluaLualibBundle50 = []byte(bundle50)
-				fmt.Fprintf(os.Stderr, "  bundle 5.0 size: %d bytes\n", len(tsluaLualibBundle50))
-			}
-		}
 	}
 	luatest.Setup()
 

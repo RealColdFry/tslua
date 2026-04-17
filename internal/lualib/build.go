@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -19,6 +20,74 @@ import (
 	"github.com/microsoft/typescript-go/shim/vfs/osvfs"
 	"github.com/realcoldfry/tslua/internal/transpiler"
 )
+
+// patchExportRe matches top-level `local function __TS__Foo(` declarations
+// in patches.lua. These get added to the bundle's export table.
+var patchExportRe = regexp.MustCompile(`(?m)^local function (__TS__\w+)\(`)
+
+// TODO: replace this string-based leak detection and wrap with an AST-level
+// pass (see TSTL's lualibFileVisitor in extern/tstl/src/lualib-build/plugin.ts,
+// which prepends a VariableDeclaration and wraps the body in a DoStatement).
+
+// hasExportLeak reports whether body assigns to name at file scope without
+// using `local`, which would make name an implicit global once the body is
+// concatenated into the bundle's top-level chunk. Covers:
+//
+//   - bare `name = ...` assignment (e.g. `Map = __TS__Class()`)
+//   - global function declaration `function name(...)`
+//
+// Property access and method definitions on an already-bound identifier
+// (`Map.prototype.X = ...`, `function Map:method(...)`) are NOT leaks on
+// their own; they rely on name being in scope, which the forward
+// declaration below guarantees.
+func hasExportLeak(body, name string) bool {
+	q := regexp.QuoteMeta(name)
+	// `^name<space>*=<not =>`: bare top-level assignment.
+	assignRe := regexp.MustCompile(`(?m)^` + q + `\s*=[^=]`)
+	if assignRe.MatchString(body) {
+		return true
+	}
+	// `^function <name>(`: global function declaration.
+	fnRe := regexp.MustCompile(`(?m)^function\s+` + q + `\s*\(`)
+	return fnRe.MatchString(body)
+}
+
+// wrapFileBody wraps body in `local <leaks>\ndo\n<body>\nend` when any of
+// its exports would otherwise leak as globals. Mirrors TSTL's per-feature
+// bundling structure: forward-declared locals outside a `do...end` keep the
+// helper locals inside the block scoped while still exposing the exports
+// to the rest of the bundle. When no export leaks, body is returned as-is
+// (matching TSTL's treatment of simple single-function feature files like
+// ArrayAt.ts).
+func wrapFileBody(body string, exports []string) string {
+	if body == "" {
+		return body
+	}
+	var leaks []string
+	for _, name := range exports {
+		if hasExportLeak(body, name) {
+			leaks = append(leaks, name)
+		}
+	}
+	if len(leaks) == 0 {
+		return body
+	}
+	sort.Strings(leaks)
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "local %s\n", strings.Join(leaks, ", "))
+	sb.WriteString("do\n")
+	for _, line := range strings.Split(body, "\n") {
+		if line == "" {
+			sb.WriteByte('\n')
+			continue
+		}
+		sb.WriteString("    ")
+		sb.WriteString(line)
+		sb.WriteByte('\n')
+	}
+	sb.WriteString("end")
+	return sb.String()
+}
 
 // transpileLualibSource transpiles TSTL's lualib TypeScript source files and
 // returns the per-file results plus an export→file-index map.
@@ -61,7 +130,7 @@ func transpileLualibSource(lualibSrcDir, langExtPath, luaTypesPath string, luaTa
 		}
 	}
 
-	// Copy .d.ts files from the source directory — these aren't transpiled but
+	// Copy .d.ts files from the source directory. These aren't transpiled but
 	// provide type info for the checker (e.g. SparseArray.d.ts defines the
 	// intersection type that lets isArrayType recognize sparse arrays).
 	if entries, err := os.ReadDir(lualibSrcDir); err == nil {
@@ -97,7 +166,7 @@ func transpileLualibSource(lualibSrcDir, langExtPath, luaTypesPath string, luaTa
 	}
 	luaTypesFile := filepath.Join(luaTypesPath, luaTypesVersion)
 
-	// Write tsconfig — include declarations/**/*.ts for type info (LuaClass, unpack, etc.)
+	// Write tsconfig (include declarations/**/*.ts for type info: LuaClass, unpack, etc.)
 	tsconfig := fmt.Sprintf(`{
 	"compilerOptions": {
 		"target": "ESNext",
@@ -135,22 +204,12 @@ func transpileLualibSource(lualibSrcDir, langExtPath, luaTypesPath string, luaTa
 		ExportAsGlobal: true,
 		LuaLibImport:   transpiler.LuaLibImportNone,
 	})
-	// Filter out function context diagnostics (1011/1012/1013) — these can be false
-	// positives due to tsgo type deduplication affecting call signature resolution.
-	var fatalDiags []*ast.Diagnostic
-	for _, d := range tsDiags {
-		code := d.Code()
-		if code == 1011 || code == 1012 || code == 1013 {
-			continue
-		}
-		fatalDiags = append(fatalDiags, d)
-	}
-	if len(fatalDiags) > 0 {
+	if len(tsDiags) > 0 {
 		var msgs []string
-		for _, d := range fatalDiags {
-			msgs = append(msgs, fmt.Sprintf("[%d]", d.Code()))
+		for _, d := range tsDiags {
+			msgs = append(msgs, fmt.Sprintf("[%d] %s", d.Code(), ast.Diagnostic_MessageKey(d)))
 		}
-		return nil, nil, fmt.Errorf("transpile diagnostics: %s", strings.Join(msgs, ", "))
+		return nil, nil, fmt.Errorf("transpile diagnostics: %s", strings.Join(msgs, "; "))
 	}
 
 	// Build a map from exported name → which file provides it.
@@ -211,11 +270,22 @@ func BuildBundleFromSource(lualibSrcDir, langExtPath, luaTypesPath string, luaTa
 	for _, r := range ordered {
 		body := stripLuaComments(r.Lua)
 		if body != "" {
-			sb.WriteString(body)
+			sb.WriteString(wrapFileBody(body, r.ExportedNames))
 			sb.WriteString("\n")
 		}
 		for _, e := range r.ExportedNames {
 			allExports[e] = true
+		}
+	}
+
+	// Inject tslua-specific pure-Lua patches (Map/Set for-of fast paths) and
+	// register their exports. Mirrors scripts/update-lualib.sh apply_patches.
+	patches := stripLuaComments(string(patchesLua))
+	if patches != "" {
+		sb.WriteString(patches)
+		sb.WriteString("\n")
+		for _, m := range patchExportRe.FindAllStringSubmatch(patches, -1) {
+			allExports[m[1]] = true
 		}
 	}
 
@@ -278,7 +348,27 @@ func BuildFeatureDataFromSource(lualibSrcDir, langExtPath, luaTypesPath string, 
 		moduleInfo[feature] = info
 
 		body := stripLuaComments(r.Lua)
-		featureCode[feature] = body
+		featureCode[feature] = wrapFileBody(body, r.ExportedNames)
+	}
+
+	// Inject tslua-specific patches as a synthetic feature. Mirrors
+	// scripts/update-lualib.sh apply_patches_to_features: one feature named
+	// "TsluaIterators" carrying the Map/Set for-of helpers, depending on the
+	// Map and Set features whose internal layout they read.
+	patches := stripLuaComments(string(patchesLua))
+	if patches != "" {
+		var patchExports []string
+		for _, m := range patchExportRe.FindAllStringSubmatch(patches, -1) {
+			patchExports = append(patchExports, m[1])
+		}
+		if len(patchExports) > 0 {
+			const patchFeature = "TsluaIterators"
+			moduleInfo[patchFeature] = FeatureInfo{
+				Exports:      patchExports,
+				Dependencies: []string{"Map", "Set"},
+			}
+			featureCode[patchFeature] = patches
+		}
 	}
 
 	// Validate: every dependency should map to a known feature.

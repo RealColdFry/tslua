@@ -71,12 +71,19 @@ func (t *Transpiler) transformImportDeclaration(node *ast.Node) []lua.Statement 
 					if imp.IsTypeOnly {
 						continue
 					}
-					// Skip const enum imports — they're inlined, no runtime dependency.
+					// Skip imports whose target is type-only (interface, type alias,
+					// or a symbol with no value flag). These emit no runtime reference.
 					sym := t.checker.GetSymbolAtLocation(imp.Name())
 					if sym != nil && sym.Flags&ast.SymbolFlagsAlias != 0 {
 						resolved := checker.Checker_getImmediateAliasedSymbol(t.checker, sym)
-						if resolved != nil && resolved.Flags&ast.SymbolFlagsConstEnum != 0 {
-							continue
+						if resolved != nil {
+							// Const enums are inlined — no runtime dep.
+							if resolved.Flags&ast.SymbolFlagsConstEnum != 0 {
+								continue
+							}
+							if resolved.Flags&ast.SymbolFlagsValue == 0 {
+								continue
+							}
 						}
 					}
 					name := imp.Name().AsIdentifier().Text

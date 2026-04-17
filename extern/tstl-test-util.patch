@@ -1,22 +1,31 @@
 diff --git a/test/util.ts b/test/util.ts
-index 3488572..1864e44 100644
+index 3488572..694642c 100644
 --- a/test/util.ts
 +++ b/test/util.ts
-@@ -13,6 +13,13 @@ import { EmitHost, getEmitOutDir, transpileProject } from "../src";
+@@ -11,10 +11,20 @@ import * as tstl from "../src";
+ import { createEmitOutputCollector } from "../src/transpilation/output-collector";
+ import { EmitHost, getEmitOutDir, transpileProject } from "../src";
  import { formatPathToLuaPath, normalizeSlashes } from "../src/utils";
- import { resolveLuaLibDir } from "../src/LuaLib";
- 
+-import { resolveLuaLibDir } from "../src/LuaLib";
++
 +import { execSync, execFileSync } from "child_process";
 +
 +const USE_TSTL_GO = Boolean(process.env.TSTL_GO);
 +const TSTL_GO_BIN = path.resolve(__dirname, "../../../tslua");
 +const TSTL_GO_CLIENT = path.resolve(__dirname, "../../../tslua-client");
 +const TSTL_GO_SOCKET = process.env.TSLUA_SOCKET || path.resolve(__dirname, "../../../tmp/tslua-jest.sock");
-+
+ 
  function readLuaLib(target: tstl.LuaTarget) {
-     return fs.readFileSync(path.join(resolveLuaLibDir(target), "lualib_bundle.lua"), "utf8");
+-    return fs.readFileSync(path.join(resolveLuaLibDir(target), "lualib_bundle.lua"), "utf8");
++    // tslua owns the lualib runtime. Read the committed bundle from
++    // internal/lualib/ so jest runs against the same Lua that tslua emits
++    // from its own transpiler. TSTL's dist/lualib is no longer consulted.
++    const flavor = target === tstl.LuaTarget.Lua50 ? "lualib_bundle_50.lua" : "lualib_bundle.lua";
++    return fs.readFileSync(path.resolve(__dirname, "../../../internal/lualib", flavor), "utf8");
  }
-@@ -240,6 +247,10 @@ export abstract class TestBuilder {
+ 
+ function jsonLib(target: tstl.LuaTarget): string {
+@@ -240,6 +250,10 @@ export abstract class TestBuilder {
  
      @memoize
      public getLuaResult(): tstl.TranspileVirtualProjectResult {
@@ -27,7 +36,7 @@ index 3488572..1864e44 100644
          const program = this.getProgram();
          const preEmitDiagnostics = ts.getPreEmitDiagnostics(program);
          const collector = createEmitOutputCollector(this.options.extension);
-@@ -254,6 +265,258 @@ export abstract class TestBuilder {
+@@ -254,6 +268,258 @@ export abstract class TestBuilder {
          return { diagnostics: [...diagnostics], transpiledFiles: collector.files };
      }
  
@@ -286,7 +295,7 @@ index 3488572..1864e44 100644
      @memoize
      public getMainLuaFileResult(): ExecutableTranspiledFile {
          const { transpiledFiles } = this.getLuaResult();
-@@ -452,16 +715,18 @@ export abstract class TestBuilder {
+@@ -452,16 +718,18 @@ export abstract class TestBuilder {
          // Load modules
          // Json
          this.injectLuaFile(L, lua, lauxlib, "json", jsonLib(luaTarget));
