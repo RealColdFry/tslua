@@ -1,6 +1,10 @@
 package luatest
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/realcoldfry/tslua/internal/transpiler"
+)
 
 // TestForLoopClosureCapture verifies that `let` variables in C-style for loops
 // get per-iteration bindings when captured by closures (ES6 §13.7.4.9).
@@ -100,13 +104,23 @@ func TestForLoopClosureCapture(t *testing.T) {
 		},
 	}
 
+	modes := []struct {
+		name string
+		mode transpiler.EmitMode
+	}{
+		{"tstl", transpiler.EmitModeTSTL},
+		{"optimized", transpiler.EmitModeOptimized},
+	}
+
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			if tc.skip != "" {
-				t.Skip(tc.skip)
-			}
-			ExpectFunction(t, tc.body, tc.want, Opts{})
-		})
+		for _, m := range modes {
+			t.Run(tc.name+"/"+m.name, func(t *testing.T) {
+				t.Parallel()
+				if tc.skip != "" {
+					t.Skip(tc.skip)
+				}
+				ExpectFunction(t, tc.body, tc.want, Opts{EmitMode: m.mode})
+			})
+		}
 	}
 }
