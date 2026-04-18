@@ -597,10 +597,8 @@ func containsAssignmentToSymbol(node *ast.Node, sym *ast.Symbol, t *Transpiler) 
 		be := node.AsBinaryExpression()
 		op := be.OperatorToken.Kind
 		if op == ast.KindEqualsToken || isCompoundAssignment(op) {
-			if be.Left.Kind == ast.KindIdentifier {
-				if s := t.checker.GetSymbolAtLocation(be.Left); s == sym {
-					return true
-				}
+			if destructuringLHSAssignsToSymbol(be.Left, sym, t) {
+				return true
 			}
 		}
 	case ast.KindPrefixUnaryExpression:
@@ -635,6 +633,61 @@ func containsAssignmentToSymbol(node *ast.Node, sym *ast.Symbol, t *Transpiler) 
 		return false
 	})
 	return found
+}
+
+// destructuringLHSAssignsToSymbol returns true if lhs, treated as the LHS of an
+// assignment expression, writes to sym. Handles plain identifiers as well as
+// array/object destructuring patterns (including spread and defaults).
+func destructuringLHSAssignsToSymbol(lhs *ast.Node, sym *ast.Symbol, t *Transpiler) bool {
+	if lhs == nil {
+		return false
+	}
+	switch lhs.Kind {
+	case ast.KindIdentifier:
+		return t.checker.GetSymbolAtLocation(lhs) == sym
+	case ast.KindParenthesizedExpression:
+		return destructuringLHSAssignsToSymbol(lhs.AsParenthesizedExpression().Expression, sym, t)
+	case ast.KindArrayLiteralExpression:
+		for _, elem := range lhs.AsArrayLiteralExpression().Elements.Nodes {
+			if elem == nil || elem.Kind == ast.KindOmittedExpression {
+				continue
+			}
+			if elem.Kind == ast.KindSpreadElement {
+				if destructuringLHSAssignsToSymbol(elem.AsSpreadElement().Expression, sym, t) {
+					return true
+				}
+				continue
+			}
+			if destructuringLHSAssignsToSymbol(elem, sym, t) {
+				return true
+			}
+		}
+	case ast.KindObjectLiteralExpression:
+		for _, prop := range lhs.AsObjectLiteralExpression().Properties.Nodes {
+			switch prop.Kind {
+			case ast.KindShorthandPropertyAssignment:
+				if t.checker.GetSymbolAtLocation(prop.AsShorthandPropertyAssignment().Name()) == sym {
+					return true
+				}
+			case ast.KindPropertyAssignment:
+				if destructuringLHSAssignsToSymbol(prop.AsPropertyAssignment().Initializer, sym, t) {
+					return true
+				}
+			case ast.KindSpreadAssignment:
+				if destructuringLHSAssignsToSymbol(prop.AsSpreadAssignment().Expression, sym, t) {
+					return true
+				}
+			}
+		}
+	case ast.KindBinaryExpression:
+		// Default-value pattern inside destructuring: `[a = 5]` parses as BinaryExpression(a, =, 5).
+		// Only the LHS of that inner expression is an assignment target.
+		be := lhs.AsBinaryExpression()
+		if be.OperatorToken.Kind == ast.KindEqualsToken {
+			return destructuringLHSAssignsToSymbol(be.Left, sym, t)
+		}
+	}
+	return false
 }
 
 // prependPerIterationCopies adds `local i = i` declarations at the start of a
