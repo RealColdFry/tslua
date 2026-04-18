@@ -306,8 +306,14 @@ func (t *Transpiler) tryNumericFor(node *ast.Node) []lua.Statement {
 	}
 	fs := node.AsForStatement()
 
-	// 1. Initializer: must be a single variable declaration with an initializer
+	// 1. Initializer: must be a single let/const variable declaration with an initializer.
+	// Reject `var`: JS `var` is function-scoped (shared across iterations and visible after
+	// the loop), while Lua numeric for rebinds its counter per iteration and scopes it to
+	// the body, so the two semantics disagree when the counter is captured or read later.
 	if fs.Initializer == nil || fs.Initializer.Kind != ast.KindVariableDeclarationList {
+		return nil
+	}
+	if fs.Initializer.Flags&(ast.NodeFlagsLet|ast.NodeFlagsConst) == 0 {
 		return nil
 	}
 	declList := fs.Initializer.AsVariableDeclarationList()
