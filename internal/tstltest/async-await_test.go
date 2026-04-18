@@ -2164,6 +2164,426 @@ function ____exports.__main(self)
     return allLogs
 end
 return ____exports`},
+		{name: "try/catch in async function await inside catch handler resolves correctly (#1659)", tsCode: `
+// Some logging utility, useful for asserting orders of operations
+
+const allLogs: any[] = [];
+function log(...values: any[]) {
+    allLogs.push(...values);
+}
+
+// Create a promise and store its resolve and reject functions, useful for creating pending promises
+
+function defer<T>() {
+    let resolve: (data: any) => void = () => {};
+    let reject: (reason: string) => void = () => {};
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    return { promise, resolve, reject };
+}
+export function __main() {let reject: (reason: string) => void = () => {};
+
+            async function failing() {
+                return new Promise((_, rej) => { reject = rej; });
+            }
+
+            async function run() {
+                try {
+                    await failing();
+                } catch (e) {
+                    log("catch");
+                    const a = await Promise.resolve(true);
+                    log("a", a);
+                }
+            }
+
+            run();
+            reject("error");
+
+            return allLogs;}`, accessor: `mod.__main()`, want: `{"catch", "a", true}`, refLua: `local ____lualib = require("lualib_bundle")
+local __TS__ArrayPush = ____lualib.__TS__ArrayPush
+local __TS__Promise = ____lualib.__TS__Promise
+local __TS__New = ____lualib.__TS__New
+local __TS__AsyncAwaiter = ____lualib.__TS__AsyncAwaiter
+local __TS__Await = ____lualib.__TS__Await
+local ____exports = {}
+local allLogs = {}
+local function log(self, ...)
+    __TS__ArrayPush(allLogs, ...)
+end
+local function defer(self)
+    local function resolve()
+    end
+    local function reject()
+    end
+    local promise = __TS__New(
+        __TS__Promise,
+        function(____, res, rej)
+            resolve = res
+            reject = rej
+        end
+    )
+    return {promise = promise, resolve = resolve, reject = reject}
+end
+function ____exports.__main(self)
+    local function reject()
+    end
+    local function failing(self)
+        return __TS__AsyncAwaiter(function(____awaiter_resolve)
+            return ____awaiter_resolve(
+                nil,
+                __TS__New(
+                    __TS__Promise,
+                    function(____, _, rej)
+                        reject = rej
+                    end
+                )
+            )
+        end)
+    end
+    local function run(self)
+        return __TS__AsyncAwaiter(function(____awaiter_resolve)
+            local ____try = __TS__AsyncAwaiter(function()
+                __TS__Await(failing(nil))
+            end)
+            ____try = ____try.catch(
+                ____try,
+                function(____, e)
+                    return __TS__AsyncAwaiter(function()
+                        log(nil, "catch")
+                        local a = __TS__Await(__TS__Promise.resolve(true))
+                        log(nil, "a", a)
+                    end)
+                end
+            )
+            __TS__Await(____try)
+        end)
+    end
+    run(nil)
+    reject(nil, "error")
+    return allLogs
+end
+return ____exports`},
+		{name: "try/catch in async function await inside finally handler resolves correctly (#1659)", tsCode: `
+// Some logging utility, useful for asserting orders of operations
+
+const allLogs: any[] = [];
+function log(...values: any[]) {
+    allLogs.push(...values);
+}
+
+// Create a promise and store its resolve and reject functions, useful for creating pending promises
+
+function defer<T>() {
+    let resolve: (data: any) => void = () => {};
+    let reject: (reason: string) => void = () => {};
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    return { promise, resolve, reject };
+}
+export function __main() {let reject: (reason: string) => void = () => {};
+
+            async function failing() {
+                return new Promise((_, rej) => { reject = rej; });
+            }
+
+            async function run() {
+                try {
+                    await failing();
+                } finally {
+                    log("finally");
+                    const a = await Promise.resolve(true);
+                    log("a", a);
+                }
+            }
+
+            run().catch(() => {});
+            reject("error");
+
+            return allLogs;}`, accessor: `mod.__main()`, want: `{"finally", "a", true}`, refLua: `local ____lualib = require("lualib_bundle")
+local __TS__ArrayPush = ____lualib.__TS__ArrayPush
+local __TS__Promise = ____lualib.__TS__Promise
+local __TS__New = ____lualib.__TS__New
+local __TS__AsyncAwaiter = ____lualib.__TS__AsyncAwaiter
+local __TS__Await = ____lualib.__TS__Await
+local ____exports = {}
+local allLogs = {}
+local function log(self, ...)
+    __TS__ArrayPush(allLogs, ...)
+end
+local function defer(self)
+    local function resolve()
+    end
+    local function reject()
+    end
+    local promise = __TS__New(
+        __TS__Promise,
+        function(____, res, rej)
+            resolve = res
+            reject = rej
+        end
+    )
+    return {promise = promise, resolve = resolve, reject = reject}
+end
+function ____exports.__main(self)
+    local function reject()
+    end
+    local function failing(self)
+        return __TS__AsyncAwaiter(function(____awaiter_resolve)
+            return ____awaiter_resolve(
+                nil,
+                __TS__New(
+                    __TS__Promise,
+                    function(____, _, rej)
+                        reject = rej
+                    end
+                )
+            )
+        end)
+    end
+    local function run(self)
+        return __TS__AsyncAwaiter(function(____awaiter_resolve)
+            local ____try = __TS__AsyncAwaiter(function()
+                __TS__Await(failing(nil))
+            end)
+            ____try = ____try.finally(
+                ____try,
+                function()
+                    return __TS__AsyncAwaiter(function()
+                        log(nil, "finally")
+                        local a = __TS__Await(__TS__Promise.resolve(true))
+                        log(nil, "a", a)
+                    end)
+                end
+            )
+            __TS__Await(____try)
+        end)
+    end
+    run(nil):catch(function()
+    end)
+    reject(nil, "error")
+    return allLogs
+end
+return ____exports`},
+		{name: "try/catch in async function await inside both catch and finally handlers (#1659)", tsCode: `
+// Some logging utility, useful for asserting orders of operations
+
+const allLogs: any[] = [];
+function log(...values: any[]) {
+    allLogs.push(...values);
+}
+
+// Create a promise and store its resolve and reject functions, useful for creating pending promises
+
+function defer<T>() {
+    let resolve: (data: any) => void = () => {};
+    let reject: (reason: string) => void = () => {};
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    return { promise, resolve, reject };
+}
+export function __main() {let reject: (reason: string) => void = () => {};
+
+            async function failing() {
+                return new Promise((_, rej) => { reject = rej; });
+            }
+
+            async function run() {
+                try {
+                    await failing();
+                } catch (e) {
+                    log("catch");
+                    const a = await Promise.resolve("caught");
+                    log("a", a);
+                } finally {
+                    log("finally");
+                    const b = await Promise.resolve("done");
+                    log("b", b);
+                }
+            }
+
+            run();
+            reject("error");
+
+            return allLogs;}`, accessor: `mod.__main()`, want: `{"catch", "a", "caught", "finally", "b", "done"}`, refLua: `local ____lualib = require("lualib_bundle")
+local __TS__ArrayPush = ____lualib.__TS__ArrayPush
+local __TS__Promise = ____lualib.__TS__Promise
+local __TS__New = ____lualib.__TS__New
+local __TS__AsyncAwaiter = ____lualib.__TS__AsyncAwaiter
+local __TS__Await = ____lualib.__TS__Await
+local ____exports = {}
+local allLogs = {}
+local function log(self, ...)
+    __TS__ArrayPush(allLogs, ...)
+end
+local function defer(self)
+    local function resolve()
+    end
+    local function reject()
+    end
+    local promise = __TS__New(
+        __TS__Promise,
+        function(____, res, rej)
+            resolve = res
+            reject = rej
+        end
+    )
+    return {promise = promise, resolve = resolve, reject = reject}
+end
+function ____exports.__main(self)
+    local function reject()
+    end
+    local function failing(self)
+        return __TS__AsyncAwaiter(function(____awaiter_resolve)
+            return ____awaiter_resolve(
+                nil,
+                __TS__New(
+                    __TS__Promise,
+                    function(____, _, rej)
+                        reject = rej
+                    end
+                )
+            )
+        end)
+    end
+    local function run(self)
+        return __TS__AsyncAwaiter(function(____awaiter_resolve)
+            local ____try = __TS__AsyncAwaiter(function()
+                __TS__Await(failing(nil))
+            end)
+            ____try = ____try.catch(
+                ____try,
+                function(____, e)
+                    return __TS__AsyncAwaiter(function()
+                        log(nil, "catch")
+                        local a = __TS__Await(__TS__Promise.resolve("caught"))
+                        log(nil, "a", a)
+                    end)
+                end
+            )
+            ____try = ____try.finally(
+                ____try,
+                function()
+                    return __TS__AsyncAwaiter(function()
+                        log(nil, "finally")
+                        local b = __TS__Await(__TS__Promise.resolve("done"))
+                        log(nil, "b", b)
+                    end)
+                end
+            )
+            __TS__Await(____try)
+        end)
+    end
+    run(nil)
+    reject(nil, "error")
+    return allLogs
+end
+return ____exports`},
+		{name: "try/catch in async function awaited value in catch is returned from async function (#1659)", tsCode: `
+// Some logging utility, useful for asserting orders of operations
+
+const allLogs: any[] = [];
+function log(...values: any[]) {
+    allLogs.push(...values);
+}
+
+// Create a promise and store its resolve and reject functions, useful for creating pending promises
+
+function defer<T>() {
+    let resolve: (data: any) => void = () => {};
+    let reject: (reason: string) => void = () => {};
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    return { promise, resolve, reject };
+}
+export function __main() {const failing = defer<string>();
+            const recovery = defer<string>();
+
+            async function run() {
+                try {
+                    await failing.promise;
+                    return "succeeded";
+                } catch (e) {
+                    return await recovery.promise;
+                }
+            }
+
+            run().then(value => log("result", value));
+
+            failing.reject("error");
+            recovery.resolve("recovered");
+
+            return allLogs;}`, accessor: `mod.__main()`, want: `{"result", "recovered"}`, refLua: `local ____lualib = require("lualib_bundle")
+local __TS__ArrayPush = ____lualib.__TS__ArrayPush
+local __TS__Promise = ____lualib.__TS__Promise
+local __TS__New = ____lualib.__TS__New
+local __TS__AsyncAwaiter = ____lualib.__TS__AsyncAwaiter
+local __TS__Await = ____lualib.__TS__Await
+local ____exports = {}
+local allLogs = {}
+local function log(self, ...)
+    __TS__ArrayPush(allLogs, ...)
+end
+local function defer(self)
+    local function resolve()
+    end
+    local function reject()
+    end
+    local promise = __TS__New(
+        __TS__Promise,
+        function(____, res, rej)
+            resolve = res
+            reject = rej
+        end
+    )
+    return {promise = promise, resolve = resolve, reject = reject}
+end
+function ____exports.__main(self)
+    local failing = defer(nil)
+    local recovery = defer(nil)
+    local function run(self)
+        return __TS__AsyncAwaiter(function(____awaiter_resolve)
+            local ____hasReturned, ____returnValue
+            local ____try = __TS__AsyncAwaiter(function()
+                __TS__Await(failing.promise)
+                ____hasReturned = true
+                ____returnValue = "succeeded"
+                return
+            end)
+            ____try = ____try.catch(
+                ____try,
+                function(____, e)
+                    return __TS__AsyncAwaiter(function()
+                        ____hasReturned = true
+                        ____returnValue = __TS__Await(recovery.promise)
+                        return
+                    end)
+                end
+            )
+            __TS__Await(____try)
+            if ____hasReturned then
+                return ____awaiter_resolve(nil, ____returnValue)
+            end
+        end)
+    end
+    local ____self_0 = run(nil)
+    ____self_0["then"](
+        ____self_0,
+        function(____, value) return log(nil, "result", value) end
+    )
+    failing:reject("error")
+    recovery:resolve("recovered")
+    return allLogs
+end
+return ____exports`},
 		{name: "try/catch in async function return inside try with deferred promise (#1706)", tsCode: `
 // Some logging utility, useful for asserting orders of operations
 

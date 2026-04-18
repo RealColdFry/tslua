@@ -7,6 +7,86 @@ func TestEval_Using(t *testing.T) {
 	t.Parallel()
 
 	batchExpectFunctions(t, []funcTestCase{
+		{"await-using with nested async arrow that also has await-using (runtime divergence)", `const logs: any[] = [];
+        async function getA(): Promise<AsyncDisposable> {
+            return { [Symbol.asyncDispose]: async () => {} };
+        }
+        async function outer(): Promise<number> {
+            await using a = await getA();
+            const inner = async (): Promise<number> => {
+                await using b = await getA();
+                return 42;
+            };
+            return inner();
+        }
+        outer().then(v => logs.push(v));
+        return logs;`, `{42}`, `local ____lualib = require("lualib_bundle")
+local __TS__UsingAsync = ____lualib.__TS__UsingAsync
+local __TS__Symbol = ____lualib.__TS__Symbol
+local Symbol = ____lualib.Symbol
+local __TS__AsyncAwaiter = ____lualib.__TS__AsyncAwaiter
+local __TS__Await = ____lualib.__TS__Await
+local ____exports = {}
+function ____exports.__main(self)
+    local logs = {}
+    local function getA(self)
+        return __TS__AsyncAwaiter(function(____awaiter_resolve)
+            return ____awaiter_resolve(
+                nil,
+                {[Symbol.asyncDispose] = function()
+                    return __TS__AsyncAwaiter(function(____awaiter_resolve)
+                    end)
+                end}
+            )
+        end)
+    end
+    local function outer(self)
+        return __TS__AsyncAwaiter(function(____awaiter_resolve)
+            return ____awaiter_resolve(
+                nil,
+                __TS__Await(__TS__UsingAsync(
+                    nil,
+                    function(a)
+                        return __TS__AsyncAwaiter(function(____awaiter_resolve)
+                            local function inner()
+                                return __TS__AsyncAwaiter(function(____awaiter_resolve)
+                                    return ____awaiter_resolve(
+                                        nil,
+                                        __TS__Await(__TS__UsingAsync(
+                                            nil,
+                                            function(b)
+                                                return __TS__AsyncAwaiter(function(____awaiter_resolve)
+                                                    return ____awaiter_resolve(nil, 42)
+                                                end)
+                                            end,
+                                            __TS__Await(getA(nil))
+                                        ))
+                                    )
+                                end)
+                            end
+                            return ____awaiter_resolve(
+                                nil,
+                                inner(nil)
+                            )
+                        end)
+                    end,
+                    __TS__Await(getA(nil))
+                ))
+            )
+        end)
+    end
+    local ____self_1 = outer(nil)
+    ____self_1["then"](
+        ____self_1,
+        function(____, v)
+            local ____temp_0 = #logs + 1
+            logs[____temp_0] = v
+            return ____temp_0
+        end
+    )
+    return logs
+end
+return ____exports`, false, false},
 		{"works with disposable classes (#1584)", `const log: string[] = [];
         
         class Scoped {
