@@ -1654,6 +1654,9 @@ func (t *Transpiler) transformAsyncTry(ts *ast.TryStatement) []lua.Statement {
 func (t *Transpiler) buildContinueStatements() []lua.Statement {
 	if t.luaTarget.HasNativeContinue() {
 		var stmts []lua.Statement
+		if n := len(t.forLoopPreContinue); n > 0 {
+			stmts = append(stmts, t.forLoopPreContinue[n-1]...)
+		}
 		if n := len(t.forLoopIncrementors); n > 0 {
 			if inc := t.forLoopIncrementors[n-1]; inc != nil {
 				stmts = append(stmts, t.transformAsStatement(inc)...)

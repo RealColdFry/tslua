@@ -42,6 +42,36 @@ func TestForLoopClosureCapture(t *testing.T) {
 			return fns.map(f => f()).join(",");`,
 			`"3,3,3"`,
 		},
+		{
+			"body reassigns captured loop var - results",
+			`const results: number[] = [];
+			for (let i = 0; i < 10; i++) {
+				results.push(i);
+				if (i === 2) i = 8;
+			}
+			return results.join(",");`,
+			`"0,1,2,9"`,
+		},
+		{
+			"body reassigns captured loop var - closures",
+			`const fns: (() => number)[] = [];
+			for (let i = 0; i < 10; i++) {
+				fns.push(() => i);
+				if (i === 2) i = 8;
+			}
+			return fns.map(f => f()).join(",");`,
+			`"0,1,8,9"`,
+		},
+		{
+			"body reassigns captured loop var with continue",
+			`const fns: (() => number)[] = [];
+			for (let i = 0; i < 10; i++) {
+				fns.push(() => i);
+				if (i === 2) { i = 8; continue; }
+			}
+			return fns.map(f => f()).join(",");`,
+			`"0,1,8,9"`,
+		},
 	}
 
 	for _, tc := range cases {

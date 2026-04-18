@@ -108,6 +108,8 @@ type Transpiler struct {
 	namedExports              map[string][]string     // local name → export names for `export { local as exported }`
 	continueLabels            []string                // stack of active continue labels for nested loops
 	forLoopIncrementors       []*ast.Node             // stack of for-loop incrementors (for Luau native continue)
+	forLoopPreContinue        [][]lua.Statement       // stack of per-loop statements to emit before native continue (e.g. sync-back for captured+reassigned let)
+	loopVarRenames            map[*ast.Symbol]string  // for-loop let symbols renamed when the outer counter is separated from the per-iteration binding
 	breakLabels               map[string]string       // TS label name → Lua break label name (for labeled break)
 	continueLabelMap          map[string]string       // TS label name → Lua continue label name (for labeled continue)
 	activeLabeledContinue     string                  // Lua label to emit at continue point of next loop (set by transformLabeledStatement)
@@ -1117,6 +1119,9 @@ func (t *Transpiler) transformStatement(node *ast.Node) (result []lua.Statement)
 			// For C-style for-loops, the incrementor must run before continue.
 			// Duplicate it here since native continue skips to the loop condition.
 			var stmts []lua.Statement
+			if n := len(t.forLoopPreContinue); n > 0 {
+				stmts = append(stmts, t.forLoopPreContinue[n-1]...)
+			}
 			if n := len(t.forLoopIncrementors); n > 0 {
 				if inc := t.forLoopIncrementors[n-1]; inc != nil {
 					stmts = append(stmts, t.transformAsStatement(inc)...)
@@ -1807,6 +1812,9 @@ func (t *Transpiler) transformExpression(node *ast.Node) (result lua.Expression)
 		if sym := t.checker.GetSymbolAtLocation(node); sym != nil {
 			if customName := t.getCustomNameFromSymbol(sym); customName != "" {
 				text = customName
+			}
+			if renamed, ok := t.loopVarRenames[sym]; ok {
+				text = renamed
 			}
 		}
 		// Check namespace export scope before module export
