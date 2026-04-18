@@ -453,8 +453,12 @@ func (t *Transpiler) tryNumericFor(node *ast.Node) []lua.Statement {
 		return nil
 	}
 
-	// 5. Loop variable must not be assigned in the body
-	if loopVarSym != nil && containsAssignmentToSymbol(fs.Statement, loopVarSym, t) {
+	// 5. Loop variable must not be assigned anywhere in the body, including inside
+	// closures. Lua 5.4+ makes the numeric-for control variable `<const>`, so a
+	// closure that writes to it fails at runtime. On earlier Lua versions the write
+	// would succeed and still match JS `let` semantics (per-iteration rebind), but
+	// one helper is cheaper than branching on target here.
+	if loopVarSym != nil && containsAssignmentToSymbolDeep(fs.Statement, loopVarSym, t) {
 		return nil
 	}
 
@@ -572,7 +576,7 @@ func (t *Transpiler) forCapturedLetVars(fs *ast.ForStatement) []capturedLetVar {
 			continue
 		}
 		v := capturedLetVar{name: d.Name().Text(), sym: sym}
-		if containsAssignmentToSymbol(fs.Statement, sym, t) {
+		if containsAssignmentToSymbolDeep(fs.Statement, sym, t) {
 			v.reassigned = true
 			v.outerName = t.nextTemp(v.name)
 		}
@@ -590,10 +594,14 @@ func (t *Transpiler) isLoopVar(node *ast.Node, sym *ast.Symbol) bool {
 	return nodeSym == sym
 }
 
-// containsAssignmentToSymbol checks if a TS subtree contains any assignment to the given symbol.
-// Walks the full tree but stops at nested function boundaries (closures capture by ref,
-// but don't execute synchronously during the loop iteration).
-func containsAssignmentToSymbol(node *ast.Node, sym *ast.Symbol, t *Transpiler) bool {
+// containsAssignmentToSymbolDeep checks if a TS subtree contains any assignment to the given
+// symbol, descending into nested functions. Used by forCapturedLetVars to classify captured
+// let variables as reassigned (a synchronously-called IIFE writing the counter behaves like
+// a direct write, and we can't statically tell sync from async) and by tryNumericFor to
+// reject patterns where a closure writes to the loop counter (Lua 5.4+ makes the numeric-for
+// control variable `<const>`, so such writes fail at runtime). Over-triggering is safe: the
+// fallback while-loop emit is always semantically correct, just slightly more verbose.
+func containsAssignmentToSymbolDeep(node *ast.Node, sym *ast.Symbol, t *Transpiler) bool {
 	if node == nil {
 		return false
 	}
@@ -625,14 +633,11 @@ func containsAssignmentToSymbol(node *ast.Node, sym *ast.Symbol, t *Transpiler) 
 				}
 			}
 		}
-	// Don't descend into nested functions — they don't execute synchronously
-	case ast.KindFunctionExpression, ast.KindArrowFunction, ast.KindFunctionDeclaration:
-		return false
 	}
 
 	found := false
 	node.ForEachChild(func(child *ast.Node) bool {
-		if containsAssignmentToSymbol(child, sym, t) {
+		if containsAssignmentToSymbolDeep(child, sym, t) {
 			found = true
 			return true
 		}

@@ -100,7 +100,19 @@ func TestForLoopClosureCapture(t *testing.T) {
 			}
 			return results.join(",");`,
 			want: `"0,1,2,9"`,
-			skip: "reassignment detector skips nested functions; synchronous IIFE writes are not seen",
+		},
+		{
+			name: "captured loop var reassigned via named inner fn",
+			body: `const results: number[] = [];
+			const fns: (() => number)[] = [];
+			for (let i = 0; i < 10; i++) {
+				fns.push(() => i);
+				results.push(i);
+				const bump = () => { i = 8; };
+				if (i === 2) bump();
+			}
+			return results.join(",");`,
+			want: `"0,1,2,9"`,
 		},
 	}
 
