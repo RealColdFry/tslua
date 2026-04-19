@@ -76,12 +76,34 @@ type Scope struct {
 	FunctionDefs      map[SymbolID]*FunctionDefinitionInfo
 	ImportStatements  []lua.Statement // import statements to hoist to top
 
-	// Flags set when a return/break/continue inside an async try/catch needs
-	// to be deferred to post-check logic after the awaiter chain. Ported from
-	// TSTL PR #1706.
-	AsyncTryHasReturn   bool
-	AsyncTryHasBreak    bool
-	AsyncTryHasContinue bool
+	// Flags set when a return/break/continue inside a try/catch needs to be
+	// deferred to post-check logic after the pcall (sync) or awaiter chain
+	// (async). Break/continue inside the pcall/awaiter function body can't
+	// use goto/break directly because Lua forbids crossing function boundaries
+	// with either, so we assign a sentinel flag and return, then dispatch
+	// after the try wrapper.
+	TryHasReturn         bool
+	TryDeferredTransfers []DeferredTransfer
+}
+
+// TransferKind identifies the kind of deferred control-flow transfer out of a
+// try/catch body.
+type TransferKind int
+
+const (
+	TransferBreak TransferKind = iota
+	TransferContinue
+)
+
+// DeferredTransfer describes a break/continue that had to be replaced with a
+// sentinel-flag assignment + return because the jump would have crossed the
+// pcall/awaiter function boundary. The transformTryStatement visitor consumes
+// these to emit flag declarations and post-pcall dispatch.
+type DeferredTransfer struct {
+	Kind     TransferKind
+	TSLabel  string // "" for unlabeled
+	FlagName string // Lua identifier for the sentinel flag
+	Dispatch []lua.Statement
 }
 
 // Transpiler holds the state needed for transpiling a single source file.
@@ -112,6 +134,7 @@ type Transpiler struct {
 	loopVarRenames            map[*ast.Symbol]string  // for-loop let symbols renamed when the outer counter is separated from the per-iteration binding
 	breakLabels               map[string]string       // TS label name → Lua break label name (for labeled break)
 	continueLabelMap          map[string]string       // TS label name → Lua continue label name (for labeled continue)
+	labelScopeDepths          map[string]int          // TS label name → scope-stack length at label registration (target loop/block index)
 	activeLabeledContinue     string                  // Lua label to emit at continue point of next loop (set by transformLabeledStatement)
 	destructuredParamNames    map[*ast.Node]string    // maps binding pattern nodes to their generated temp names
 	bindingPatternCount       int                     // per-function counter for ____bindingPatternN naming
@@ -1083,77 +1106,18 @@ func (t *Transpiler) transformStatement(node *ast.Node) (result []lua.Statement)
 		return t.transformThrowStatement(node)
 	case ast.KindBreakStatement:
 		bs := node.AsBreakStatement()
+		tsLabel := ""
 		if bs.Label != nil {
-			tsLabel := bs.Label.Text()
-			if luaLabel, ok := t.breakLabels[tsLabel]; ok {
-				if t.luaTarget.SupportsGoto() {
-					return []lua.Statement{lua.Goto(luaLabel)}
-				}
-				return []lua.Statement{
-					lua.Assign([]lua.Expression{lua.Ident(luaLabel)}, []lua.Expression{lua.Bool(true)}),
-					lua.Break(),
-				}
-			}
+			tsLabel = bs.Label.Text()
 		}
-		if t.asyncDepth > 0 {
-			if tryScope := t.findAsyncTryScopeBeforeLoop(); tryScope != nil {
-				tryScope.AsyncTryHasBreak = true
-				return []lua.Statement{
-					lua.Assign([]lua.Expression{lua.Ident("____hasBroken")}, []lua.Expression{lua.Bool(true)}),
-					lua.Return(),
-				}
-			}
-		}
-		return []lua.Statement{lua.Break()}
+		return t.buildBreakDispatch(tsLabel)
 	case ast.KindContinueStatement:
-		if t.asyncDepth > 0 {
-			if tryScope := t.findAsyncTryScopeBeforeLoop(); tryScope != nil {
-				tryScope.AsyncTryHasContinue = true
-				return []lua.Statement{
-					lua.Assign([]lua.Expression{lua.Ident("____hasContinued")}, []lua.Expression{lua.Bool(true)}),
-					lua.Return(),
-				}
-			}
-		}
-		if t.luaTarget.HasNativeContinue() {
-			// For C-style for-loops, the incrementor must run before continue.
-			// Duplicate it here since native continue skips to the loop condition.
-			var stmts []lua.Statement
-			if n := len(t.forLoopPreContinue); n > 0 {
-				stmts = append(stmts, t.forLoopPreContinue[n-1]...)
-			}
-			if n := len(t.forLoopIncrementors); n > 0 {
-				if inc := t.forLoopIncrementors[n-1]; inc != nil {
-					stmts = append(stmts, inc...)
-				}
-			}
-			return append(stmts, lua.Continue())
-		}
 		cs := node.AsContinueStatement()
+		tsLabel := ""
 		if cs.Label != nil {
-			tsLabel := cs.Label.Text()
-			if luaLabel, ok := t.continueLabelMap[tsLabel]; ok {
-				if t.luaTarget.SupportsGoto() {
-					return []lua.Statement{lua.Goto(luaLabel)}
-				}
-				return []lua.Statement{
-					lua.Assign([]lua.Expression{lua.Ident(luaLabel)}, []lua.Expression{lua.Bool(true)}),
-					lua.Break(),
-				}
-			}
+			tsLabel = cs.Label.Text()
 		}
-		label := "__continue"
-		if len(t.continueLabels) > 0 {
-			label = t.continueLabels[len(t.continueLabels)-1]
-		}
-		if t.luaTarget.SupportsGoto() {
-			return []lua.Statement{lua.Goto(label)}
-		}
-		// Lua 5.1: set continue flag and break out of repeat loop
-		return []lua.Statement{
-			lua.Assign([]lua.Expression{lua.Ident(label)}, []lua.Expression{lua.Bool(true)}),
-			lua.Break(),
-		}
+		return t.buildContinueDispatch(tsLabel)
 	case ast.KindInterfaceDeclaration, ast.KindTypeAliasDeclaration:
 		// Type-only declarations — erased in Lua output
 		return nil
@@ -1202,11 +1166,11 @@ func (t *Transpiler) peekScope() *Scope {
 	return t.scopeStack[len(t.scopeStack)-1]
 }
 
-// findAsyncTryScope walks up the scope stack looking for an enclosing Try/Catch
-// scope inside the current async function. Returns nil if a Function scope is
-// encountered first (i.e. the try belongs to an outer function). Ported from
-// TSTL PR #1706 findAsyncTryScopeInStack.
-func (t *Transpiler) findAsyncTryScope() *Scope {
+// findTryScopeInStack walks up the scope stack looking for an enclosing
+// Try/Catch scope. Returns nil if a Function scope is encountered first (i.e.
+// the try belongs to an outer function, so a return inside our function body
+// doesn't cross its pcall/awaiter boundary). Used by return handling.
+func (t *Transpiler) findTryScopeInStack() *Scope {
 	for i := len(t.scopeStack) - 1; i >= 0; i-- {
 		s := t.scopeStack[i]
 		if s.Type == ScopeFunction {
@@ -1219,13 +1183,14 @@ func (t *Transpiler) findAsyncTryScope() *Scope {
 	return nil
 }
 
-// findAsyncTryScopeBeforeLoop is like findAsyncTryScope but stops at Loop
-// boundaries so that break/continue in an inner loop don't target the outer
-// async try. Ported from TSTL PR #1706 findAsyncTryScopeBeforeLoop.
-func (t *Transpiler) findAsyncTryScopeBeforeLoop() *Scope {
-	for i := len(t.scopeStack) - 1; i >= 0; i-- {
+// findTryScopeAbove returns the innermost Try/Catch scope above the given
+// scope-stack index, or nil if none (or a Function scope intervenes). Used by
+// break/continue handling to detect whether the jump crosses a pcall/awaiter
+// function boundary.
+func (t *Transpiler) findTryScopeAbove(targetDepth int) *Scope {
+	for i := len(t.scopeStack) - 1; i > targetDepth; i-- {
 		s := t.scopeStack[i]
-		if s.Type == ScopeFunction || s.Type == ScopeLoop {
+		if s.Type == ScopeFunction {
 			return nil
 		}
 		if s.Type == ScopeTry || s.Type == ScopeCatch {
@@ -1233,6 +1198,175 @@ func (t *Transpiler) findAsyncTryScopeBeforeLoop() *Scope {
 		}
 	}
 	return nil
+}
+
+// findInnermostBreakTargetDepth returns the scope-stack index of the innermost
+// Loop or Switch scope inside the current function. -1 if none.
+func (t *Transpiler) findInnermostBreakTargetDepth() int {
+	for i := len(t.scopeStack) - 1; i >= 0; i-- {
+		s := t.scopeStack[i]
+		if s.Type == ScopeFunction {
+			return -1
+		}
+		if s.Type == ScopeLoop || s.Type == ScopeSwitch {
+			return i
+		}
+	}
+	return -1
+}
+
+// findInnermostLoopDepth returns the scope-stack index of the innermost Loop
+// scope inside the current function. -1 if none.
+func (t *Transpiler) findInnermostLoopDepth() int {
+	for i := len(t.scopeStack) - 1; i >= 0; i-- {
+		s := t.scopeStack[i]
+		if s.Type == ScopeFunction {
+			return -1
+		}
+		if s.Type == ScopeLoop {
+			return i
+		}
+	}
+	return -1
+}
+
+// addDeferredTransfer appends a transfer to the try scope's list, deduping by
+// flag name.
+func (s *Scope) addDeferredTransfer(xfer DeferredTransfer) {
+	for _, existing := range s.TryDeferredTransfers {
+		if existing.FlagName == xfer.FlagName {
+			return
+		}
+	}
+	s.TryDeferredTransfers = append(s.TryDeferredTransfers, xfer)
+}
+
+// buildBreakDispatch emits the Lua statements for a TS break statement,
+// routing through the sentinel-flag path when the break would cross a
+// pcall/awaiter function boundary from within a try/catch body.
+func (t *Transpiler) buildBreakDispatch(tsLabel string) []lua.Statement {
+	targetDepth := -1
+	if tsLabel != "" {
+		if d, ok := t.labelScopeDepths[tsLabel]; ok {
+			targetDepth = d - 1
+		}
+	} else {
+		targetDepth = t.findInnermostBreakTargetDepth()
+	}
+
+	normal := t.normalBreakStatements(tsLabel)
+
+	if tryScope := t.findTryScopeAbove(targetDepth); tryScope != nil {
+		flag := "____hasBroken"
+		if tsLabel != "" {
+			flag = "____hasBroken_" + tsLabel
+		}
+		tryScope.addDeferredTransfer(DeferredTransfer{
+			Kind:     TransferBreak,
+			TSLabel:  tsLabel,
+			FlagName: flag,
+			Dispatch: normal,
+		})
+		return []lua.Statement{
+			lua.Assign([]lua.Expression{lua.Ident(flag)}, []lua.Expression{lua.Bool(true)}),
+			lua.Return(),
+		}
+	}
+
+	return normal
+}
+
+// buildContinueDispatch emits the Lua statements for a TS continue statement,
+// routing through the sentinel-flag path when the continue would cross a
+// pcall/awaiter function boundary from within a try/catch body.
+func (t *Transpiler) buildContinueDispatch(tsLabel string) []lua.Statement {
+	targetDepth := -1
+	if tsLabel != "" {
+		if d, ok := t.labelScopeDepths[tsLabel]; ok {
+			targetDepth = d - 1
+		}
+	} else {
+		targetDepth = t.findInnermostLoopDepth()
+	}
+
+	normal := t.normalContinueStatements(tsLabel)
+
+	if tryScope := t.findTryScopeAbove(targetDepth); tryScope != nil {
+		flag := "____hasContinued"
+		if tsLabel != "" {
+			flag = "____hasContinued_" + tsLabel
+		}
+		tryScope.addDeferredTransfer(DeferredTransfer{
+			Kind:     TransferContinue,
+			TSLabel:  tsLabel,
+			FlagName: flag,
+			Dispatch: normal,
+		})
+		return []lua.Statement{
+			lua.Assign([]lua.Expression{lua.Ident(flag)}, []lua.Expression{lua.Bool(true)}),
+			lua.Return(),
+		}
+	}
+
+	return normal
+}
+
+// normalBreakStatements returns the Lua statements for a break (labeled or
+// unlabeled) assuming the jump doesn't cross a pcall/awaiter boundary.
+func (t *Transpiler) normalBreakStatements(tsLabel string) []lua.Statement {
+	if tsLabel != "" {
+		if luaLabel, ok := t.breakLabels[tsLabel]; ok {
+			if t.luaTarget.SupportsGoto() {
+				return []lua.Statement{lua.Goto(luaLabel)}
+			}
+			return []lua.Statement{
+				lua.Assign([]lua.Expression{lua.Ident(luaLabel)}, []lua.Expression{lua.Bool(true)}),
+				lua.Break(),
+			}
+		}
+	}
+	return []lua.Statement{lua.Break()}
+}
+
+// normalContinueStatements returns the Lua statements for a continue (labeled
+// or unlabeled) assuming the jump doesn't cross a pcall/awaiter boundary.
+func (t *Transpiler) normalContinueStatements(tsLabel string) []lua.Statement {
+	if tsLabel != "" {
+		if luaLabel, ok := t.continueLabelMap[tsLabel]; ok {
+			if t.luaTarget.SupportsGoto() {
+				return []lua.Statement{lua.Goto(luaLabel)}
+			}
+			return []lua.Statement{
+				lua.Assign([]lua.Expression{lua.Ident(luaLabel)}, []lua.Expression{lua.Bool(true)}),
+				lua.Break(),
+			}
+		}
+	}
+	if t.luaTarget.HasNativeContinue() {
+		// For C-style for-loops, the incrementor must run before continue.
+		// Duplicate it here since native continue skips to the loop condition.
+		var stmts []lua.Statement
+		if n := len(t.forLoopPreContinue); n > 0 {
+			stmts = append(stmts, t.forLoopPreContinue[n-1]...)
+		}
+		if n := len(t.forLoopIncrementors); n > 0 {
+			if inc := t.forLoopIncrementors[n-1]; inc != nil {
+				stmts = append(stmts, inc...)
+			}
+		}
+		return append(stmts, lua.Continue())
+	}
+	label := "__continue"
+	if len(t.continueLabels) > 0 {
+		label = t.continueLabels[len(t.continueLabels)-1]
+	}
+	if t.luaTarget.SupportsGoto() {
+		return []lua.Statement{lua.Goto(label)}
+	}
+	return []lua.Statement{
+		lua.Assign([]lua.Expression{lua.Ident(label)}, []lua.Expression{lua.Bool(true)}),
+		lua.Break(),
+	}
 }
 
 // isInsideFunction returns true if any scope in the stack is a function scope.

@@ -129,6 +129,9 @@ func (t *Transpiler) transformLabeledStatement(node *ast.Node) []lua.Statement {
 	if t.continueLabelMap == nil {
 		t.continueLabelMap = make(map[string]string)
 	}
+	if t.labelScopeDepths == nil {
+		t.labelScopeDepths = make(map[string]int)
+	}
 
 	if hasBreak {
 		t.breakLabels[tsLabel] = breakLabel
@@ -137,6 +140,11 @@ func (t *Transpiler) transformLabeledStatement(node *ast.Node) []lua.Statement {
 		t.continueLabelMap[tsLabel] = continueLabel
 		t.activeLabeledContinue = continueLabel
 	}
+	// Record the scope-stack length at registration. The inner iteration/block
+	// pushes its own scope at this index, so a break/continue inside that scope
+	// targeting this label whose scope-stack index is below this length has
+	// crossed any Try/Catch scope in between.
+	t.labelScopeDepths[tsLabel] = len(t.scopeStack)
 
 	// Transform the inner statement (it will use the registered labels)
 	stmts := t.transformStatementWithComments(ls.Statement)
@@ -144,6 +152,7 @@ func (t *Transpiler) transformLabeledStatement(node *ast.Node) []lua.Statement {
 	// Clean up labels
 	delete(t.breakLabels, tsLabel)
 	delete(t.continueLabelMap, tsLabel)
+	delete(t.labelScopeDepths, tsLabel)
 	t.activeLabeledContinue = ""
 
 	if hasBreak {
