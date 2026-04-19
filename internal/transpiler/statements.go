@@ -733,8 +733,8 @@ func (t *Transpiler) transformReturnStatement(node *ast.Node) []lua.Statement {
 	if t.asyncDepth > 0 {
 		// If we're inside an async try/catch, defer the return to post-check
 		// logic after the awaiter chain resolves. Ported from TSTL PR #1706.
-		if tryScope := t.findAsyncTryScope(); tryScope != nil {
-			tryScope.AsyncTryHasReturn = true
+		if tryScope := t.findTryScopeInStack(); tryScope != nil {
+			tryScope.TryHasReturn = true
 			result := []lua.Statement{
 				lua.Assign([]lua.Expression{lua.Ident("____hasReturned")}, []lua.Expression{lua.Bool(true)}),
 			}
@@ -1332,9 +1332,11 @@ func (t *Transpiler) transformTryStatement(node *ast.Node) []lua.Statement {
 		return t.transformBlock(ts.TryBlock)
 	}
 
-	// Track that we're inside a try block (return → return true, value)
+	// Track that we're inside a try block (return → return true, value) and
+	// push a ScopeTry so nested break/continue can detect they'd cross the
+	// pcall function boundary.
 	t.tryDepth++
-	tryBlockStmts := t.transformBlock(ts.TryBlock)
+	tryBlockStmts, tryScope := t.transformBlockInNewScope(ts.TryBlock, ScopeTry)
 	tryHasReturn := containsReturnInBlock(ts.TryBlock)
 	t.tryDepth--
 
@@ -1366,9 +1368,16 @@ func (t *Transpiler) transformTryStatement(node *ast.Node) []lua.Statement {
 		}
 
 		t.tryDepth++
-		catchBlockStmts := t.transformBlock(cc.Block)
+		var catchBlockStmts []lua.Statement
+		var catchScope *Scope
+		catchBlockStmts, catchScope = t.transformBlockInNewScope(cc.Block, ScopeCatch)
 		catchHasReturn := containsReturnInBlock(cc.Block)
 		t.tryDepth--
+		// Merge catch's deferred transfers into the try scope so the single
+		// post-check after finally handles both try and catch body transfers.
+		for _, xfer := range catchScope.TryDeferredTransfers {
+			tryScope.addDeferredTransfer(xfer)
+		}
 
 		var catchParams []*lua.Identifier
 		if hasCatchVar {
@@ -1479,6 +1488,25 @@ func (t *Transpiler) transformTryStatement(node *ast.Node) []lua.Statement {
 		))
 	}
 
+	// Break/continue propagation: if the try/catch body had to defer a jump
+	// because it would have crossed the pcall function boundary, declare the
+	// sentinel flags before the pcall and dispatch them after finally.
+	if len(tryScope.TryDeferredTransfers) > 0 {
+		flagDecls := make([]*lua.Identifier, 0, len(tryScope.TryDeferredTransfers))
+		for _, xfer := range tryScope.TryDeferredTransfers {
+			flagDecls = append(flagDecls, lua.Ident(xfer.FlagName))
+		}
+		// Prepend the flag declaration so the pcall/catch closures can assign it.
+		result = append([]lua.Statement{lua.LocalDecl(flagDecls, nil)}, result...)
+		for _, xfer := range tryScope.TryDeferredTransfers {
+			result = append(result, lua.If(
+				lua.Ident(xfer.FlagName),
+				&lua.Block{Statements: xfer.Dispatch},
+				nil,
+			))
+		}
+	}
+
 	return []lua.Statement{lua.Do(result...)}
 }
 
@@ -1570,28 +1598,26 @@ func (t *Transpiler) transformAsyncTry(ts *ast.TryStatement) []lua.Statement {
 	}
 
 	// Collect deferred-control-flow flags from try and catch scopes.
-	hasReturn := tryScope.AsyncTryHasReturn
-	hasBreak := tryScope.AsyncTryHasBreak
-	hasContinue := tryScope.AsyncTryHasContinue
+	hasReturn := tryScope.TryHasReturn
 	if catchScope != nil {
-		hasReturn = hasReturn || catchScope.AsyncTryHasReturn
-		hasBreak = hasBreak || catchScope.AsyncTryHasBreak
-		hasContinue = hasContinue || catchScope.AsyncTryHasContinue
+		hasReturn = hasReturn || catchScope.TryHasReturn
+		// Merge catch's deferred transfers into the try scope.
+		for _, xfer := range catchScope.TryDeferredTransfers {
+			tryScope.addDeferredTransfer(xfer)
+		}
 	}
+	transfers := tryScope.TryDeferredTransfers
 
 	var result []lua.Statement
 
 	// Declare flag locals before the awaiter so the inner closures can assign them.
-	if hasReturn || hasBreak || hasContinue {
+	if hasReturn || len(transfers) > 0 {
 		var flagDecls []*lua.Identifier
 		if hasReturn {
 			flagDecls = append(flagDecls, lua.Ident("____hasReturned"), lua.Ident("____returnValue"))
 		}
-		if hasBreak {
-			flagDecls = append(flagDecls, lua.Ident("____hasBroken"))
-		}
-		if hasContinue {
-			flagDecls = append(flagDecls, lua.Ident("____hasContinued"))
+		for _, xfer := range transfers {
+			flagDecls = append(flagDecls, lua.Ident(xfer.FlagName))
 		}
 		result = append(result, lua.LocalDecl(flagDecls, nil))
 	}
@@ -1628,54 +1654,15 @@ func (t *Transpiler) transformAsyncTry(ts *ast.TryStatement) []lua.Statement {
 			}},
 		})
 	}
-	if hasBreak {
-		// if ____hasBroken then break end
+	// Dispatch each deferred break/continue transfer captured during body transforms.
+	for _, xfer := range transfers {
 		result = append(result, &lua.IfStatement{
-			Condition: lua.Ident("____hasBroken"),
-			IfBlock:   &lua.Block{Statements: []lua.Statement{lua.Break()}},
-		})
-	}
-	if hasContinue {
-		// if ____hasContinued then <continue stmts> end
-		continueStmts := t.buildContinueStatements()
-		result = append(result, &lua.IfStatement{
-			Condition: lua.Ident("____hasContinued"),
-			IfBlock:   &lua.Block{Statements: continueStmts},
+			Condition: lua.Ident(xfer.FlagName),
+			IfBlock:   &lua.Block{Statements: xfer.Dispatch},
 		})
 	}
 
 	return result
-}
-
-// buildContinueStatements emits the target-appropriate continue sequence for
-// the innermost enclosing loop (native continue, goto label, or repeat-break
-// fallback). Used by the async try post-check when a continue inside the try
-// needs to propagate to the outer loop.
-func (t *Transpiler) buildContinueStatements() []lua.Statement {
-	if t.luaTarget.HasNativeContinue() {
-		var stmts []lua.Statement
-		if n := len(t.forLoopPreContinue); n > 0 {
-			stmts = append(stmts, t.forLoopPreContinue[n-1]...)
-		}
-		if n := len(t.forLoopIncrementors); n > 0 {
-			if inc := t.forLoopIncrementors[n-1]; inc != nil {
-				stmts = append(stmts, inc...)
-			}
-		}
-		return append(stmts, lua.Continue())
-	}
-	label := "__continue"
-	if len(t.continueLabels) > 0 {
-		label = t.continueLabels[len(t.continueLabels)-1]
-	}
-	if t.luaTarget.SupportsGoto() {
-		return []lua.Statement{lua.Goto(label)}
-	}
-	// Lua 5.0/5.1: set continue flag and break out of repeat loop
-	return []lua.Statement{
-		lua.Assign([]lua.Expression{lua.Ident(label)}, []lua.Expression{lua.Bool(true)}),
-		lua.Break(),
-	}
 }
 
 // throw expr → error(expr, 0)
