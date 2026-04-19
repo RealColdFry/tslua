@@ -28,6 +28,12 @@ check_optional luajit "just tstltest / tstl-test"
 check_optional lua5.1 "just tstltest with Lua 5.1 target"
 check_optional goimports "just fmt"
 check_optional golangci-lint "just lint"
+check_optional curl "just build-lua"
+check_optional tar "just build-lua"
+check_optional make "just build-lua"
+check_optional cc "just build-lua"
+check_optional unzip "just build-lua"
+check_optional perl "just build-lua"
 
 if [ "$err" -ne 0 ]; then
     echo ""
@@ -50,7 +56,7 @@ echo "Applying TSTL patches..."
 
 echo ""
 echo "Installing npm dependencies..."
-npm install
+npm ci
 
 echo ""
 echo "Setting up TSTL test suite..."

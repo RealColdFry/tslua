@@ -37,7 +37,7 @@ run_quiet() {
         return 0
     else
         local rc=$?
-        echo "  BUILD FAILED (exit $rc) — output:"
+        echo "  BUILD FAILED (exit $rc), output:"
         cat "$log"
         return $rc
     fi
@@ -70,7 +70,7 @@ build_lua() {
 
     if [[ -x "$BIN_DIR/$name" ]]; then
         local size; size="$(wc -c < "$BIN_DIR/$name")"
-        echo "  $name ($version) — already built ($(human_size "$size")), skipping"
+        echo "  $name ($version): already built ($(human_size "$size")), skipping"
         return
     fi
 
@@ -97,7 +97,7 @@ build_lua() {
 
     local size; size="$(wc -c < "$BIN_DIR/$name")"
     local reported; reported="$("$BIN_DIR/$name" -v 2>&1 | head -1)"
-    echo "  $name ($version) — done ($(elapsed_since "$start_time")s, $(human_size "$size")) [$reported]"
+    echo "  $name ($version): done ($(elapsed_since "$start_time")s, $(human_size "$size")) [$reported]"
 }
 
 build_luajit() {
@@ -107,7 +107,7 @@ build_luajit() {
 
     if [[ -x "$BIN_DIR/$name" ]]; then
         local size; size="$(wc -c < "$BIN_DIR/$name")"
-        echo "  $name ($version) — already built ($(human_size "$size")), skipping"
+        echo "  $name ($version): already built ($(human_size "$size")), skipping"
         return
     fi
 
@@ -126,7 +126,7 @@ build_luajit() {
 
     local size; size="$(wc -c < "$BIN_DIR/$name")"
     local reported; reported="$("$BIN_DIR/$name" -v 2>&1 | head -1)"
-    echo "  $name ($version) — done ($(elapsed_since "$start_time")s, $(human_size "$size")) [$reported]"
+    echo "  $name ($version): done ($(elapsed_since "$start_time")s, $(human_size "$size")) [$reported]"
 }
 
 download_lune() {
@@ -135,7 +135,7 @@ download_lune() {
 
     if [[ -x "$BIN_DIR/$name" ]]; then
         local size; size="$(wc -c < "$BIN_DIR/$name")"
-        echo "  $name ($version) — already installed ($(human_size "$size")), skipping"
+        echo "  $name ($version): already installed ($(human_size "$size")), skipping"
         return
     fi
 
@@ -163,10 +163,10 @@ download_lune() {
 
     local size; size="$(wc -c < "$BIN_DIR/$name")"
     local reported; reported="$("$BIN_DIR/$name" --version 2>&1 | head -1)"
-    echo "  $name ($version) — done ($(elapsed_since "$start_time")s, $(human_size "$size")) [$reported]"
+    echo "  $name ($version): done ($(elapsed_since "$start_time")s, $(human_size "$size")) [$reported]"
 }
 
-echo "Building Lua runtimes → $BIN_DIR"
+echo "Building Lua runtimes -> $BIN_DIR"
 echo "Platform: $PLATFORM"
 echo ""
 
