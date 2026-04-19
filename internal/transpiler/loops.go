@@ -543,17 +543,25 @@ func (t *Transpiler) closureCapturesSymbol(node *ast.Node, sym *ast.Symbol) bool
 }
 
 // capturedLetVar describes a let-declared loop variable that is captured by a closure
-// in the loop body. reassigned=true means the body also synchronously reassigns the
-// variable, which requires renaming the outer counter and syncing mutations back.
+// somewhere in the for-statement. reassigned=true means the variable is synchronously
+// mutated (in body or incrementor), which requires renaming the outer counter and
+// syncing per-iteration values back. capturedInBody / capturedInInc track where the
+// closure captures occur, so the emitter can decide whether to create a per-iteration
+// scope around the body, the incrementor, or both. ECMA-262 §14.7.4 specifies that
+// the body and the update expression run in separate per-iteration environments, so
+// closures built in the body and in the incrementor need distinct per-iter bindings.
 type capturedLetVar struct {
-	name       string      // original TS identifier, also the inner per-iteration Lua name
-	sym        *ast.Symbol // TS symbol of the let declaration
-	reassigned bool        // body synchronously reassigns the variable
-	outerName  string      // renamed outer-counter name when reassigned
+	name           string      // original TS identifier, also the inner per-iteration Lua name
+	sym            *ast.Symbol // TS symbol of the let declaration
+	reassigned     bool        // body or incrementor synchronously reassigns the variable
+	capturedInBody bool        // a closure in the body captures this variable
+	capturedInInc  bool        // a closure in the incrementor captures this variable
+	outerName      string      // renamed outer-counter name when reassigned
 }
 
 // forCapturedLetVars returns every let-declared variable in a for-statement initializer
-// that is captured by a closure in the body, classifying each as reassigned or not.
+// that is captured by a closure in the body or the incrementor, classifying each as
+// reassigned or not and recording where the captures occur.
 func (t *Transpiler) forCapturedLetVars(fs *ast.ForStatement) []capturedLetVar {
 	if fs.Initializer == nil || fs.Initializer.Kind != ast.KindVariableDeclarationList {
 		return nil
@@ -572,11 +580,22 @@ func (t *Transpiler) forCapturedLetVars(fs *ast.ForStatement) []capturedLetVar {
 		if sym == nil {
 			continue
 		}
-		if !t.closureCapturesSymbol(fs.Statement, sym) {
+		capturedInBody := t.closureCapturesSymbol(fs.Statement, sym)
+		capturedInInc := fs.Incrementor != nil && t.closureCapturesSymbol(fs.Incrementor, sym)
+		if !capturedInBody && !capturedInInc {
 			continue
 		}
-		v := capturedLetVar{name: d.Name().Text(), sym: sym}
-		if containsAssignmentToSymbolDeep(fs.Statement, sym, t) {
+		v := capturedLetVar{
+			name:           d.Name().Text(),
+			sym:            sym,
+			capturedInBody: capturedInBody,
+			capturedInInc:  capturedInInc,
+		}
+		reassigned := containsAssignmentToSymbolDeep(fs.Statement, sym, t)
+		if !reassigned && fs.Incrementor != nil {
+			reassigned = containsAssignmentToSymbolDeep(fs.Incrementor, sym, t)
+		}
+		if reassigned {
 			v.reassigned = true
 			v.outerName = t.nextTemp(v.name)
 		}
@@ -701,6 +720,93 @@ func destructuringLHSAssignsToSymbol(lhs *ast.Node, sym *ast.Symbol, t *Transpil
 	return false
 }
 
+// setRenameForCtx configures t.loopVarRenames for a specific emit context.
+// Reassigned captured vars listed by perIterCtx use per-iteration bindings (so the
+// rename is REMOVED, causing identifier emission to use the original name `i`).
+// Reassigned vars NOT in that set use the renamed outer counter (`____i`).
+// Non-reassigned vars are never in the rename map.
+func (t *Transpiler) setRenameForCtx(capturedLetVars []capturedLetVar, perIterCtx func(capturedLetVar) bool) {
+	for _, v := range capturedLetVars {
+		if !v.reassigned {
+			continue
+		}
+		if perIterCtx(v) {
+			delete(t.loopVarRenames, v.sym)
+		} else {
+			t.loopVarRenames[v.sym] = v.outerName
+		}
+	}
+}
+
+// transformIncrementor emits the for-loop's update expression. When any captured
+// let variable is captured inside the incrementor, the update expression runs in
+// its own per-iteration scope (a `do local i = ____i; <inc>; ____i = i end` block)
+// so closures built in the update clause (e.g. `fns.push(() => i)`) bind to a
+// fresh per-iteration `i`, matching ECMA-262's separate per-iteration environment
+// for the update step. Otherwise the incrementor emits in the outer scope using
+// the renamed counter.
+func (t *Transpiler) transformIncrementor(fs *ast.ForStatement, capturedLetVars []capturedLetVar) []lua.Statement {
+	if fs.Incrementor == nil {
+		return nil
+	}
+	hasIncCapture := false
+	for _, v := range capturedLetVars {
+		if v.capturedInInc {
+			hasIncCapture = true
+			break
+		}
+	}
+
+	// Rename is disabled for vars captured in the incrementor so `i++` emits as
+	// `i = i + 1` against the per-iteration local. Other reassigned vars stay
+	// renamed so their writes go to the outer counter.
+	t.setRenameForCtx(capturedLetVars, func(v capturedLetVar) bool { return v.capturedInInc })
+	incrStmts := t.transformAsStatement(fs.Incrementor)
+	for _, s := range incrStmts {
+		if p, ok := s.(lua.Positioned); ok {
+			if n, ok := s.(lua.Node); ok && !n.SourcePosition().HasPos {
+				_ = p
+				t.setNodePos(p, fs.Incrementor)
+			}
+		}
+	}
+
+	if !hasIncCapture {
+		return incrStmts
+	}
+
+	// Wrap in a per-iteration `do local i = ____i; <inc>; ____i = i end` block.
+	// Non-reassigned vars captured here get a shadow `local i = i`; reassigned
+	// vars get a fresh `local i = ____i` and a `____i = i` sync-back.
+	var inner []lua.Statement
+	for _, v := range capturedLetVars {
+		if !v.capturedInInc {
+			continue
+		}
+		if v.reassigned {
+			inner = append(inner, lua.LocalDecl(
+				[]*lua.Identifier{lua.Ident(v.name)},
+				[]lua.Expression{lua.Ident(v.outerName)},
+			))
+		} else {
+			inner = append(inner, lua.LocalDecl(
+				[]*lua.Identifier{lua.Ident(v.name)},
+				[]lua.Expression{lua.Ident(v.name)},
+			))
+		}
+	}
+	inner = append(inner, incrStmts...)
+	for _, v := range capturedLetVars {
+		if v.capturedInInc && v.reassigned {
+			inner = append(inner, lua.Assign(
+				[]lua.Expression{lua.Ident(v.outerName)},
+				[]lua.Expression{lua.Ident(v.name)},
+			))
+		}
+	}
+	return []lua.Statement{lua.Do(inner...)}
+}
+
 // prependPerIterationCopies adds `local i = i` declarations at the start of a
 // statement list for each captured let variable, creating per-iteration bindings.
 func prependPerIterationCopies(vars []string, body []lua.Statement) []lua.Statement {
@@ -737,11 +843,9 @@ func (t *Transpiler) transformForStatement(node *ast.Node) []lua.Statement {
 	if t.loopVarRenames == nil && len(capturedLetVars) > 0 {
 		t.loopVarRenames = make(map[*ast.Symbol]string)
 	}
-	for _, v := range capturedLetVars {
-		if v.reassigned {
-			t.loopVarRenames[v.sym] = v.outerName
-		}
-	}
+	// Init/condition context: every reassigned captured var uses the renamed
+	// outer counter (`____i`), so init/cond emit against the outer binding.
+	t.setRenameForCtx(capturedLetVars, func(capturedLetVar) bool { return false })
 
 	var outerStmts []lua.Statement
 
@@ -788,13 +892,18 @@ func (t *Transpiler) transformForStatement(node *ast.Node) []lua.Statement {
 		cond = lua.Bool(true)
 	}
 
-	// Body — disable rename so body references to the let var resolve to the
-	// per-iteration local (declared below as `local i = ____i`).
-	for _, v := range capturedLetVars {
-		if v.reassigned {
-			delete(t.loopVarRenames, v.sym)
-		}
-	}
+	// Transform the incrementor up front so its statements can be pushed onto
+	// the forLoopIncrementors stack before body transformation (native-continue
+	// targets reference it when a `continue` is encountered inside the body).
+	// transformIncrementor sets the rename map appropriately and, when the
+	// update expression captures a loop var, wraps its emit in a per-iteration
+	// do-block so closures built there bind to a fresh `i`.
+	incrStmts := t.transformIncrementor(fs, capturedLetVars)
+
+	// Body context: disable rename for body-captured reassigned vars so body
+	// references emit as `i` (resolving to the per-iteration local). All other
+	// reassigned vars stay renamed to `____i`.
+	t.setRenameForCtx(capturedLetVars, func(v capturedLetVar) bool { return v.capturedInBody })
 
 	// For-statements handle continue directly (not via transformLoopBody) because
 	// the incrementor must execute after body but before the next iteration.
@@ -805,11 +914,13 @@ func (t *Transpiler) transformForStatement(node *ast.Node) []lua.Statement {
 	labeledContinue := t.activeLabeledContinue
 	t.activeLabeledContinue = ""
 
-	// Sync-back statements run after every iteration (and before every continue on
-	// targets that skip trailing statements): `____i = i` for each reassigned var.
+	// Sync-back statements run after the body (and before every continue on
+	// targets that skip trailing statements): `____i = i` for each reassigned
+	// body-captured var. Vars captured only in the incrementor sync back inside
+	// the incrementor's own do-block, not here.
 	var syncBack []lua.Statement
 	for _, v := range capturedLetVars {
-		if v.reassigned {
+		if v.reassigned && v.capturedInBody {
 			syncBack = append(syncBack, lua.Assign(
 				[]lua.Expression{lua.Ident(v.outerName)},
 				[]lua.Expression{lua.Ident(v.name)},
@@ -817,12 +928,12 @@ func (t *Transpiler) transformForStatement(node *ast.Node) []lua.Statement {
 		}
 	}
 
-	// Per-iteration binding declarations, placed at the top of the while body so
-	// they outlive any inner `do { body } end` continue wrapper.
+	// Per-iteration binding declarations at the top of the while body. Only
+	// emitted for body-captured reassigned vars; non-reassigned shadows are
+	// handled separately via prependPerIterationCopies.
 	var perIterDecls []lua.Statement
 	for _, v := range capturedLetVars {
-		if v.reassigned {
-			// local i = ____i  — fresh upvalue slot each iteration
+		if v.reassigned && v.capturedInBody {
 			perIterDecls = append(perIterDecls, lua.LocalDecl(
 				[]*lua.Identifier{lua.Ident(v.name)},
 				[]lua.Expression{lua.Ident(v.outerName)},
@@ -838,7 +949,7 @@ func (t *Transpiler) transformForStatement(node *ast.Node) []lua.Statement {
 		}
 
 		if t.luaTarget.HasNativeContinue() {
-			t.forLoopIncrementors = append(t.forLoopIncrementors, fs.Incrementor)
+			t.forLoopIncrementors = append(t.forLoopIncrementors, incrStmts)
 			t.forLoopPreContinue = append(t.forLoopPreContinue, syncBack)
 		}
 		innerBody := t.transformBlockStatementsNoScope(fs.Statement)
@@ -846,11 +957,11 @@ func (t *Transpiler) transformForStatement(node *ast.Node) []lua.Statement {
 			t.forLoopIncrementors = t.forLoopIncrementors[:len(t.forLoopIncrementors)-1]
 			t.forLoopPreContinue = t.forLoopPreContinue[:len(t.forLoopPreContinue)-1]
 		}
-		// Prepend per-iteration copies for captured-but-not-reassigned vars inside
+		// Prepend per-iteration copies for body-captured non-reassigned vars inside
 		// the continue wrapper (cheap shadow; no sync-back needed).
 		var shadowOnly []string
 		for _, v := range capturedLetVars {
-			if !v.reassigned {
+			if !v.reassigned && v.capturedInBody {
 				shadowOnly = append(shadowOnly, v.name)
 			}
 		}
@@ -863,10 +974,12 @@ func (t *Transpiler) transformForStatement(node *ast.Node) []lua.Statement {
 		bodyStmts = append(bodyStmts, perIterDecls...)
 
 		if t.luaTarget.HasNativeContinue() {
-			// Luau: native continue; sync-back duplicated before each continue
-			// via forLoopPreContinue, and also runs on fallthrough.
+			// Luau: native continue; sync-back + incrementor duplicated before each
+			// continue via forLoopPreContinue/forLoopIncrementors, and also run on
+			// fallthrough.
 			bodyStmts = append(bodyStmts, innerBody...)
 			bodyStmts = append(bodyStmts, syncBack...)
+			bodyStmts = append(bodyStmts, incrStmts...)
 		} else if t.luaTarget.SupportsGoto() {
 			bodyStmts = append(bodyStmts, lua.Do(innerBody...))
 			if hasContinue {
@@ -875,14 +988,17 @@ func (t *Transpiler) transformForStatement(node *ast.Node) []lua.Statement {
 			if labeledContinue != "" {
 				bodyStmts = append(bodyStmts, lua.GotoLabel(labeledContinue))
 			}
-			// Sync-back runs after the continue label so fallthrough and continue
-			// both hit it before the incrementor.
+			// Sync-back then incrementor run after the continue label so
+			// fallthrough and continue both hit them.
 			bodyStmts = append(bodyStmts, syncBack...)
+			bodyStmts = append(bodyStmts, incrStmts...)
 		} else {
-			// Lua 5.0/5.1: repeat-break wrapper; sync-back after the wrapper runs
-			// on fallthrough and continue (flag=true) but is skipped on break.
+			// Lua 5.0/5.1: repeat-break wrapper; sync-back + incrementor after the
+			// wrapper run on fallthrough and continue (flag=true) but are skipped
+			// on break.
 			bodyStmts = append(bodyStmts, t.wrapRepeatBreakContinue(innerBody, label)...)
 			bodyStmts = append(bodyStmts, syncBack...)
+			bodyStmts = append(bodyStmts, incrStmts...)
 		}
 
 		if hasContinue {
@@ -892,7 +1008,7 @@ func (t *Transpiler) transformForStatement(node *ast.Node) []lua.Statement {
 		innerBody := t.transformBlockStatementsNoScope(fs.Statement)
 		var shadowOnly []string
 		for _, v := range capturedLetVars {
-			if !v.reassigned {
+			if !v.reassigned && v.capturedInBody {
 				shadowOnly = append(shadowOnly, v.name)
 			}
 		}
@@ -901,6 +1017,7 @@ func (t *Transpiler) transformForStatement(node *ast.Node) []lua.Statement {
 			// leak past the body (matches prior emit exactly).
 			innerBody = prependPerIterationCopies(shadowOnly, innerBody)
 			bodyStmts = append(bodyStmts, lua.Do(innerBody...))
+			bodyStmts = append(bodyStmts, incrStmts...)
 		} else {
 			bodyStmts = append(bodyStmts, perIterDecls...)
 			if len(shadowOnly) > 0 {
@@ -908,31 +1025,10 @@ func (t *Transpiler) transformForStatement(node *ast.Node) []lua.Statement {
 			}
 			bodyStmts = append(bodyStmts, innerBody...)
 			bodyStmts = append(bodyStmts, syncBack...)
+			bodyStmts = append(bodyStmts, incrStmts...)
 		}
 	}
 	t.popScope() // body scope
-
-	// Re-enable rename for the incrementor so `i++` emits as `____i = ____i + 1`.
-	for _, v := range capturedLetVars {
-		if v.reassigned {
-			t.loopVarRenames[v.sym] = v.outerName
-		}
-	}
-
-	// Incrementor (e.g. j++) — must run even on continue
-	if fs.Incrementor != nil {
-		incrStmts := t.transformAsStatement(fs.Incrementor)
-		// Set source position on incrementor statements
-		for _, s := range incrStmts {
-			if p, ok := s.(lua.Positioned); ok {
-				if n, ok := s.(lua.Node); ok && !n.SourcePosition().HasPos {
-					_ = p
-					t.setNodePos(p, fs.Incrementor)
-				}
-			}
-		}
-		bodyStmts = append(bodyStmts, incrStmts...)
-	}
 
 	// Clean up renames on the way out.
 	for _, v := range capturedLetVars {

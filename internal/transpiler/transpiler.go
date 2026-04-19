@@ -107,7 +107,7 @@ type Transpiler struct {
 	exportedNames             map[string]bool         // names that have been exported (for identifier rewriting)
 	namedExports              map[string][]string     // local name → export names for `export { local as exported }`
 	continueLabels            []string                // stack of active continue labels for nested loops
-	forLoopIncrementors       []*ast.Node             // stack of for-loop incrementors (for Luau native continue)
+	forLoopIncrementors       [][]lua.Statement       // stack of for-loop incrementor emit (pre-transformed, for Luau native continue)
 	forLoopPreContinue        [][]lua.Statement       // stack of per-loop statements to emit before native continue (e.g. sync-back for captured+reassigned let)
 	loopVarRenames            map[*ast.Symbol]string  // for-loop let symbols renamed when the outer counter is separated from the per-iteration binding
 	breakLabels               map[string]string       // TS label name → Lua break label name (for labeled break)
@@ -1124,7 +1124,7 @@ func (t *Transpiler) transformStatement(node *ast.Node) (result []lua.Statement)
 			}
 			if n := len(t.forLoopIncrementors); n > 0 {
 				if inc := t.forLoopIncrementors[n-1]; inc != nil {
-					stmts = append(stmts, t.transformAsStatement(inc)...)
+					stmts = append(stmts, inc...)
 				}
 			}
 			return append(stmts, lua.Continue())
