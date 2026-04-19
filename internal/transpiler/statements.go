@@ -1659,7 +1659,7 @@ func (t *Transpiler) buildContinueStatements() []lua.Statement {
 		}
 		if n := len(t.forLoopIncrementors); n > 0 {
 			if inc := t.forLoopIncrementors[n-1]; inc != nil {
-				stmts = append(stmts, t.transformAsStatement(inc)...)
+				stmts = append(stmts, inc...)
 			}
 		}
 		return append(stmts, lua.Continue())

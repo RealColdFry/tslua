@@ -114,6 +114,21 @@ func TestForLoopClosureCapture(t *testing.T) {
 			return results.join(",");`,
 			want: `"0,1,2,9"`,
 		},
+		{
+			name: "closure built in incrementor",
+			body: `const fns: (() => number)[] = [];
+			for (let i = 0; i < 3; i++, fns.push(() => i)) {}
+			return fns.map(f => f()).join(",");`,
+			want: `"1,2,3"`,
+		},
+		{
+			name: "closure built in incrementor with body",
+			body: `const fns: (() => number)[] = [];
+			const results: number[] = [];
+			for (let i = 0; i < 3; results.push(i), i++, fns.push(() => i)) {}
+			return results.join(",") + "/" + fns.map(f => f()).join(",");`,
+			want: `"0,1,2/1,2,3"`,
+		},
 	}
 
 	modes := []struct {
