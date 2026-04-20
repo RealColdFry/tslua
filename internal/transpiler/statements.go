@@ -1410,26 +1410,79 @@ func (t *Transpiler) transformTryStatement(node *ast.Node) []lua.Statement {
 		}
 		result = append(result, lua.LocalDecl(declVars, []lua.Expression{lua.Call(lua.Ident("pcall"), tryFn)}))
 
-		var catchCallStmt lua.Statement
-		if hasReturn {
-			var catchArg []lua.Expression
-			if hasCatchVar {
-				catchArg = []lua.Expression{lua.Ident("____hasReturned")}
-			}
-			catchCallStmt = lua.Assign(
-				[]lua.Expression{lua.Ident("____hasReturned"), lua.Ident("____returnValue")},
-				[]lua.Expression{lua.Call(lua.Ident("____catch"), catchArg...)},
-			)
-		} else if hasCatchVar {
-			catchCallStmt = lua.ExprStmt(lua.Call(lua.Ident("____catch"), lua.Ident("____hasReturned")))
-		} else {
-			catchCallStmt = lua.ExprStmt(lua.Call(lua.Ident("____catch")))
+		var catchArg []lua.Expression
+		if hasCatchVar {
+			catchArg = []lua.Expression{lua.Ident("____hasReturned")}
 		}
-		result = append(result, lua.If(
-			lua.Unary(lua.OpNot, lua.Ident("____try")),
-			&lua.Block{Statements: []lua.Statement{catchCallStmt}},
-			nil,
-		))
+
+		if ts.FinallyBlock != nil {
+			// ECMA-262: finally must run even if catch rethrows. Wrap the
+			// catch call in its own pcall, capture any rethrown error, run
+			// finally, then re-raise. Finally's own abrupt completion
+			// (return/break/continue/throw) naturally supersedes the rethrow
+			// because it short-circuits the rethrow statement below.
+			//
+			// Regression: https://github.com/RealColdFry/tslua/issues/93
+			result = append(result, lua.LocalDecl(
+				[]*lua.Identifier{lua.Ident("____catchErr")},
+				nil,
+			))
+			pcallArgs := append([]lua.Expression{lua.Ident("____catch")}, catchArg...)
+			pcallCall := lua.Call(lua.Ident("pcall"), pcallArgs...)
+			innerDecls := []*lua.Identifier{lua.Ident("____catchOk")}
+			if hasReturn {
+				innerDecls = append(innerDecls, lua.Ident("____catchR1"), lua.Ident("____catchR2"))
+			} else {
+				innerDecls = append(innerDecls, lua.Ident("____catchR1"))
+			}
+			var innerIfBody []lua.Statement
+			innerIfBody = append(innerIfBody, lua.LocalDecl(innerDecls, []lua.Expression{pcallCall}))
+			// Error-captured-as-table so a thrown nil still triggers re-raise.
+			captureErr := lua.Assign(
+				[]lua.Expression{lua.Ident("____catchErr")},
+				[]lua.Expression{lua.Table(lua.Field(lua.Ident("____catchR1")))},
+			)
+			if hasReturn {
+				innerIfBody = append(innerIfBody, lua.If(
+					lua.Ident("____catchOk"),
+					&lua.Block{Statements: []lua.Statement{
+						lua.Assign(
+							[]lua.Expression{lua.Ident("____hasReturned"), lua.Ident("____returnValue")},
+							[]lua.Expression{lua.Ident("____catchR1"), lua.Ident("____catchR2")},
+						),
+					}},
+					&lua.Block{Statements: []lua.Statement{captureErr}},
+				))
+			} else {
+				innerIfBody = append(innerIfBody, lua.If(
+					lua.Unary(lua.OpNot, lua.Ident("____catchOk")),
+					&lua.Block{Statements: []lua.Statement{captureErr}},
+					nil,
+				))
+			}
+			result = append(result, lua.If(
+				lua.Unary(lua.OpNot, lua.Ident("____try")),
+				&lua.Block{Statements: innerIfBody},
+				nil,
+			))
+		} else {
+			var catchCallStmt lua.Statement
+			if hasReturn {
+				catchCallStmt = lua.Assign(
+					[]lua.Expression{lua.Ident("____hasReturned"), lua.Ident("____returnValue")},
+					[]lua.Expression{lua.Call(lua.Ident("____catch"), catchArg...)},
+				)
+			} else if hasCatchVar {
+				catchCallStmt = lua.ExprStmt(lua.Call(lua.Ident("____catch"), lua.Ident("____hasReturned")))
+			} else {
+				catchCallStmt = lua.ExprStmt(lua.Call(lua.Ident("____catch")))
+			}
+			result = append(result, lua.If(
+				lua.Unary(lua.OpNot, lua.Ident("____try")),
+				&lua.Block{Statements: []lua.Statement{catchCallStmt}},
+				nil,
+			))
+		}
 	} else if tryHasReturn {
 		// try with return, but no catch
 		result = append(result, lua.LocalDecl(
@@ -1451,6 +1504,23 @@ func (t *Transpiler) transformTryStatement(node *ast.Node) []lua.Statement {
 	// Finally block
 	if ts.FinallyBlock != nil {
 		result = append(result, t.transformBlock(ts.FinallyBlock)...)
+	}
+
+	// Re-raise a rethrow from catch that was captured so finally could run.
+	// See ECMA-262: if finally completes normally the catch's throw completion
+	// propagates; if finally has its own abrupt completion it short-circuits
+	// this statement and supersedes the throw.
+	if ts.CatchClause != nil && catchHasStatements && ts.FinallyBlock != nil {
+		result = append(result, lua.If(
+			lua.Ident("____catchErr"),
+			&lua.Block{Statements: []lua.Statement{
+				lua.ExprStmt(lua.Call(lua.Ident("error"),
+					lua.Index(lua.Ident("____catchErr"), lua.Num("1")),
+					lua.Num("0"),
+				)),
+			}},
+			nil,
+		))
 	}
 
 	// Re-throw error if try had no catch but had a finally
