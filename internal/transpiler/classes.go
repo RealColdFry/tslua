@@ -81,6 +81,9 @@ func (t *Transpiler) transformClassExpression(node *ast.Node) lua.Expression {
 		stmts = append(stmts, lua.Do(doBody...))
 	} else if initExpr := cs.classInitExpr(origName, baseExpr); initExpr != nil {
 		// Alternative class style: class("Name")(base) or class("Name", base)
+		if cs == ClassStyleMiddleclass {
+			t.usesMiddleclass = true
+		}
 		stmts = append(stmts, lua.LocalDecl(
 			[]*lua.Identifier{lua.Ident(name)},
 			[]lua.Expression{initExpr},
@@ -274,6 +277,9 @@ func (t *Transpiler) transformClassDeclaration(node *ast.Node) []lua.Statement {
 		// Library-based styles (TSTL, luabind, middleclass)
 		var classInitExpr lua.Expression
 		if initExpr := cs.classInitExpr(origName, baseExpr); initExpr != nil {
+			if cs == ClassStyleMiddleclass {
+				t.usesMiddleclass = true
+			}
 			classInitExpr = initExpr
 		} else {
 			classNew := t.requireLualib("__TS__Class")

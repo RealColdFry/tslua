@@ -195,13 +195,14 @@ type Opts struct {
 
 // TranspileResult holds per-file Lua output.
 type TranspileResult struct {
-	FileName     string
-	Lua          string
-	SourceMap    string // V3 source map JSON (empty if source maps disabled)
-	Declaration  string // .d.ts content (empty if declaration emission disabled)
-	UsesLualib   bool
-	LualibDeps   []string                      // lualib exports referenced (populated for None and RequireMinimal modes)
-	Dependencies []transpiler.ModuleDependency // module dependencies discovered during transformation
+	FileName        string
+	Lua             string
+	SourceMap       string // V3 source map JSON (empty if source maps disabled)
+	Declaration     string // .d.ts content (empty if declaration emission disabled)
+	UsesLualib      bool
+	UsesMiddleclass bool                          // file emits require("middleclass"); preamble must register the module
+	LualibDeps      []string                      // lualib exports referenced (populated for None and RequireMinimal modes)
+	Dependencies    []transpiler.ModuleDependency // module dependencies discovered during transformation
 }
 
 // TranspileTS compiles TypeScript source to Lua using the full compiler pipeline.
@@ -285,13 +286,14 @@ func TranspileTS(t *testing.T, tsCode string, opts Opts) []TranspileResult {
 	for _, r := range rawResults {
 		rel, _ := filepath.Rel(tmpDir, r.FileName)
 		results = append(results, TranspileResult{
-			FileName:     rel,
-			Lua:          r.Lua,
-			SourceMap:    r.SourceMap,
-			Declaration:  r.Declaration,
-			UsesLualib:   r.UsesLualib,
-			LualibDeps:   r.LualibDeps,
-			Dependencies: r.Dependencies,
+			FileName:        rel,
+			Lua:             r.Lua,
+			SourceMap:       r.SourceMap,
+			Declaration:     r.Declaration,
+			UsesLualib:      r.UsesLualib,
+			UsesMiddleclass: r.UsesMiddleclass,
+			LualibDeps:      r.LualibDeps,
+			Dependencies:    r.Dependencies,
 		})
 	}
 	return results
@@ -347,9 +349,10 @@ func TranspileProgramDiags(t *testing.T, tsCode string, opts Opts) ([]TranspileR
 	for _, r := range rawResults {
 		rel, _ := filepath.Rel(tmpDir, r.FileName)
 		results = append(results, TranspileResult{
-			FileName:   rel,
-			Lua:        r.Lua,
-			UsesLualib: r.UsesLualib,
+			FileName:        rel,
+			Lua:             r.Lua,
+			UsesLualib:      r.UsesLualib,
+			UsesMiddleclass: r.UsesMiddleclass,
 		})
 	}
 	return results, tsDiags

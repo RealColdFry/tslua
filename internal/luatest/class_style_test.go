@@ -1,8 +1,10 @@
 package luatest_test
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/realcoldfry/tslua/internal/lualib"
 	. "github.com/realcoldfry/tslua/internal/luatest"
 	"github.com/realcoldfry/tslua/internal/transpiler"
 )
@@ -10,16 +12,13 @@ import (
 // luabindPreamble loads the mock luabind runtime.
 var luabindPreamble = TestdataFile("mock_luabind.lua")
 
-// middleclassPreamble loads the real middleclass library.
-var middleclassPreamble = TestdataFile("middleclass.lua") + "\nclass = require and require('middleclass') or class\n"
-
-// For middleclass tests, the preamble needs to make `class` available globally.
-func init() {
-	// middleclass returns itself from require(); for our inline preamble,
-	// the last expression result is already assigned to `class` above via
-	// the middleclass module's setmetatable __call.
-	middleclassPreamble = "local middleclass = (function()\n" + TestdataFile("middleclass.lua") + "\nend)()\nclass = middleclass\n"
-}
+// middleclassPreamble registers the real kikito/middleclass library under
+// `package.loaded["middleclass"]` so the transpiler-injected
+// `local class = require("middleclass")` header resolves. The module source
+// comes from the same embedded copy shipped by `internal/lualib/middleclass/`.
+var middleclassPreamble = "package.loaded[\"middleclass\"] = (function()\n" +
+	string(lualib.Middleclass()) +
+	"\nend)()\n"
 
 // luaTarget picks an available Lua runtime for testing.
 const testLuaTarget = transpiler.LuaTargetLua54
@@ -225,6 +224,57 @@ export function __main() {
 	got := RunLua(t, results, "mod.__main()", opts)
 	if got != `"base+child"` {
 		t.Errorf("got %s, want %q", got, "base+child")
+	}
+}
+
+// TestMiddleclass_RequireHeader verifies the transpiler auto-injects
+// `local class = require("middleclass")` only when middleclass class-style
+// actually emits a class — and that TSTL-style output stays free of the
+// require.
+func TestMiddleclass_RequireHeader(t *testing.T) {
+	t.Parallel()
+	const requireLine = `local class = require("middleclass")`
+	tsWithClass := `class Foo {} export const x = new Foo();`
+	tsNoClass := `export const x = 1 + 2;`
+
+	// Middleclass style + class → header present, UsesMiddleclass true.
+	results := TranspileTS(t, tsWithClass, Opts{
+		LuaTarget:   testLuaTarget,
+		ClassStyle:  transpiler.ClassStyleMiddleclass,
+		LuaPreamble: middleclassPreamble,
+	})
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if !results[0].UsesMiddleclass {
+		t.Errorf("UsesMiddleclass = false, want true for middleclass style with class")
+	}
+	if !strings.Contains(results[0].Lua, requireLine) {
+		t.Errorf("middleclass output missing %q header:\n%s", requireLine, results[0].Lua)
+	}
+
+	// Middleclass style but no class → no header, no flag.
+	results = TranspileTS(t, tsNoClass, Opts{
+		LuaTarget:   testLuaTarget,
+		ClassStyle:  transpiler.ClassStyleMiddleclass,
+		LuaPreamble: middleclassPreamble,
+	})
+	if results[0].UsesMiddleclass {
+		t.Errorf("UsesMiddleclass = true, want false when no class emitted")
+	}
+	if strings.Contains(results[0].Lua, requireLine) {
+		t.Errorf("middleclass-style output has require header when no class emitted:\n%s", results[0].Lua)
+	}
+
+	// TSTL style with class → no middleclass header.
+	results = TranspileTS(t, tsWithClass, Opts{
+		LuaTarget: testLuaTarget,
+	})
+	if results[0].UsesMiddleclass {
+		t.Errorf("UsesMiddleclass = true, want false for TSTL style")
+	}
+	if strings.Contains(results[0].Lua, requireLine) {
+		t.Errorf("TSTL-style output has middleclass require header:\n%s", results[0].Lua)
 	}
 }
 

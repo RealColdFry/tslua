@@ -9,6 +9,12 @@
 import { createLua, createLauxLib, createLuaLib } from "lua-wasm-bindings/dist/binding-factory";
 import type { LuaEmscriptenModule } from "lua-wasm-bindings/dist/glue/glue";
 
+// Middleclass library source, copied into assets/wasm/ by `just wasm`
+// alongside the tslua WASM binary. Inlined at build time via vite's ?raw
+// so the worker always has the module available to register under
+// package.loaded["middleclass"] when user code uses middleclass class-style.
+import middleclassSource from "../../assets/wasm/middleclass.lua?raw";
+
 import glueFactory50 from "lua-wasm-bindings/dist/glue/glue-lua-5.0.3.js";
 import glueFactory51 from "lua-wasm-bindings/dist/glue/glue-lua-5.1.5.js";
 import glueFactory52 from "lua-wasm-bindings/dist/glue/glue-lua-5.2.4.js";
@@ -345,6 +351,23 @@ end
 `;
 }
 
+// Registers the kikito/middleclass module under `package.loaded["middleclass"]`
+// so the transpiler-injected `local class = require("middleclass")` header
+// resolves when middleclass class-style output runs in the playground.
+function buildMiddleclassPrelude(moduleCode: string): string {
+  let eqs = "=====";
+  while (moduleCode.includes("]" + eqs + "]")) eqs += "=";
+  const open = "[" + eqs + "[";
+  const close = "]" + eqs + "]";
+  return `do
+  local ____mc_chunk = assert(loadstring or load)(${open}
+${moduleCode}
+${close}, "middleclass")
+  package.loaded["middleclass"] = ____mc_chunk()
+end
+`;
+}
+
 self.addEventListener("message", async (e: MessageEvent<LuaWorkerRequest>) => {
   const { id, code, target, lualib: lualibBundle } = e.data;
   const version = TARGET_TO_VERSION[target] ?? "5.4";
@@ -353,6 +376,10 @@ self.addEventListener("message", async (e: MessageEvent<LuaWorkerRequest>) => {
     const { lua, lauxlib, lualib } = await getLuaModule(version);
     const setup: string[] = [];
     if (lualibBundle) setup.push(buildLualibPrelude(lualibBundle));
+    // Always register middleclass — cost is ~6KB of Lua source parsed once per
+    // run, trivial next to the Lua WASM binary itself. User code that doesn't
+    // use middleclass style simply never calls require("middleclass").
+    setup.push(buildMiddleclassPrelude(middleclassSource));
     const raw = runOnce(lua, lauxlib, lualib, setup, code);
     const pretty = runOnce(lua, lauxlib, lualib, [...setup, getPreamble(target)], code);
     self.postMessage({ id, raw, pretty } satisfies LuaWorkerResponse);
