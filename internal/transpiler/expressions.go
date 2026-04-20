@@ -503,9 +503,11 @@ func (t *Transpiler) transformPropertyAccessExpression(node *ast.Node) lua.Expre
 
 	obj := t.transformExpression(pa.Expression)
 
-	// .length on arrays → #obj (or table.getn for 5.0)
+	// .length on arrays: dispatched through the Array length adapter.
+	// Default emitter produces `#obj` (or `table.getn` for 5.0); a user
+	// @luaArrayRuntime declaration replaces it with `Len(obj)`.
 	if prop == "length" && t.isArrayType(pa.Expression) {
-		return t.luaTarget.LenExpr(obj)
+		return t.adapters.Array.Length.Emit(t, obj)
 	}
 
 	return lua.Index(obj, lua.Str(prop))

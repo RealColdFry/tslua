@@ -210,6 +210,12 @@ type buildConfig struct {
 	trace                     bool
 	noResolvePaths            []string
 	stderrIsTerminal          bool
+
+	// adapters is populated by transpile(); captured on the config so
+	// emitResults/writeResults can decide whether to rebuild lualib from
+	// source (when a user @lua*Runtime adapter is active) or use the
+	// embedded bundle.
+	adapters *transpiler.RuntimeAdapters
 }
 
 // transpileOpts returns the TranspileOptions derived from this build config.
@@ -241,10 +247,16 @@ func (cfg *buildConfig) transpileOpts() transpiler.TranspileOptions {
 }
 
 // transpile is the single transpilation chokepoint. Every entry point that
-// produces Lua output calls this method. It wraps TranspileProgramWithOptions
-// and centralizes validation (e.g. bundle+library mode conflict).
+// produces Lua output calls this method. It scans for runtime adapters,
+// wraps TranspileProgramWithOptions, and centralizes validation (e.g.
+// bundle+library mode conflict).
 func (cfg *buildConfig) transpile(program *compiler.Program, onlyFiles map[string]bool) ([]transpiler.TranspileResult, []*ast.Diagnostic) {
-	results, diags := transpiler.TranspileProgramWithOptions(program, cfg.sourceRoot, cfg.luaTarget, onlyFiles, cfg.transpileOpts())
+	adapters, adapterDiags := transpiler.ScanAdaptersFromProgram(program)
+	cfg.adapters = adapters
+	opts := cfg.transpileOpts()
+	opts.Adapters = adapters
+	results, diags := transpiler.TranspileProgramWithOptions(program, cfg.sourceRoot, cfg.luaTarget, onlyFiles, opts)
+	diags = append(adapterDiags, diags...)
 	if cfg.luaBundle != "" && cfg.buildMode == "library" {
 		diags = append(diags, dw.NewConfigError(dw.CannotBundleLibrary,
 			`Cannot bundle projects with "buildMode": "library". Projects including the library can still bundle (which will include external library files).`))
@@ -536,18 +548,33 @@ func writeBundle(cfg *buildConfig, results []transpiler.TranspileResult) error {
 	entryModule := transpiler.ModuleNameFromPath(string(entryPath), cfg.sourceRoot)
 
 	var lualibContent []byte
+	adapted := cfg.adapters.Any()
 	switch cfg.luaLibImport {
 	case transpiler.LuaLibImportRequire:
 		for _, r := range results {
 			if r.UsesLualib {
-				lualibContent = lualib.BundleForTarget(string(cfg.luaTarget))
+				if adapted {
+					content, err := buildAdaptedLualib(cfg)
+					if err != nil {
+						return fmt.Errorf("error building adapted lualib bundle: %w", err)
+					}
+					lualibContent = content
+				} else {
+					lualibContent = lualib.BundleForTarget(string(cfg.luaTarget))
+				}
 				break
 			}
 		}
 	case transpiler.LuaLibImportRequireMinimal:
 		usedExports := aggregateLualibExportsWithLuaFiles(results, cfg.sourceRoot)
 		if len(usedExports) > 0 {
-			content, err := lualib.MinimalBundleForTarget(string(cfg.luaTarget), usedExports)
+			var content []byte
+			var err error
+			if adapted {
+				content, err = buildAdaptedMinimalLualib(cfg, usedExports)
+			} else {
+				content, err = lualib.MinimalBundleForTarget(string(cfg.luaTarget), usedExports)
+			}
 			if err != nil {
 				return fmt.Errorf("error building minimal lualib bundle: %w", err)
 			}
@@ -574,6 +601,54 @@ func writeBundle(cfg *buildConfig, results []transpiler.TranspileResult) error {
 		fmt.Printf("  %s\n", outPath)
 	}
 	return nil
+}
+
+// adaptedLualibSourcePaths returns the TSTL source locations used to rebuild
+// the lualib bundle with active runtime adapters. Requires the tslua repo
+// layout (extern/tstl, etc.) to be accessible via findRepoRoot.
+func adaptedLualibSourcePaths(cfg *buildConfig) (srcDir, langExtPath, luaTypesPath, overrideDir string, err error) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		return "", "", "", "", fmt.Errorf("adapter lualib rebuild requires the tslua source tree: %w", err)
+	}
+	srcDir = filepath.Join(repoRoot, "extern", "tstl", "src", "lualib")
+	langExtPath = filepath.Join(repoRoot, "extern", "tstl", "language-extensions")
+	luaTypesPath = filepath.Join(repoRoot, "extern", "tstl", "node_modules", "lua-types")
+	overrideDir = "universal"
+	if cfg.luaTarget == transpiler.LuaTargetLua50 {
+		overrideDir = "5.0"
+	}
+	return srcDir, langExtPath, luaTypesPath, overrideDir, nil
+}
+
+// buildAdaptedLualib rebuilds the full lualib bundle from TSTL TypeScript
+// source with the active runtime adapters applied.
+func buildAdaptedLualib(cfg *buildConfig) ([]byte, error) {
+	srcDir, langExtPath, luaTypesPath, overrideDir, err := adaptedLualibSourcePaths(cfg)
+	if err != nil {
+		return nil, err
+	}
+	bundle, err := lualib.BuildBundleFromSource(srcDir, langExtPath, luaTypesPath, cfg.luaTarget, overrideDir, cfg.adapters)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(bundle), nil
+}
+
+// buildAdaptedMinimalLualib rebuilds per-feature lualib data from TSTL source
+// with active runtime adapters, then resolves a minimal bundle containing
+// only usedExports plus transitive deps. Mirrors MinimalBundleForTarget but
+// with adapter emitters propagated into lualib feature bodies.
+func buildAdaptedMinimalLualib(cfg *buildConfig, usedExports []string) ([]byte, error) {
+	srcDir, langExtPath, luaTypesPath, overrideDir, err := adaptedLualibSourcePaths(cfg)
+	if err != nil {
+		return nil, err
+	}
+	data, err := lualib.BuildFeatureDataFromSource(srcDir, langExtPath, luaTypesPath, cfg.luaTarget, overrideDir, cfg.adapters)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(data.ResolveMinimalBundle(usedExports)), nil
 }
 
 func writeResults(cfg *buildConfig, results []transpiler.TranspileResult) {
@@ -613,13 +688,33 @@ func writeResults(cfg *buildConfig, results []transpiler.TranspileResult) {
 	}
 	if needsLualib {
 		var bundleContent []byte
+		// When a user @lua*Runtime adapter is active, the embedded lualib
+		// bundle (pre-built without adapter context) would leave internal
+		// reads like `arr.length` inside __TS__ArrayPush emitting raw `#arr`.
+		// Rebuild from source so the adapter propagates into lualib too.
+		adapted := cfg.adapters.Any()
 		switch cfg.luaLibImport {
 		case transpiler.LuaLibImportRequire:
-			bundleContent = lualib.BundleForTarget(string(cfg.luaTarget))
+			if adapted {
+				content, err := buildAdaptedLualib(cfg)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "error building adapted lualib bundle: %v\n", err)
+				} else {
+					bundleContent = content
+				}
+			} else {
+				bundleContent = lualib.BundleForTarget(string(cfg.luaTarget))
+			}
 		case transpiler.LuaLibImportRequireMinimal:
 			usedExports := aggregateLualibExportsWithLuaFiles(results, cfg.sourceRoot)
 			if len(usedExports) > 0 {
-				content, err := lualib.MinimalBundleForTarget(string(cfg.luaTarget), usedExports)
+				var content []byte
+				var err error
+				if adapted {
+					content, err = buildAdaptedMinimalLualib(cfg, usedExports)
+				} else {
+					content, err = lualib.MinimalBundleForTarget(string(cfg.luaTarget), usedExports)
+				}
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "error building minimal lualib bundle: %v\n", err)
 				} else {

@@ -31,7 +31,7 @@ func runLualib() error {
 		overrideDir = "5.0"
 	}
 
-	bundle, err := lualib.BuildBundleFromSource(srcDir, langExtPath, luaTypesPath, luaTarget, overrideDir)
+	bundle, err := lualib.BuildBundleFromSource(srcDir, langExtPath, luaTypesPath, luaTarget, overrideDir, nil)
 	if err != nil {
 		return err
 	}

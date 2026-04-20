@@ -91,7 +91,13 @@ func wrapFileBody(body string, exports []string) string {
 
 // transpileLualibSource transpiles TSTL's lualib TypeScript source files and
 // returns the per-file results plus an export→file-index map.
-func transpileLualibSource(lualibSrcDir, langExtPath, luaTypesPath string, luaTarget transpiler.LuaTarget, overrideDir string) ([]transpiler.TranspileResult, map[string]int, error) {
+//
+// When adapters is non-nil, the lualib transpile uses those emitters — so
+// internal reads like `arr.length` inside `__TS__ArrayPush` route through the
+// user-declared primitive (e.g. `Len(arr)`) rather than defaulting to `#arr`.
+// A nil adapters value means "use tslua defaults" (the historical behavior
+// used by the standalone `tslua lualib` CLI).
+func transpileLualibSource(lualibSrcDir, langExtPath, luaTypesPath string, luaTarget transpiler.LuaTarget, overrideDir string, adapters *transpiler.RuntimeAdapters) ([]transpiler.TranspileResult, map[string]int, error) {
 	// Collect .ts files from the base directory
 	baseFiles, err := collectTSFiles(lualibSrcDir)
 	if err != nil {
@@ -203,6 +209,7 @@ func transpileLualibSource(lualibSrcDir, langExtPath, luaTypesPath string, luaTa
 	results, tsDiags := transpiler.TranspileProgramWithOptions(program, tmpDir, luaTarget, nil, transpiler.TranspileOptions{
 		ExportAsGlobal: true,
 		LuaLibImport:   transpiler.LuaLibImportNone,
+		Adapters:       adapters,
 	})
 	if len(tsDiags) > 0 {
 		var msgs []string
@@ -237,9 +244,10 @@ func transpileLualibSource(lualibSrcDir, langExtPath, luaTypesPath string, luaTa
 }
 
 // BuildBundleFromSource transpiles the TSTL lualib TypeScript source files
-// and assembles them into a lualib_bundle.lua.
-func BuildBundleFromSource(lualibSrcDir, langExtPath, luaTypesPath string, luaTarget transpiler.LuaTarget, overrideDir string) (string, error) {
-	results, exportToFile, err := transpileLualibSource(lualibSrcDir, langExtPath, luaTypesPath, luaTarget, overrideDir)
+// and assembles them into a lualib_bundle.lua. Pass a non-nil adapters to
+// apply user runtime-adapter emitters throughout the bundle.
+func BuildBundleFromSource(lualibSrcDir, langExtPath, luaTypesPath string, luaTarget transpiler.LuaTarget, overrideDir string, adapters *transpiler.RuntimeAdapters) (string, error) {
+	results, exportToFile, err := transpileLualibSource(lualibSrcDir, langExtPath, luaTypesPath, luaTarget, overrideDir, adapters)
 	if err != nil {
 		return "", err
 	}
@@ -306,9 +314,10 @@ func BuildBundleFromSource(lualibSrcDir, langExtPath, luaTypesPath string, luaTa
 }
 
 // BuildFeatureDataFromSource transpiles the TSTL lualib TypeScript source files
-// and returns per-feature metadata for selective inlining.
-func BuildFeatureDataFromSource(lualibSrcDir, langExtPath, luaTypesPath string, luaTarget transpiler.LuaTarget, overrideDir string) (*FeatureData, error) {
-	results, exportToFile, err := transpileLualibSource(lualibSrcDir, langExtPath, luaTypesPath, luaTarget, overrideDir)
+// and returns per-feature metadata for selective inlining. Pass a non-nil
+// adapters to apply user runtime-adapter emitters to lualib feature bodies.
+func BuildFeatureDataFromSource(lualibSrcDir, langExtPath, luaTypesPath string, luaTarget transpiler.LuaTarget, overrideDir string, adapters *transpiler.RuntimeAdapters) (*FeatureData, error) {
+	results, exportToFile, err := transpileLualibSource(lualibSrcDir, langExtPath, luaTypesPath, luaTarget, overrideDir, adapters)
 	if err != nil {
 		return nil, err
 	}

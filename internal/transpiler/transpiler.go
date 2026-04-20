@@ -156,6 +156,7 @@ type Transpiler struct {
 	classStyle                ClassStyle              // alternative class emit style (default: TSTL prototype chains)
 	noResolvePaths            map[string]bool         // module specifiers to emit as-is without resolving (TSTL noResolvePaths)
 	crossFileEnums            map[string]bool         // enum names declared in 2+ source files (need global scope for merging)
+	adapters                  *RuntimeAdapters        // runtime adapters active for this program (nil = defaults)
 	dependencies              []ModuleDependency      // module dependencies discovered during transformation
 
 	// Scope stack & symbol tracking (replaces scopeDepth + hoistedFunctionsStack)
@@ -453,6 +454,7 @@ type TranspileOptions struct {
 	Trace                     bool                    // emit --[[trace: ...]] comments showing which TS node produced each Lua statement
 	ClassStyle                ClassStyle              // alternative class emit style (default: TSTL prototype chains)
 	NoResolvePaths            []string                // module specifiers to emit as-is without resolving (TSTL noResolvePaths)
+	Adapters                  *RuntimeAdapters        // runtime adapters; nil triggers ScanAdapters on the program
 }
 
 // TranspileProgram transpiles all user source files in the program.
@@ -509,6 +511,12 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 		}
 	}
 
+	adapters := opts.Adapters
+	var adapterDiags []*ast.Diagnostic
+	if adapters == nil {
+		adapters, adapterDiags = ScanAdapters(program, ch)
+	}
+
 	var results []TranspileResult
 	var diagnostics []*ast.Diagnostic
 	for _, sf := range program.SourceFiles() {
@@ -546,6 +554,7 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 			classStyle:                opts.ClassStyle,
 			noResolvePaths:            noResolvePathsSet,
 			crossFileEnums:            crossFileEnums,
+			adapters:                  adapters,
 			compilerOptions:           program.Options(),
 			isModule:                  isModule,
 			isStrict:                  isModule, // ES modules are always strict; matches TSTL context.isStrict
@@ -630,6 +639,7 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 		})
 		diagnostics = append(diagnostics, t.diagnostics...)
 	}
+	diagnostics = append(diagnostics, adapterDiags...)
 	return results, diagnostics
 }
 
