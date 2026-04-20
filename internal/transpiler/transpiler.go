@@ -386,10 +386,10 @@ type ModuleDependency struct {
 
 // TranspileResult contains the Lua output for a single source file.
 type TranspileResult struct {
-	FileName      string
-	Lua           string
-	SourceMap     string // V3 source map JSON (empty if source maps disabled)
-	Declaration   string // .d.ts content (empty if declaration emission disabled)
+	FileName        string
+	Lua             string
+	SourceMap       string // V3 source map JSON (empty if source maps disabled)
+	Declaration     string // .d.ts content (empty if declaration emission disabled)
 	UsesLualib      bool
 	UsesMiddleclass bool               // file emits require("middleclass"); tooling should make the module resolvable
 	ExportedNames   []string           // names exported by this file (populated when ExportAsGlobal is set)
