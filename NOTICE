@@ -41,5 +41,19 @@ tools/gen_shims. tsgolint is no longer a submodule dependency.
 
 ================================================================================
 
+middleclass
+https://github.com/kikito/middleclass
+
+Copyright (c) 2011 Enrique García Cota
+Licensed under the MIT License (internal/lualib/middleclass/MIT-LICENSE.txt)
+
+tslua vendors a copy of middleclass for the "middleclass" class-style emit:
+projects using `--classStyle=middleclass` get `require("middleclass")` in their
+transpiled Lua, and the playground resolves that require against the embedded
+copy so the output runs end-to-end. The vendored file is byte-identical to the
+upstream source.
+
+================================================================================
+
 For complete license texts, see the LICENSE files in the respective directories
 listed above.

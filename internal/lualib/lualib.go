@@ -30,6 +30,16 @@ var moduleInfo50JSON []byte
 //go:embed patches.lua
 var patchesLua []byte
 
+//go:embed middleclass/middleclass.lua
+var middleclassSource []byte
+
+// Middleclass returns the embedded kikito/middleclass library source. Used by
+// the ClassStyleMiddleclass emit path; the transpiler injects
+// `require("middleclass")`, and tooling (playground, future bundling) can
+// resolve that require against this source. MIT-licensed; see
+// internal/lualib/middleclass/MIT-LICENSE.txt.
+func Middleclass() []byte { return middleclassSource }
+
 // Patches returns the tslua-specific pure-Lua helpers that have no TS source
 // (Map/Set for-of fast paths). BuildBundleFromSource and
 // BuildFeatureDataFromSource fold these in when producing bundles, so they

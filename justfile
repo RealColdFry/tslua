@@ -23,6 +23,7 @@ wasm:
     mkdir -p website/src/assets/wasm
     GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o website/src/assets/wasm/tslua.wasm ./cmd/wasm/
     cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" website/src/assets/wasm/
+    cp internal/lualib/middleclass/middleclass.lua website/src/assets/wasm/middleclass.lua
 
 # Run tslua on a project (pass args after --)
 run *ARGS: build

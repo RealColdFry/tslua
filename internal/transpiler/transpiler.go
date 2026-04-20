@@ -154,6 +154,7 @@ type Transpiler struct {
 	traceEnabled              bool                    // when true, emit --[[trace: ...]] comments on statements
 	removeComments            bool                    // when true, strip all comments from output (removeComments tsconfig option)
 	classStyle                ClassStyle              // alternative class emit style (default: TSTL prototype chains)
+	usesMiddleclass           bool                    // at least one class emitted under ClassStyleMiddleclass (triggers require("middleclass") header)
 	noResolvePaths            map[string]bool         // module specifiers to emit as-is without resolving (TSTL noResolvePaths)
 	crossFileEnums            map[string]bool         // enum names declared in 2+ source files (need global scope for merging)
 	dependencies              []ModuleDependency      // module dependencies discovered during transformation
@@ -389,12 +390,13 @@ type TranspileResult struct {
 	Lua           string
 	SourceMap     string // V3 source map JSON (empty if source maps disabled)
 	Declaration   string // .d.ts content (empty if declaration emission disabled)
-	UsesLualib    bool
-	ExportedNames []string           // names exported by this file (populated when ExportAsGlobal is set)
-	LualibDeps    []string           // lualib features used by this file (populated when NoLualibImport is set)
-	Dependencies  []ModuleDependency // module dependencies discovered during transformation
-	TransformDur  time.Duration      // time spent transforming TS AST → Lua AST
-	PrintDur      time.Duration      // time spent printing Lua AST → string
+	UsesLualib      bool
+	UsesMiddleclass bool               // file emits require("middleclass"); tooling should make the module resolvable
+	ExportedNames   []string           // names exported by this file (populated when ExportAsGlobal is set)
+	LualibDeps      []string           // lualib features used by this file (populated when NoLualibImport is set)
+	Dependencies    []ModuleDependency // module dependencies discovered during transformation
+	TransformDur    time.Duration      // time spent transforming TS AST → Lua AST
+	PrintDur        time.Duration      // time spent printing Lua AST → string
 }
 
 type declarationEmit struct {
@@ -617,16 +619,17 @@ func TranspileProgramWithOptions(program *compiler.Program, sourceRoot string, l
 			diagnostics = append(diagnostics, decl.diags...)
 		}
 		results = append(results, TranspileResult{
-			FileName:      fileName,
-			Lua:           luaCode,
-			SourceMap:     sourceMapJSON,
-			Declaration:   declaration,
-			UsesLualib:    len(t.lualibs) > 0,
-			ExportedNames: exportNames,
-			LualibDeps:    lualibDeps,
-			Dependencies:  t.dependencies,
-			TransformDur:  transformDur,
-			PrintDur:      printDur,
+			FileName:        fileName,
+			Lua:             luaCode,
+			SourceMap:       sourceMapJSON,
+			Declaration:     declaration,
+			UsesLualib:      len(t.lualibs) > 0,
+			UsesMiddleclass: t.usesMiddleclass,
+			ExportedNames:   exportNames,
+			LualibDeps:      lualibDeps,
+			Dependencies:    t.dependencies,
+			TransformDur:    transformDur,
+			PrintDur:        printDur,
 		})
 		diagnostics = append(diagnostics, t.diagnostics...)
 	}
@@ -1005,6 +1008,19 @@ func (t *Transpiler) transformSourceFileAST(sf *ast.SourceFile) []lua.Statement 
 			}
 		}
 		stmts = append(header, stmts...)
+	}
+
+	// Prepend `local class = require("middleclass")` when the middleclass
+	// class style actually emitted at least one class. Parallels the lualib
+	// require header above. Placed after the lualib header so both imports
+	// live at the top of the file.
+	if t.usesMiddleclass {
+		stmts = append([]lua.Statement{
+			lua.LocalDecl(
+				[]*lua.Identifier{lua.Ident("class")},
+				[]lua.Expression{lua.Call(lua.Ident("require"), lua.Str("middleclass"))},
+			),
+		}, stmts...)
 	}
 
 	return stmts
