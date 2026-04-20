@@ -68,6 +68,7 @@ func TestParseTsluaConfig_ExportAsGlobalRegex(t *testing.T) {
 	}
 	if cfg == nil {
 		t.Fatal("expected config")
+		return
 	}
 	if cfg.exportAsGlobalBool {
 		t.Error("expected exportAsGlobalBool=false")
@@ -106,6 +107,7 @@ func TestParseTsluaConfig_ClassStyle(t *testing.T) {
 	}
 	if cfg == nil {
 		t.Fatal("expected config")
+		return
 	}
 	if cfg.ClassStyle != "luabind" {
 		t.Errorf("expected classStyle=luabind, got %q", cfg.ClassStyle)
@@ -183,6 +185,7 @@ func TestParseTsluaConfig_JSONC(t *testing.T) {
 	}
 	if cfg == nil {
 		t.Fatal("expected config, got nil")
+		return
 	}
 	if cfg.LuaTarget != "universal" {
 		t.Errorf("expected luaTarget=universal, got %q", cfg.LuaTarget)
@@ -214,6 +217,7 @@ func TestParseTsluaConfig_JSONC_SchemaURL(t *testing.T) {
 	}
 	if cfg == nil {
 		t.Fatal("expected config, got nil")
+		return
 	}
 	if cfg.LuaTarget != "JIT" {
 		t.Errorf("expected luaTarget=JIT, got %q", cfg.LuaTarget)
