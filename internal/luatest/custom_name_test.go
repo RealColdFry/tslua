@@ -248,3 +248,33 @@ func TestCustomName_NamespaceFunctionDeclaration(t *testing.T) {
 		t.Errorf("expected declaration to use customName 'Func2', got:\n%s", lua)
 	}
 }
+
+// Both the namespace and a nested function carry @customName. The call site
+// must route through both renames.
+func TestCustomName_NamespaceAndNestedFunction(t *testing.T) {
+	t.Parallel()
+	tsCode := `/** @customName NS2 */
+namespace NS {
+	/** @customName Func2 */
+	export function Func(): string { return "hi"; }
+}
+export const result = NS.Func();`
+	results := TranspileTS(t, tsCode, Opts{})
+	lua := mainLua(t, results)
+	if !strings.Contains(lua, "local NS2 = {}") {
+		t.Errorf("expected namespace to use customName 'NS2', got:\n%s", lua)
+	}
+	if !strings.Contains(lua, "function NS2.Func2(") {
+		t.Errorf("expected function decl to use both customNames, got:\n%s", lua)
+	}
+	if !strings.Contains(lua, "NS2:Func2()") && !strings.Contains(lua, "NS2.Func2(") {
+		t.Errorf("expected call site to use both customNames, got:\n%s", lua)
+	}
+	if strings.Contains(lua, "NS.") || strings.Contains(lua, ".Func(") {
+		t.Errorf("original names leaked into output:\n%s", lua)
+	}
+	got := RunLua(t, results, `mod["result"]`, Opts{})
+	if got != `"hi"` {
+		t.Errorf("got %s, want \"hi\"", got)
+	}
+}
