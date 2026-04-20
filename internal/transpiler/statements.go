@@ -27,10 +27,11 @@ func (t *Transpiler) transformVariableStatement(node *ast.Node) []lua.Statement 
 
 	var result []lua.Statement
 
-	// Check for @customName annotation
+	// Check for @customName annotation. The annotation is attached to the
+	// VariableStatement and applies only to the first declaration (matching TSTL).
 	customName := t.getCustomName(node)
 
-	for _, decl := range declList.Declarations.Nodes {
+	for declIdx, decl := range declList.Declarations.Nodes {
 		d := decl.AsVariableDeclaration()
 		nameNode := d.Name()
 
@@ -51,7 +52,7 @@ func (t *Transpiler) transformVariableStatement(node *ast.Node) []lua.Statement 
 			name := nameNode.AsIdentifier().Text
 			safeName := name
 			wasRenamed := false
-			if customName != "" {
+			if customName != "" && declIdx == 0 {
 				name = customName
 				safeName = customName
 			}

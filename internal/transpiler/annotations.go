@@ -263,6 +263,20 @@ func (t *Transpiler) getCustomNameFromSymbol(sym *ast.Symbol) string {
 		if name := t.getAnnotationArg(decl, "customname"); name != "" {
 			return name
 		}
+		// JSDoc on `let`/`const`/`var` is attached to the VariableStatement,
+		// not the individual VariableDeclaration that owns the symbol. The
+		// annotation applies only to the first declaration in the list
+		// (matching TSTL: `let a = 0, c = 1` with @customName renames only `a`).
+		if decl.Kind == ast.KindVariableDeclaration && decl.Parent != nil && decl.Parent.Parent != nil &&
+			decl.Parent.Kind == ast.KindVariableDeclarationList &&
+			decl.Parent.Parent.Kind == ast.KindVariableStatement {
+			declList := decl.Parent.AsVariableDeclarationList()
+			if declList.Declarations != nil && len(declList.Declarations.Nodes) > 0 && declList.Declarations.Nodes[0] == decl {
+				if name := t.getAnnotationArg(decl.Parent.Parent, "customname"); name != "" {
+					return name
+				}
+			}
+		}
 		// Follow through imports to the original declaration
 		if decl.Kind == ast.KindImportSpecifier && decl.AsImportSpecifier().PropertyName == nil {
 			importedType := t.checker.GetTypeAtLocation(decl)

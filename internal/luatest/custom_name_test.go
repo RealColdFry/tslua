@@ -36,6 +36,115 @@ export const result: number = 3;`
 	}
 }
 
+func TestCustomName_RenameVariableSubsequentAssignment(t *testing.T) {
+	t.Parallel()
+	tsCode := `/** @customName b */
+let a = 0;
+a = 1;
+export const result = a;`
+	results := TranspileTS(t, tsCode, Opts{})
+	lua := mainLua(t, results)
+	if strings.Contains(lua, "\na = ") || strings.Contains(lua, " a = ") {
+		t.Errorf("expected subsequent assignment to use customName 'b', got:\n%s", lua)
+	}
+	got := RunLua(t, results, `mod["result"]`, Opts{})
+	if got != "1" {
+		t.Errorf("got %s, want 1", got)
+	}
+}
+
+func TestCustomName_RenameVariableMultiDecl(t *testing.T) {
+	t.Parallel()
+	// @customName on a multi-declaration statement applies only to the first
+	// declaration, matching TSTL. `c` must keep its original name.
+	tsCode := `/** @customName b */
+let a = 0, c = 1;
+a = 2;
+c = 3;
+export const result = a + c;`
+	results := TranspileTS(t, tsCode, Opts{})
+	lua := mainLua(t, results)
+	if !strings.Contains(lua, "local b = 0") {
+		t.Errorf("expected first decl to use customName 'b', got:\n%s", lua)
+	}
+	if !strings.Contains(lua, "local c = 1") {
+		t.Errorf("expected second decl to keep name 'c', got:\n%s", lua)
+	}
+	if strings.Contains(lua, "local b = 1") {
+		t.Errorf("customName leaked to second declaration, got:\n%s", lua)
+	}
+	got := RunLua(t, results, `mod["result"]`, Opts{})
+	if got != "5" {
+		t.Errorf("got %s, want 5", got)
+	}
+}
+
+func TestCustomName_RenameVariableClosureCapture(t *testing.T) {
+	t.Parallel()
+	tsCode := `/** @customName b */
+let a = 10;
+function f() { return a; }
+export const result = f();`
+	results := TranspileTS(t, tsCode, Opts{})
+	lua := mainLua(t, results)
+	if !strings.Contains(lua, "local b = 10") {
+		t.Errorf("expected decl to use customName 'b', got:\n%s", lua)
+	}
+	if !strings.Contains(lua, "return b") {
+		t.Errorf("expected captured reference to use customName 'b', got:\n%s", lua)
+	}
+	got := RunLua(t, results, `mod["result"]`, Opts{})
+	if got != "10" {
+		t.Errorf("got %s, want 10", got)
+	}
+}
+
+func TestCustomName_RenameVariableCompoundAssignment(t *testing.T) {
+	t.Parallel()
+	tsCode := `/** @customName b */
+let a = 0;
+a += 5;
+a++;
+export const result = a;`
+	results := TranspileTS(t, tsCode, Opts{})
+	lua := mainLua(t, results)
+	if strings.Contains(lua, "\na = ") || strings.Contains(lua, " a = ") || strings.Contains(lua, "a + 1") && !strings.Contains(lua, "b + 1") {
+		t.Errorf("expected compound/update to use customName 'b', got:\n%s", lua)
+	}
+	got := RunLua(t, results, `mod["result"]`, Opts{})
+	if got != "6" {
+		t.Errorf("got %s, want 6", got)
+	}
+}
+
+func TestCustomName_RenameVariableShadowedInner(t *testing.T) {
+	t.Parallel()
+	// Inner-scope redeclaration must NOT inherit the outer's customName.
+	tsCode := `/** @customName b */
+let a = 0;
+{
+  let a = 99;
+  a = 100;
+}
+a = 2;
+export const result = a;`
+	results := TranspileTS(t, tsCode, Opts{})
+	lua := mainLua(t, results)
+	if !strings.Contains(lua, "local b = 0") {
+		t.Errorf("expected outer decl to use customName 'b', got:\n%s", lua)
+	}
+	if !strings.Contains(lua, "local a = 99") {
+		t.Errorf("expected inner decl to keep name 'a', got:\n%s", lua)
+	}
+	if !strings.Contains(lua, "b = 2") {
+		t.Errorf("expected outer assignment to use customName 'b', got:\n%s", lua)
+	}
+	got := RunLua(t, results, `mod["result"]`, Opts{})
+	if got != "2" {
+		t.Errorf("got %s, want 2", got)
+	}
+}
+
 func TestCustomName_RenameClass(t *testing.T) {
 	t.Parallel()
 	tsCode := `/** @customName Class2 **/
