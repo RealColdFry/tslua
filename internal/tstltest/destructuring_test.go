@@ -11,8 +11,8 @@ func TestEval_Destructuring(t *testing.T) {
 	t.Parallel()
 
 	batchExpectFunctions(t, []funcTestCase{
-		{"in function parameter ({\"binding\":\"{ x }\",\"value\":\"{\\\"x\\\":true}\"})", `let x, y, z, rest;
-        function test({ x }: any) {
+		{"in function parameter ({\"binding\":\"{ x }\",\"type\":\"{ x: boolean }\",\"value\":\"{\\\"x\\\":true}\"})", `let x, y, z, rest;
+        function test({ x }: { x: boolean }) {
             return { x, y, z, rest };
         }
 
@@ -30,8 +30,8 @@ function ____exports.__main(self)
     return test(nil, {x = true})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"{ x, y }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":true}\"})", `let x, y, z, rest;
-        function test({ x, y }: any) {
+		{"in function parameter ({\"binding\":\"{ x, y }\",\"type\":\"{ x: boolean, y: boolean }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":true}\"})", `let x, y, z, rest;
+        function test({ x, y }: { x: boolean, y: boolean }) {
             return { x, y, z, rest };
         }
 
@@ -51,8 +51,8 @@ function ____exports.__main(self)
     return test(nil, {x = false, y = true})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"{ x: z, y }\",\"value\":\"{\\\"x\\\":true,\\\"y\\\":false}\"})", `let x, y, z, rest;
-        function test({ x: z, y }: any) {
+		{"in function parameter ({\"binding\":\"{ x: z, y }\",\"type\":\"{ x: boolean, y?: boolean, z?: boolean }\",\"value\":\"{\\\"x\\\":true,\\\"y\\\":false}\"})", `let x, y, z, rest;
+        function test({ x: z, y }: { x: boolean, y?: boolean, z?: boolean }) {
             return { x, y, z, rest };
         }
 
@@ -72,8 +72,8 @@ function ____exports.__main(self)
     return test(nil, {x = true, y = false})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"{ x: { x, y }, z }\",\"value\":\"{\\\"x\\\":{\\\"x\\\":true,\\\"y\\\":false},\\\"z\\\":false}\"})", `let x, y, z, rest;
-        function test({ x: { x, y }, z }: any) {
+		{"in function parameter ({\"binding\":\"{ x: { x, y }, z }\",\"type\":\"{ x: { x: boolean, y: boolean }, z: boolean }\",\"value\":\"{\\\"x\\\":{\\\"x\\\":true,\\\"y\\\":false},\\\"z\\\":false}\"})", `let x, y, z, rest;
+        function test({ x: { x, y }, z }: { x: { x: boolean, y: boolean }, z: boolean }) {
             return { x, y, z, rest };
         }
 
@@ -95,8 +95,8 @@ function ____exports.__main(self)
     return test(nil, {x = {x = true, y = false}, z = false})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"{ x, y = true }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":false}\"})", `let x, y, z, rest;
-        function test({ x, y = true }: any) {
+		{"in function parameter ({\"binding\":\"{ x, y = true }\",\"type\":\"{ x: boolean, y?: boolean }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":false}\"})", `let x, y, z, rest;
+        function test({ x, y = true }: { x: boolean, y?: boolean }) {
             return { x, y, z, rest };
         }
 
@@ -119,8 +119,8 @@ function ____exports.__main(self)
     return test(nil, {x = false, y = false})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"{ x = true }\",\"value\":\"{}\"})", `let x, y, z, rest;
-        function test({ x = true }: any) {
+		{"in function parameter ({\"binding\":\"{ x = true }\",\"type\":\"{ x?: boolean }\",\"value\":\"{}\"})", `let x, y, z, rest;
+        function test({ x = true }: { x?: boolean }) {
             return { x, y, z, rest };
         }
 
@@ -141,8 +141,8 @@ function ____exports.__main(self)
     return test(nil, {})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"{ x, y = true }\",\"value\":\"{\\\"x\\\":false}\"})", `let x, y, z, rest;
-        function test({ x, y = true }: any) {
+		{"in function parameter ({\"binding\":\"{ x, y = true }\",\"type\":\"{ x: boolean, y?: boolean }\",\"value\":\"{\\\"x\\\":false}\"})", `let x, y, z, rest;
+        function test({ x, y = true }: { x: boolean, y?: boolean }) {
             return { x, y, z, rest };
         }
 
@@ -165,7 +165,7 @@ function ____exports.__main(self)
     return test(nil, {x = false})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"{ ...rest }\",\"value\":\"{}\"})", `let x, y, z, rest;
+		{"in function parameter ({\"binding\":\"{ ...rest }\",\"type\":\"any\",\"value\":\"{}\"})", `let x, y, z, rest;
         function test({ ...rest }: any) {
             return { x, y, z, rest };
         }
@@ -186,7 +186,7 @@ function ____exports.__main(self)
     return test(nil, {})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"{ x, ...rest }\",\"value\":\"{\\\"x\\\":\\\"x\\\"}\"})", `let x, y, z, rest;
+		{"in function parameter ({\"binding\":\"{ x, ...rest }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\"}\"})", `let x, y, z, rest;
         function test({ x, ...rest }: any) {
             return { x, y, z, rest };
         }
@@ -209,7 +209,7 @@ function ____exports.__main(self)
     return test(nil, {x = "x"})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"{ x, ...rest }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in function parameter ({\"binding\":\"{ x, ...rest }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         function test({ x, ...rest }: any) {
             return { x, y, z, rest };
         }
@@ -232,7 +232,7 @@ function ____exports.__main(self)
     return test(nil, {x = "x", y = "y", z = "z"})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"{ x, ...y }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in function parameter ({\"binding\":\"{ x, ...y }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         function test({ x, ...y }: any) {
             return { x, y, z, rest };
         }
@@ -255,7 +255,7 @@ function ____exports.__main(self)
     return test(nil, {x = "x", y = "y", z = "z"})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"{ x: y, ...z }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in function parameter ({\"binding\":\"{ x: y, ...z }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         function test({ x: y, ...z }: any) {
             return { x, y, z, rest };
         }
@@ -278,8 +278,8 @@ function ____exports.__main(self)
     return test(nil, {x = "x", y = "y", z = "z"})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"[]\",\"value\":\"[]\"})", `let x, y, z, rest;
-        function test([]: any) {
+		{"in function parameter ({\"binding\":\"[]\",\"type\":\"boolean[]\",\"value\":\"[]\"})", `let x, y, z, rest;
+        function test([]: boolean[]) {
             return { x, y, z, rest };
         }
 
@@ -295,8 +295,8 @@ function ____exports.__main(self)
     return test(nil, {})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"[x, y]\",\"value\":\"[\\\"x\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
-        function test([x, y]: any) {
+		{"in function parameter ({\"binding\":\"[x, y]\",\"type\":\"[string, string]\",\"value\":\"[\\\"x\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
+        function test([x, y]: [string, string]) {
             return { x, y, z, rest };
         }
 
@@ -316,8 +316,8 @@ function ____exports.__main(self)
     return test(nil, {"x", "y"})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"[x, , y]\",\"value\":\"[\\\"x\\\",\\\"\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
-        function test([x, , y]: any) {
+		{"in function parameter ({\"binding\":\"[x, , y]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\",\\\"\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
+        function test([x, , y]: string[]) {
             return { x, y, z, rest };
         }
 
@@ -337,8 +337,8 @@ function ____exports.__main(self)
     return test(nil, {"x", "", "y"})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"[x = true]\",\"value\":\"[false]\"})", `let x, y, z, rest;
-        function test([x = true]: any) {
+		{"in function parameter ({\"binding\":\"[x = true]\",\"type\":\"boolean[]\",\"value\":\"[false]\"})", `let x, y, z, rest;
+        function test([x = true]: boolean[]) {
             return { x, y, z, rest };
         }
 
@@ -359,8 +359,30 @@ function ____exports.__main(self)
     return test(nil, {false})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"[[x, y]]\",\"value\":\"[[\\\"x\\\",\\\"y\\\"]]\"})", `let x, y, z, rest;
-        function test([[x, y]]: any) {
+		{"in function parameter ({\"binding\":\"[x = true]\",\"type\":\"boolean[]\",\"value\":\"[]\"})", `let x, y, z, rest;
+        function test([x = true]: boolean[]) {
+            return { x, y, z, rest };
+        }
+
+        return test([]);`, `{x = true}`, `local ____exports = {}
+function ____exports.__main(self)
+    local x
+    local y
+    local z
+    local rest
+    local function test(self, ____bindingPattern0)
+        local x
+        x = ____bindingPattern0[1]
+        if x == nil then
+            x = true
+        end
+        return {x = x, y = y, z = z, rest = rest}
+    end
+    return test(nil, {})
+end
+return ____exports`, false, false},
+		{"in function parameter ({\"binding\":\"[[x, y]]\",\"type\":\"Array<string[]>\",\"value\":\"[[\\\"x\\\",\\\"y\\\"]]\"})", `let x, y, z, rest;
+        function test([[x, y]]: Array<string[]>) {
             return { x, y, z, rest };
         }
 
@@ -380,8 +402,8 @@ function ____exports.__main(self)
     return test(nil, {{"x", "y"}})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"[x, ...rest]\",\"value\":\"[\\\"x\\\"]\"})", `let x, y, z, rest;
-        function test([x, ...rest]: any) {
+		{"in function parameter ({\"binding\":\"[x, ...rest]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\"]\"})", `let x, y, z, rest;
+        function test([x, ...rest]: string[]) {
             return { x, y, z, rest };
         }
 
@@ -403,8 +425,8 @@ function ____exports.__main(self)
     return test(nil, {"x"})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"[x, ...rest]\",\"value\":\"[\\\"x\\\",\\\"y\\\",\\\"z\\\"]\"})", `let x, y, z, rest;
-        function test([x, ...rest]: any) {
+		{"in function parameter ({\"binding\":\"[x, ...rest]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\",\\\"y\\\",\\\"z\\\"]\"})", `let x, y, z, rest;
+        function test([x, ...rest]: string[]) {
             return { x, y, z, rest };
         }
 
@@ -426,8 +448,8 @@ function ____exports.__main(self)
     return test(nil, {"x", "y", "z"})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"{ y: [z = true] }\",\"value\":\"{\\\"y\\\":[false]}\"})", `let x, y, z, rest;
-        function test({ y: [z = true] }: any) {
+		{"in function parameter ({\"binding\":\"{ y: [z = true] }\",\"type\":\"{ y: boolean[] }\",\"value\":\"{\\\"y\\\":[false]}\"})", `let x, y, z, rest;
+        function test({ y: [z = true] }: { y: boolean[] }) {
             return { x, y, z, rest };
         }
 
@@ -448,8 +470,30 @@ function ____exports.__main(self)
     return test(nil, {y = {false}})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"{ x: [x, y] }\",\"value\":\"{\\\"x\\\":[\\\"x\\\",\\\"y\\\"]}\"})", `let x, y, z, rest;
-        function test({ x: [x, y] }: any) {
+		{"in function parameter ({\"binding\":\"{ y: [z = true] }\",\"type\":\"{ y: boolean[] }\",\"value\":\"{\\\"y\\\":[]}\"})", `let x, y, z, rest;
+        function test({ y: [z = true] }: { y: boolean[] }) {
+            return { x, y, z, rest };
+        }
+
+        return test({"y":[]});`, `{z = true}`, `local ____exports = {}
+function ____exports.__main(self)
+    local x
+    local y
+    local z
+    local rest
+    local function test(self, ____bindingPattern0)
+        local z
+        z = ____bindingPattern0.y[1]
+        if z == nil then
+            z = true
+        end
+        return {x = x, y = y, z = z, rest = rest}
+    end
+    return test(nil, {y = {}})
+end
+return ____exports`, false, false},
+		{"in function parameter ({\"binding\":\"{ x: [x, y] }\",\"type\":\"{ x: [string, string] }\",\"value\":\"{\\\"x\\\":[\\\"x\\\",\\\"y\\\"]}\"})", `let x, y, z, rest;
+        function test({ x: [x, y] }: { x: [string, string] }) {
             return { x, y, z, rest };
         }
 
@@ -469,8 +513,8 @@ function ____exports.__main(self)
     return test(nil, {x = {"x", "y"}})
 end
 return ____exports`, false, false},
-		{"in function parameter ({\"binding\":\"{ x: [{ y }] }\",\"value\":\"{\\\"x\\\":[{\\\"y\\\":\\\"y\\\"}]}\"})", `let x, y, z, rest;
-        function test({ x: [{ y }] }: any) {
+		{"in function parameter ({\"binding\":\"{ x: [{ y }] }\",\"type\":\"{ x: [{ y: string }] }\",\"value\":\"{\\\"x\\\":[{\\\"y\\\":\\\"y\\\"}]}\"})", `let x, y, z, rest;
+        function test({ x: [{ y }] }: { x: [{ y: string }] }) {
             return { x, y, z, rest };
         }
 
@@ -488,8 +532,8 @@ function ____exports.__main(self)
     return test(nil, {x = {{y = "y"}}})
 end
 return ____exports`, false, false},
-		{"in function parameter with multiple params ({\"binding\":\"{ x, y }: any, z: any\",\"value\":\"{ x: false, y: false }, true\"})", `let x, y, z, rest;
-        function test({ x, y }: any, z: any) {
+		{"in function parameter ({\"binding\":\"{ x, y }\",\"type\":\"{ x: boolean, y: boolean }, z: boolean\",\"value\":\"{ x: false, y: false }, true\"})", `let x, y, z, rest;
+        function test({ x, y }: { x: boolean, y: boolean }, z: boolean) {
             return { x, y, z, rest };
         }
 
@@ -509,8 +553,8 @@ function ____exports.__main(self)
     return test(nil, {x = false, y = false}, true)
 end
 return ____exports`, false, false},
-		{"in function parameter with multiple params ({\"binding\":\"{ x, y }: any, { z }: any\",\"value\":\"{ x: false, y: false }, { z: true }\"})", `let x, y, z, rest;
-        function test({ x, y }: any, { z }: any) {
+		{"in function parameter ({\"binding\":\"{ x, y }\",\"type\":\"{ x: boolean, y: boolean }, { z }: { z: boolean }\",\"value\":\"{ x: false, y: false }, { z: true }\"})", `let x, y, z, rest;
+        function test({ x, y }: { x: boolean, y: boolean }, { z }: { z: boolean }) {
             return { x, y, z, rest };
         }
 
@@ -549,7 +593,7 @@ function ____exports.__main(self)
     return x
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"{ x }\",\"value\":\"{\\\"x\\\":true}\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"{ x }\",\"type\":\"{ x: boolean }\",\"value\":\"{\\\"x\\\":true}\"})", `let x, y, z, rest;
         {
             const { x } = {"x":true};
             return { x, y, z, rest };
@@ -566,7 +610,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"{ x, y }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":true}\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"{ x, y }\",\"type\":\"{ x: boolean, y: boolean }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":true}\"})", `let x, y, z, rest;
         {
             const { x, y } = {"x":false,"y":true};
             return { x, y, z, rest };
@@ -584,7 +628,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"{ x: z, y }\",\"value\":\"{\\\"x\\\":true,\\\"y\\\":false}\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"{ x: z, y }\",\"type\":\"{ x: boolean, y?: boolean, z?: boolean }\",\"value\":\"{\\\"x\\\":true,\\\"y\\\":false}\"})", `let x, y, z, rest;
         {
             const { x: z, y } = {"x":true,"y":false};
             return { x, y, z, rest };
@@ -602,7 +646,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"{ x: { x, y }, z }\",\"value\":\"{\\\"x\\\":{\\\"x\\\":true,\\\"y\\\":false},\\\"z\\\":false}\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"{ x: { x, y }, z }\",\"type\":\"{ x: { x: boolean, y: boolean }, z: boolean }\",\"value\":\"{\\\"x\\\":{\\\"x\\\":true,\\\"y\\\":false},\\\"z\\\":false}\"})", `let x, y, z, rest;
         {
             const { x: { x, y }, z } = {"x":{"x":true,"y":false},"z":false};
             return { x, y, z, rest };
@@ -621,7 +665,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"{ x, y = true }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":false}\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"{ x, y = true }\",\"type\":\"{ x: boolean, y?: boolean }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":false}\"})", `let x, y, z, rest;
         {
             const { x, y = true } = {"x":false,"y":false};
             return { x, y, z, rest };
@@ -642,7 +686,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"{ x = true }\",\"value\":\"{}\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"{ x = true }\",\"type\":\"{ x?: boolean }\",\"value\":\"{}\"})", `let x, y, z, rest;
         {
             const { x = true } = {};
             return { x, y, z, rest };
@@ -662,7 +706,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"{ x, y = true }\",\"value\":\"{\\\"x\\\":false}\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"{ x, y = true }\",\"type\":\"{ x: boolean, y?: boolean }\",\"value\":\"{\\\"x\\\":false}\"})", `let x, y, z, rest;
         {
             const { x, y = true } = {"x":false};
             return { x, y, z, rest };
@@ -683,7 +727,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"{ ...rest }\",\"value\":\"{}\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"{ ...rest }\",\"type\":\"any\",\"value\":\"{}\"})", `let x, y, z, rest;
         {
             const { ...rest } = {};
             return { x, y, z, rest };
@@ -702,7 +746,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"{ x, ...rest }\",\"value\":\"{\\\"x\\\":\\\"x\\\"}\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"{ x, ...rest }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\"}\"})", `let x, y, z, rest;
         {
             const { x, ...rest } = {"x":"x"};
             return { x, y, z, rest };
@@ -722,7 +766,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"{ x, ...rest }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"{ x, ...rest }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         {
             const { x, ...rest } = {"x":"x","y":"y","z":"z"};
             return { x, y, z, rest };
@@ -742,7 +786,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"{ x, ...y }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"{ x, ...y }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         {
             const { x, ...y } = {"x":"x","y":"y","z":"z"};
             return { x, y, z, rest };
@@ -762,7 +806,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"{ x: y, ...z }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"{ x: y, ...z }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         {
             const { x: y, ...z } = {"x":"x","y":"y","z":"z"};
             return { x, y, z, rest };
@@ -782,7 +826,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"[]\",\"value\":\"[]\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"[]\",\"type\":\"boolean[]\",\"value\":\"[]\"})", `let x, y, z, rest;
         {
             const [] = [];
             return { x, y, z, rest };
@@ -798,7 +842,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"[x, y]\",\"value\":\"[\\\"x\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"[x, y]\",\"type\":\"[string, string]\",\"value\":\"[\\\"x\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
         {
             const [x, y] = ["x","y"];
             return { x, y, z, rest };
@@ -814,7 +858,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"[x, , y]\",\"value\":\"[\\\"x\\\",\\\"\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"[x, , y]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\",\\\"\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
         {
             const [x, , y] = ["x","","y"];
             return { x, y, z, rest };
@@ -830,7 +874,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"[x = true]\",\"value\":\"[false]\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"[x = true]\",\"type\":\"boolean[]\",\"value\":\"[false]\"})", `let x, y, z, rest;
         {
             const [x = true] = [false];
             return { x, y, z, rest };
@@ -849,7 +893,26 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"[[x, y]]\",\"value\":\"[[\\\"x\\\",\\\"y\\\"]]\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"[x = true]\",\"type\":\"boolean[]\",\"value\":\"[]\"})", `let x, y, z, rest;
+        {
+            const [x = true] = [];
+            return { x, y, z, rest };
+        }`, `{x = true}`, `local ____exports = {}
+function ____exports.__main(self)
+    local x
+    local y
+    local z
+    local rest
+    do
+        local x = nil
+        if x == nil then
+            x = true
+        end
+        return {x = x, y = y, z = z, rest = rest}
+    end
+end
+return ____exports`, false, false},
+		{"in variable declaration ({\"binding\":\"[[x, y]]\",\"type\":\"Array<string[]>\",\"value\":\"[[\\\"x\\\",\\\"y\\\"]]\"})", `let x, y, z, rest;
         {
             const [[x, y]] = [["x","y"]];
             return { x, y, z, rest };
@@ -867,7 +930,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"[x, ...rest]\",\"value\":\"[\\\"x\\\"]\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"[x, ...rest]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\"]\"})", `let x, y, z, rest;
         {
             const [x, ...rest] = ["x"];
             return { x, y, z, rest };
@@ -887,7 +950,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"[x, ...rest]\",\"value\":\"[\\\"x\\\",\\\"y\\\",\\\"z\\\"]\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"[x, ...rest]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\",\\\"y\\\",\\\"z\\\"]\"})", `let x, y, z, rest;
         {
             const [x, ...rest] = ["x","y","z"];
             return { x, y, z, rest };
@@ -907,7 +970,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"{ y: [z = true] }\",\"value\":\"{\\\"y\\\":[false]}\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"{ y: [z = true] }\",\"type\":\"{ y: boolean[] }\",\"value\":\"{\\\"y\\\":[false]}\"})", `let x, y, z, rest;
         {
             const { y: [z = true] } = {"y":[false]};
             return { x, y, z, rest };
@@ -927,7 +990,27 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"{ x: [x, y] }\",\"value\":\"{\\\"x\\\":[\\\"x\\\",\\\"y\\\"]}\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"{ y: [z = true] }\",\"type\":\"{ y: boolean[] }\",\"value\":\"{\\\"y\\\":[]}\"})", `let x, y, z, rest;
+        {
+            const { y: [z = true] } = {"y":[]};
+            return { x, y, z, rest };
+        }`, `{z = true}`, `local ____exports = {}
+function ____exports.__main(self)
+    local x
+    local y
+    local z
+    local rest
+    do
+        local ____temp_0 = {y = {}}
+        local z = ____temp_0.y[1]
+        if z == nil then
+            z = true
+        end
+        return {x = x, y = y, z = z, rest = rest}
+    end
+end
+return ____exports`, false, false},
+		{"in variable declaration ({\"binding\":\"{ x: [x, y] }\",\"type\":\"{ x: [string, string] }\",\"value\":\"{\\\"x\\\":[\\\"x\\\",\\\"y\\\"]}\"})", `let x, y, z, rest;
         {
             const { x: [x, y] } = {"x":["x","y"]};
             return { x, y, z, rest };
@@ -945,7 +1028,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration ({\"binding\":\"{ x: [{ y }] }\",\"value\":\"{\\\"x\\\":[{\\\"y\\\":\\\"y\\\"}]}\"})", `let x, y, z, rest;
+		{"in variable declaration ({\"binding\":\"{ x: [{ y }] }\",\"type\":\"{ x: [{ y: string }] }\",\"value\":\"{\\\"x\\\":[{\\\"y\\\":\\\"y\\\"}]}\"})", `let x, y, z, rest;
         {
             const { x: [{ y }] } = {"x":[{"y":"y"}]};
             return { x, y, z, rest };
@@ -962,7 +1045,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"{ x }\",\"value\":\"{\\\"x\\\":true}\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"{ x }\",\"type\":\"{ x: boolean }\",\"value\":\"{\\\"x\\\":true}\"})", `let x, y, z, rest;
         {
             const v: any = {"x":true};
             const { x } = v;
@@ -980,7 +1063,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"{ x, y }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":true}\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"{ x, y }\",\"type\":\"{ x: boolean, y: boolean }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":true}\"})", `let x, y, z, rest;
         {
             const v: any = {"x":false,"y":true};
             const { x, y } = v;
@@ -999,7 +1082,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"{ x: z, y }\",\"value\":\"{\\\"x\\\":true,\\\"y\\\":false}\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"{ x: z, y }\",\"type\":\"{ x: boolean, y?: boolean, z?: boolean }\",\"value\":\"{\\\"x\\\":true,\\\"y\\\":false}\"})", `let x, y, z, rest;
         {
             const v: any = {"x":true,"y":false};
             const { x: z, y } = v;
@@ -1018,7 +1101,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"{ x: { x, y }, z }\",\"value\":\"{\\\"x\\\":{\\\"x\\\":true,\\\"y\\\":false},\\\"z\\\":false}\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"{ x: { x, y }, z }\",\"type\":\"{ x: { x: boolean, y: boolean }, z: boolean }\",\"value\":\"{\\\"x\\\":{\\\"x\\\":true,\\\"y\\\":false},\\\"z\\\":false}\"})", `let x, y, z, rest;
         {
             const v: any = {"x":{"x":true,"y":false},"z":false};
             const { x: { x, y }, z } = v;
@@ -1038,7 +1121,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"{ x, y = true }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":false}\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"{ x, y = true }\",\"type\":\"{ x: boolean, y?: boolean }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":false}\"})", `let x, y, z, rest;
         {
             const v: any = {"x":false,"y":false};
             const { x, y = true } = v;
@@ -1060,7 +1143,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"{ x = true }\",\"value\":\"{}\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"{ x = true }\",\"type\":\"{ x?: boolean }\",\"value\":\"{}\"})", `let x, y, z, rest;
         {
             const v: any = {};
             const { x = true } = v;
@@ -1081,7 +1164,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"{ x, y = true }\",\"value\":\"{\\\"x\\\":false}\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"{ x, y = true }\",\"type\":\"{ x: boolean, y?: boolean }\",\"value\":\"{\\\"x\\\":false}\"})", `let x, y, z, rest;
         {
             const v: any = {"x":false};
             const { x, y = true } = v;
@@ -1103,7 +1186,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"{ ...rest }\",\"value\":\"{}\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"{ ...rest }\",\"type\":\"any\",\"value\":\"{}\"})", `let x, y, z, rest;
         {
             const v: any = {};
             const { ...rest } = v;
@@ -1123,7 +1206,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"{ x, ...rest }\",\"value\":\"{\\\"x\\\":\\\"x\\\"}\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"{ x, ...rest }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\"}\"})", `let x, y, z, rest;
         {
             const v: any = {"x":"x"};
             const { x, ...rest } = v;
@@ -1144,7 +1227,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"{ x, ...rest }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"{ x, ...rest }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         {
             const v: any = {"x":"x","y":"y","z":"z"};
             const { x, ...rest } = v;
@@ -1165,7 +1248,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"{ x, ...y }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"{ x, ...y }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         {
             const v: any = {"x":"x","y":"y","z":"z"};
             const { x, ...y } = v;
@@ -1186,7 +1269,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"{ x: y, ...z }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"{ x: y, ...z }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         {
             const v: any = {"x":"x","y":"y","z":"z"};
             const { x: y, ...z } = v;
@@ -1207,7 +1290,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"[]\",\"value\":\"[]\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"[]\",\"type\":\"boolean[]\",\"value\":\"[]\"})", `let x, y, z, rest;
         {
             const v: any = [];
             const [] = v;
@@ -1225,7 +1308,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"[x, y]\",\"value\":\"[\\\"x\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"[x, y]\",\"type\":\"[string, string]\",\"value\":\"[\\\"x\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
         {
             const v: any = ["x","y"];
             const [x, y] = v;
@@ -1243,7 +1326,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"[x, , y]\",\"value\":\"[\\\"x\\\",\\\"\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"[x, , y]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\",\\\"\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
         {
             const v: any = ["x","","y"];
             const [x, , y] = v;
@@ -1261,7 +1344,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"[x = true]\",\"value\":\"[false]\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"[x = true]\",\"type\":\"boolean[]\",\"value\":\"[false]\"})", `let x, y, z, rest;
         {
             const v: any = [false];
             const [x = true] = v;
@@ -1282,7 +1365,28 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"[[x, y]]\",\"value\":\"[[\\\"x\\\",\\\"y\\\"]]\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"[x = true]\",\"type\":\"boolean[]\",\"value\":\"[]\"})", `let x, y, z, rest;
+        {
+            const v: any = [];
+            const [x = true] = v;
+            return { x, y, z, rest };
+        }`, `{x = true}`, `local ____exports = {}
+function ____exports.__main(self)
+    local x
+    local y
+    local z
+    local rest
+    do
+        local v = {}
+        local x = table.unpack(v, 1, 1)
+        if x == nil then
+            x = true
+        end
+        return {x = x, y = y, z = z, rest = rest}
+    end
+end
+return ____exports`, false, false},
+		{"in variable declaration from const variable ({\"binding\":\"[[x, y]]\",\"type\":\"Array<string[]>\",\"value\":\"[[\\\"x\\\",\\\"y\\\"]]\"})", `let x, y, z, rest;
         {
             const v: any = [["x","y"]];
             const [[x, y]] = v;
@@ -1301,7 +1405,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"[x, ...rest]\",\"value\":\"[\\\"x\\\"]\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"[x, ...rest]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\"]\"})", `let x, y, z, rest;
         {
             const v: any = ["x"];
             const [x, ...rest] = v;
@@ -1322,7 +1426,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"[x, ...rest]\",\"value\":\"[\\\"x\\\",\\\"y\\\",\\\"z\\\"]\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"[x, ...rest]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\",\\\"y\\\",\\\"z\\\"]\"})", `let x, y, z, rest;
         {
             const v: any = ["x","y","z"];
             const [x, ...rest] = v;
@@ -1343,7 +1447,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"{ y: [z = true] }\",\"value\":\"{\\\"y\\\":[false]}\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"{ y: [z = true] }\",\"type\":\"{ y: boolean[] }\",\"value\":\"{\\\"y\\\":[false]}\"})", `let x, y, z, rest;
         {
             const v: any = {"y":[false]};
             const { y: [z = true] } = v;
@@ -1364,7 +1468,28 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"{ x: [x, y] }\",\"value\":\"{\\\"x\\\":[\\\"x\\\",\\\"y\\\"]}\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"{ y: [z = true] }\",\"type\":\"{ y: boolean[] }\",\"value\":\"{\\\"y\\\":[]}\"})", `let x, y, z, rest;
+        {
+            const v: any = {"y":[]};
+            const { y: [z = true] } = v;
+            return { x, y, z, rest };
+        }`, `{z = true}`, `local ____exports = {}
+function ____exports.__main(self)
+    local x
+    local y
+    local z
+    local rest
+    do
+        local v = {y = {}}
+        local z = v.y[1]
+        if z == nil then
+            z = true
+        end
+        return {x = x, y = y, z = z, rest = rest}
+    end
+end
+return ____exports`, false, false},
+		{"in variable declaration from const variable ({\"binding\":\"{ x: [x, y] }\",\"type\":\"{ x: [string, string] }\",\"value\":\"{\\\"x\\\":[\\\"x\\\",\\\"y\\\"]}\"})", `let x, y, z, rest;
         {
             const v: any = {"x":["x","y"]};
             const { x: [x, y] } = v;
@@ -1383,7 +1508,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from const variable ({\"binding\":\"{ x: [{ y }] }\",\"value\":\"{\\\"x\\\":[{\\\"y\\\":\\\"y\\\"}]}\"})", `let x, y, z, rest;
+		{"in variable declaration from const variable ({\"binding\":\"{ x: [{ y }] }\",\"type\":\"{ x: [{ y: string }] }\",\"value\":\"{\\\"x\\\":[{\\\"y\\\":\\\"y\\\"}]}\"})", `let x, y, z, rest;
         {
             const v: any = {"x":[{"y":"y"}]};
             const { x: [{ y }] } = v;
@@ -1401,7 +1526,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"{ x }\",\"value\":\"{\\\"x\\\":true}\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"{ x }\",\"type\":\"{ x: boolean }\",\"value\":\"{\\\"x\\\":true}\"})", `let x, y, z, rest;
         function test(this: any) {
             const { x } = this;
             return { x, y, z, rest };
@@ -1419,7 +1544,7 @@ function ____exports.__main(self)
     return test({x = true})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"{ x, y }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":true}\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"{ x, y }\",\"type\":\"{ x: boolean, y: boolean }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":true}\"})", `let x, y, z, rest;
         function test(this: any) {
             const { x, y } = this;
             return { x, y, z, rest };
@@ -1438,7 +1563,7 @@ function ____exports.__main(self)
     return test({x = false, y = true})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"{ x: z, y }\",\"value\":\"{\\\"x\\\":true,\\\"y\\\":false}\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"{ x: z, y }\",\"type\":\"{ x: boolean, y?: boolean, z?: boolean }\",\"value\":\"{\\\"x\\\":true,\\\"y\\\":false}\"})", `let x, y, z, rest;
         function test(this: any) {
             const { x: z, y } = this;
             return { x, y, z, rest };
@@ -1457,7 +1582,7 @@ function ____exports.__main(self)
     return test({x = true, y = false})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"{ x: { x, y }, z }\",\"value\":\"{\\\"x\\\":{\\\"x\\\":true,\\\"y\\\":false},\\\"z\\\":false}\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"{ x: { x, y }, z }\",\"type\":\"{ x: { x: boolean, y: boolean }, z: boolean }\",\"value\":\"{\\\"x\\\":{\\\"x\\\":true,\\\"y\\\":false},\\\"z\\\":false}\"})", `let x, y, z, rest;
         function test(this: any) {
             const { x: { x, y }, z } = this;
             return { x, y, z, rest };
@@ -1477,7 +1602,7 @@ function ____exports.__main(self)
     return test({x = {x = true, y = false}, z = false})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"{ x, y = true }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":false}\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"{ x, y = true }\",\"type\":\"{ x: boolean, y?: boolean }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":false}\"})", `let x, y, z, rest;
         function test(this: any) {
             const { x, y = true } = this;
             return { x, y, z, rest };
@@ -1499,7 +1624,7 @@ function ____exports.__main(self)
     return test({x = false, y = false})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"{ x = true }\",\"value\":\"{}\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"{ x = true }\",\"type\":\"{ x?: boolean }\",\"value\":\"{}\"})", `let x, y, z, rest;
         function test(this: any) {
             const { x = true } = this;
             return { x, y, z, rest };
@@ -1520,7 +1645,7 @@ function ____exports.__main(self)
     return test({})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"{ x, y = true }\",\"value\":\"{\\\"x\\\":false}\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"{ x, y = true }\",\"type\":\"{ x: boolean, y?: boolean }\",\"value\":\"{\\\"x\\\":false}\"})", `let x, y, z, rest;
         function test(this: any) {
             const { x, y = true } = this;
             return { x, y, z, rest };
@@ -1542,7 +1667,7 @@ function ____exports.__main(self)
     return test({x = false})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"{ ...rest }\",\"value\":\"{}\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"{ ...rest }\",\"type\":\"any\",\"value\":\"{}\"})", `let x, y, z, rest;
         function test(this: any) {
             const { ...rest } = this;
             return { x, y, z, rest };
@@ -1562,7 +1687,7 @@ function ____exports.__main(self)
     return test({})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"{ x, ...rest }\",\"value\":\"{\\\"x\\\":\\\"x\\\"}\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"{ x, ...rest }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\"}\"})", `let x, y, z, rest;
         function test(this: any) {
             const { x, ...rest } = this;
             return { x, y, z, rest };
@@ -1583,7 +1708,7 @@ function ____exports.__main(self)
     return test({x = "x"})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"{ x, ...rest }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"{ x, ...rest }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         function test(this: any) {
             const { x, ...rest } = this;
             return { x, y, z, rest };
@@ -1604,7 +1729,7 @@ function ____exports.__main(self)
     return test({x = "x", y = "y", z = "z"})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"{ x, ...y }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"{ x, ...y }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         function test(this: any) {
             const { x, ...y } = this;
             return { x, y, z, rest };
@@ -1625,7 +1750,7 @@ function ____exports.__main(self)
     return test({x = "x", y = "y", z = "z"})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"{ x: y, ...z }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"{ x: y, ...z }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         function test(this: any) {
             const { x: y, ...z } = this;
             return { x, y, z, rest };
@@ -1646,7 +1771,7 @@ function ____exports.__main(self)
     return test({x = "x", y = "y", z = "z"})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"[]\",\"value\":\"[]\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"[]\",\"type\":\"boolean[]\",\"value\":\"[]\"})", `let x, y, z, rest;
         function test(this: any) {
             const [] = this;
             return { x, y, z, rest };
@@ -1664,7 +1789,7 @@ function ____exports.__main(self)
     return test({})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"[x, y]\",\"value\":\"[\\\"x\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"[x, y]\",\"type\":\"[string, string]\",\"value\":\"[\\\"x\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
         function test(this: any) {
             const [x, y] = this;
             return { x, y, z, rest };
@@ -1682,7 +1807,7 @@ function ____exports.__main(self)
     return test({"x", "y"})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"[x, , y]\",\"value\":\"[\\\"x\\\",\\\"\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"[x, , y]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\",\\\"\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
         function test(this: any) {
             const [x, , y] = this;
             return { x, y, z, rest };
@@ -1700,7 +1825,7 @@ function ____exports.__main(self)
     return test({"x", "", "y"})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"[x = true]\",\"value\":\"[false]\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"[x = true]\",\"type\":\"boolean[]\",\"value\":\"[false]\"})", `let x, y, z, rest;
         function test(this: any) {
             const [x = true] = this;
             return { x, y, z, rest };
@@ -1721,7 +1846,28 @@ function ____exports.__main(self)
     return test({false})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"[[x, y]]\",\"value\":\"[[\\\"x\\\",\\\"y\\\"]]\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"[x = true]\",\"type\":\"boolean[]\",\"value\":\"[]\"})", `let x, y, z, rest;
+        function test(this: any) {
+            const [x = true] = this;
+            return { x, y, z, rest };
+        }
+        return test.call([]);`, `{x = true}`, `local ____exports = {}
+function ____exports.__main(self)
+    local x
+    local y
+    local z
+    local rest
+    local function test(self)
+        local x = table.unpack(self, 1, 1)
+        if x == nil then
+            x = true
+        end
+        return {x = x, y = y, z = z, rest = rest}
+    end
+    return test({})
+end
+return ____exports`, false, false},
+		{"in variable declaration from this ({\"binding\":\"[[x, y]]\",\"type\":\"Array<string[]>\",\"value\":\"[[\\\"x\\\",\\\"y\\\"]]\"})", `let x, y, z, rest;
         function test(this: any) {
             const [[x, y]] = this;
             return { x, y, z, rest };
@@ -1740,7 +1886,7 @@ function ____exports.__main(self)
     return test({{"x", "y"}})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"[x, ...rest]\",\"value\":\"[\\\"x\\\"]\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"[x, ...rest]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\"]\"})", `let x, y, z, rest;
         function test(this: any) {
             const [x, ...rest] = this;
             return { x, y, z, rest };
@@ -1761,7 +1907,7 @@ function ____exports.__main(self)
     return test({"x"})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"[x, ...rest]\",\"value\":\"[\\\"x\\\",\\\"y\\\",\\\"z\\\"]\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"[x, ...rest]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\",\\\"y\\\",\\\"z\\\"]\"})", `let x, y, z, rest;
         function test(this: any) {
             const [x, ...rest] = this;
             return { x, y, z, rest };
@@ -1782,7 +1928,7 @@ function ____exports.__main(self)
     return test({"x", "y", "z"})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"{ y: [z = true] }\",\"value\":\"{\\\"y\\\":[false]}\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"{ y: [z = true] }\",\"type\":\"{ y: boolean[] }\",\"value\":\"{\\\"y\\\":[false]}\"})", `let x, y, z, rest;
         function test(this: any) {
             const { y: [z = true] } = this;
             return { x, y, z, rest };
@@ -1803,7 +1949,28 @@ function ____exports.__main(self)
     return test({y = {false}})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"{ x: [x, y] }\",\"value\":\"{\\\"x\\\":[\\\"x\\\",\\\"y\\\"]}\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"{ y: [z = true] }\",\"type\":\"{ y: boolean[] }\",\"value\":\"{\\\"y\\\":[]}\"})", `let x, y, z, rest;
+        function test(this: any) {
+            const { y: [z = true] } = this;
+            return { x, y, z, rest };
+        }
+        return test.call({"y":[]});`, `{z = true}`, `local ____exports = {}
+function ____exports.__main(self)
+    local x
+    local y
+    local z
+    local rest
+    local function test(self)
+        local z = self.y[1]
+        if z == nil then
+            z = true
+        end
+        return {x = x, y = y, z = z, rest = rest}
+    end
+    return test({y = {}})
+end
+return ____exports`, false, false},
+		{"in variable declaration from this ({\"binding\":\"{ x: [x, y] }\",\"type\":\"{ x: [string, string] }\",\"value\":\"{\\\"x\\\":[\\\"x\\\",\\\"y\\\"]}\"})", `let x, y, z, rest;
         function test(this: any) {
             const { x: [x, y] } = this;
             return { x, y, z, rest };
@@ -1822,7 +1989,7 @@ function ____exports.__main(self)
     return test({x = {"x", "y"}})
 end
 return ____exports`, false, false},
-		{"in variable declaration from this ({\"binding\":\"{ x: [{ y }] }\",\"value\":\"{\\\"x\\\":[{\\\"y\\\":\\\"y\\\"}]}\"})", `let x, y, z, rest;
+		{"in variable declaration from this ({\"binding\":\"{ x: [{ y }] }\",\"type\":\"{ x: [{ y: string }] }\",\"value\":\"{\\\"x\\\":[{\\\"y\\\":\\\"y\\\"}]}\"})", `let x, y, z, rest;
         function test(this: any) {
             const { x: [{ y }] } = this;
             return { x, y, z, rest };
@@ -1840,7 +2007,7 @@ function ____exports.__main(self)
     return test({x = {{y = "y"}}})
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"{ x }\",\"value\":\"{\\\"x\\\":true}\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"{ x }\",\"type\":\"{ x: boolean }\",\"value\":\"{\\\"x\\\":true}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ({ x } = {"x":true});
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {x = true}, obj = {prop = false}, x = true}`, `local ____exports = {}
@@ -1863,7 +2030,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"{ x, y }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":true}\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"{ x, y }\",\"type\":\"{ x: boolean, y: boolean }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":true}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ({ x, y } = {"x":false,"y":true});
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {x = false, y = true}, obj = {prop = false}, x = false, y = true}`, `local ____exports = {}
@@ -1887,7 +2054,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"{ x: z, y }\",\"value\":\"{\\\"x\\\":true,\\\"y\\\":false}\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"{ x: z, y }\",\"type\":\"{ x: boolean, y?: boolean, z?: boolean }\",\"value\":\"{\\\"x\\\":true,\\\"y\\\":false}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ({ x: z, y } = {"x":true,"y":false});
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {x = true, y = false}, obj = {prop = false}, y = false, z = true}`, `local ____exports = {}
@@ -1911,7 +2078,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"{ x: { x, y }, z }\",\"value\":\"{\\\"x\\\":{\\\"x\\\":true,\\\"y\\\":false},\\\"z\\\":false}\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"{ x: { x, y }, z }\",\"type\":\"{ x: { x: boolean, y: boolean }, z: boolean }\",\"value\":\"{\\\"x\\\":{\\\"x\\\":true,\\\"y\\\":false},\\\"z\\\":false}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ({ x: { x, y }, z } = {"x":{"x":true,"y":false},"z":false});
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {x = {x = true, y = false}, z = false}, obj = {prop = false}, x = true, y = false, z = false}`, `local ____exports = {}
@@ -1936,7 +2103,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"{ x, y = true }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":false}\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"{ x, y = true }\",\"type\":\"{ x: boolean, y?: boolean }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":false}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ({ x, y = true } = {"x":false,"y":false});
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {x = false, y = false}, obj = {prop = false}, x = false, y = false}`, `local ____exports = {}
@@ -1963,7 +2130,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"{ x = true }\",\"value\":\"{}\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"{ x = true }\",\"type\":\"{ x?: boolean }\",\"value\":\"{}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ({ x = true } = {});
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {}, obj = {prop = false}, x = true}`, `local ____exports = {}
@@ -1989,7 +2156,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"{ x, y = true }\",\"value\":\"{\\\"x\\\":false}\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"{ x, y = true }\",\"type\":\"{ x: boolean, y?: boolean }\",\"value\":\"{\\\"x\\\":false}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ({ x, y = true } = {"x":false});
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {x = false}, obj = {prop = false}, x = false, y = true}`, `local ____exports = {}
@@ -2016,7 +2183,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"{ ...rest }\",\"value\":\"{}\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"{ ...rest }\",\"type\":\"any\",\"value\":\"{}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ({ ...rest } = {});
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {}, obj = {prop = false}, rest = {}}`, `local ____lualib = require("lualib_bundle")
@@ -2041,7 +2208,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"{ x, ...rest }\",\"value\":\"{\\\"x\\\":\\\"x\\\"}\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"{ x, ...rest }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\"}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ({ x, ...rest } = {"x":"x"});
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {x = "x"}, obj = {prop = false}, rest = {}, x = "x"}`, `local ____lualib = require("lualib_bundle")
@@ -2067,7 +2234,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"{ x, ...rest }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"{ x, ...rest }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ({ x, ...rest } = {"x":"x","y":"y","z":"z"});
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {x = "x", y = "y", z = "z"}, obj = {prop = false}, rest = {y = "y", z = "z"}, x = "x"}`, `local ____lualib = require("lualib_bundle")
@@ -2093,7 +2260,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"{ x, ...y }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"{ x, ...y }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ({ x, ...y } = {"x":"x","y":"y","z":"z"});
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {x = "x", y = "y", z = "z"}, obj = {prop = false}, x = "x", y = {y = "y", z = "z"}}`, `local ____lualib = require("lualib_bundle")
@@ -2119,7 +2286,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"{ x: y, ...z }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"{ x: y, ...z }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ({ x: y, ...z } = {"x":"x","y":"y","z":"z"});
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {x = "x", y = "y", z = "z"}, obj = {prop = false}, y = "x", z = {y = "y", z = "z"}}`, `local ____lualib = require("lualib_bundle")
@@ -2145,7 +2312,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"[]\",\"value\":\"[]\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"[]\",\"type\":\"boolean[]\",\"value\":\"[]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ([] = []);
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {}, obj = {prop = false}}`, `local ____exports = {}
@@ -2167,7 +2334,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"[x, y]\",\"value\":\"[\\\"x\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"[x, y]\",\"type\":\"[string, string]\",\"value\":\"[\\\"x\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ([x, y] = ["x","y"]);
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {"x", "y"}, obj = {prop = false}, x = "x", y = "y"}`, `local ____exports = {}
@@ -2191,7 +2358,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"[x, , y]\",\"value\":\"[\\\"x\\\",\\\"\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"[x, , y]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\",\\\"\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ([x, , y] = ["x","","y"]);
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {"x", "", "y"}, obj = {prop = false}, x = "x", y = "y"}`, `local ____exports = {}
@@ -2215,7 +2382,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"[x = true]\",\"value\":\"[false]\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"[x = true]\",\"type\":\"boolean[]\",\"value\":\"[false]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ([x = true] = [false]);
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {false}, obj = {prop = false}, x = false}`, `local ____exports = {}
@@ -2243,7 +2410,35 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"[[x, y]]\",\"value\":\"[[\\\"x\\\",\\\"y\\\"]]\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"[x = true]\",\"type\":\"boolean[]\",\"value\":\"[]\"})", `let x, y, z, rest;
+        const obj = { prop: false };
+        const expressionResult = ([x = true] = []);
+        return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {}, obj = {prop = false}, x = true}`, `local ____exports = {}
+function ____exports.__main(self)
+    local x
+    local y
+    local z
+    local rest
+    local obj = {prop = false}
+    local ____temp_0 = {}
+    local ____temp_0__1_1 = ____temp_0[1]
+    if ____temp_0__1_1 == nil then
+        x = true
+    else
+        x = ____temp_0__1_1
+    end
+    local expressionResult = ____temp_0
+    return {
+        x = x,
+        y = y,
+        z = z,
+        rest = rest,
+        obj = obj,
+        expressionResult = expressionResult
+    }
+end
+return ____exports`, false, false},
+		{"in assignment expression ({\"binding\":\"[[x, y]]\",\"type\":\"Array<string[]>\",\"value\":\"[[\\\"x\\\",\\\"y\\\"]]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ([[x, y]] = [["x","y"]]);
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {{"x", "y"}}, obj = {prop = false}, x = "x", y = "y"}`, `local ____exports = {}
@@ -2267,7 +2462,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"[x, ...rest]\",\"value\":\"[\\\"x\\\"]\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"[x, ...rest]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\"]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ([x, ...rest] = ["x"]);
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {"x"}, obj = {prop = false}, rest = {}, x = "x"}`, `local ____lualib = require("lualib_bundle")
@@ -2293,7 +2488,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"[x, ...rest]\",\"value\":\"[\\\"x\\\",\\\"y\\\",\\\"z\\\"]\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"[x, ...rest]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\",\\\"y\\\",\\\"z\\\"]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ([x, ...rest] = ["x","y","z"]);
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {"x", "y", "z"}, obj = {prop = false}, rest = {"y", "z"}, x = "x"}`, `local ____lualib = require("lualib_bundle")
@@ -2319,7 +2514,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"{ y: [z = true] }\",\"value\":\"{\\\"y\\\":[false]}\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"{ y: [z = true] }\",\"type\":\"{ y: boolean[] }\",\"value\":\"{\\\"y\\\":[false]}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ({ y: [z = true] } = {"y":[false]});
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {y = {false}}, obj = {prop = false}, z = false}`, `local ____exports = {}
@@ -2347,7 +2542,35 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"{ x: [x, y] }\",\"value\":\"{\\\"x\\\":[\\\"x\\\",\\\"y\\\"]}\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"{ y: [z = true] }\",\"type\":\"{ y: boolean[] }\",\"value\":\"{\\\"y\\\":[]}\"})", `let x, y, z, rest;
+        const obj = { prop: false };
+        const expressionResult = ({ y: [z = true] } = {"y":[]});
+        return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {y = {}}, obj = {prop = false}, z = true}`, `local ____exports = {}
+function ____exports.__main(self)
+    local x
+    local y
+    local z
+    local rest
+    local obj = {prop = false}
+    local ____temp_0 = {y = {}}
+    local ____temp_0_y__1_1 = ____temp_0.y[1]
+    if ____temp_0_y__1_1 == nil then
+        z = true
+    else
+        z = ____temp_0_y__1_1
+    end
+    local expressionResult = ____temp_0
+    return {
+        x = x,
+        y = y,
+        z = z,
+        rest = rest,
+        obj = obj,
+        expressionResult = expressionResult
+    }
+end
+return ____exports`, false, false},
+		{"in assignment expression ({\"binding\":\"{ x: [x, y] }\",\"type\":\"{ x: [string, string] }\",\"value\":\"{\\\"x\\\":[\\\"x\\\",\\\"y\\\"]}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ({ x: [x, y] } = {"x":["x","y"]});
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {x = {"x", "y"}}, obj = {prop = false}, x = "x", y = "y"}`, `local ____exports = {}
@@ -2371,7 +2594,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression ({\"binding\":\"{ x: [{ y }] }\",\"value\":\"{\\\"x\\\":[{\\\"y\\\":\\\"y\\\"}]}\"})", `let x, y, z, rest;
+		{"in assignment expression ({\"binding\":\"{ x: [{ y }] }\",\"type\":\"{ x: [{ y: string }] }\",\"value\":\"{\\\"x\\\":[{\\\"y\\\":\\\"y\\\"}]}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const expressionResult = ({ x: [{ y }] } = {"x":[{"y":"y"}]});
         return { x, y, z, rest, obj, expressionResult };`, `{expressionResult = {x = {{y = "y"}}}, obj = {prop = false}, y = "y"}`, `local ____exports = {}
@@ -2541,7 +2764,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"{ x }\",\"value\":\"{\\\"x\\\":true}\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"{ x }\",\"type\":\"{ x: boolean }\",\"value\":\"{\\\"x\\\":true}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = {"x":true};
         const expressionResult = ({ x } = v);
@@ -2564,7 +2787,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"{ x, y }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":true}\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"{ x, y }\",\"type\":\"{ x: boolean, y: boolean }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":true}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = {"x":false,"y":true};
         const expressionResult = ({ x, y } = v);
@@ -2588,7 +2811,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"{ x: z, y }\",\"value\":\"{\\\"x\\\":true,\\\"y\\\":false}\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"{ x: z, y }\",\"type\":\"{ x: boolean, y?: boolean, z?: boolean }\",\"value\":\"{\\\"x\\\":true,\\\"y\\\":false}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = {"x":true,"y":false};
         const expressionResult = ({ x: z, y } = v);
@@ -2612,7 +2835,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"{ x: { x, y }, z }\",\"value\":\"{\\\"x\\\":{\\\"x\\\":true,\\\"y\\\":false},\\\"z\\\":false}\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"{ x: { x, y }, z }\",\"type\":\"{ x: { x: boolean, y: boolean }, z: boolean }\",\"value\":\"{\\\"x\\\":{\\\"x\\\":true,\\\"y\\\":false},\\\"z\\\":false}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = {"x":{"x":true,"y":false},"z":false};
         const expressionResult = ({ x: { x, y }, z } = v);
@@ -2637,7 +2860,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"{ x, y = true }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":false}\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"{ x, y = true }\",\"type\":\"{ x: boolean, y?: boolean }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":false}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = {"x":false,"y":false};
         const expressionResult = ({ x, y = true } = v);
@@ -2664,7 +2887,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"{ x = true }\",\"value\":\"{}\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"{ x = true }\",\"type\":\"{ x?: boolean }\",\"value\":\"{}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = {};
         const expressionResult = ({ x = true } = v);
@@ -2690,7 +2913,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"{ x, y = true }\",\"value\":\"{\\\"x\\\":false}\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"{ x, y = true }\",\"type\":\"{ x: boolean, y?: boolean }\",\"value\":\"{\\\"x\\\":false}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = {"x":false};
         const expressionResult = ({ x, y = true } = v);
@@ -2717,7 +2940,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"{ ...rest }\",\"value\":\"{}\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"{ ...rest }\",\"type\":\"any\",\"value\":\"{}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = {};
         const expressionResult = ({ ...rest } = v);
@@ -2742,7 +2965,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"{ x, ...rest }\",\"value\":\"{\\\"x\\\":\\\"x\\\"}\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"{ x, ...rest }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\"}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = {"x":"x"};
         const expressionResult = ({ x, ...rest } = v);
@@ -2768,7 +2991,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"{ x, ...rest }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"{ x, ...rest }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = {"x":"x","y":"y","z":"z"};
         const expressionResult = ({ x, ...rest } = v);
@@ -2794,7 +3017,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"{ x, ...y }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"{ x, ...y }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = {"x":"x","y":"y","z":"z"};
         const expressionResult = ({ x, ...y } = v);
@@ -2820,7 +3043,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"{ x: y, ...z }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"{ x: y, ...z }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = {"x":"x","y":"y","z":"z"};
         const expressionResult = ({ x: y, ...z } = v);
@@ -2846,7 +3069,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"[]\",\"value\":\"[]\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"[]\",\"type\":\"boolean[]\",\"value\":\"[]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = [];
         const expressionResult = ([] = v);
@@ -2868,7 +3091,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"[x, y]\",\"value\":\"[\\\"x\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"[x, y]\",\"type\":\"[string, string]\",\"value\":\"[\\\"x\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = ["x","y"];
         const expressionResult = ([x, y] = v);
@@ -2892,7 +3115,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"[x, , y]\",\"value\":\"[\\\"x\\\",\\\"\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"[x, , y]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\",\\\"\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = ["x","","y"];
         const expressionResult = ([x, , y] = v);
@@ -2916,7 +3139,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"[x = true]\",\"value\":\"[false]\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"[x = true]\",\"type\":\"boolean[]\",\"value\":\"[false]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = [false];
         const expressionResult = ([x = true] = v);
@@ -2944,7 +3167,35 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"[[x, y]]\",\"value\":\"[[\\\"x\\\",\\\"y\\\"]]\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"[x = true]\",\"type\":\"boolean[]\",\"value\":\"[]\"})", `let x, y, z, rest;
+        const obj = { prop: false };
+        const v: any = [];
+        const expressionResult = ([x = true] = v);
+        return { x, y, z, rest, expressionResult };`, `{expressionResult = {}, x = true}`, `local ____exports = {}
+function ____exports.__main(self)
+    local x
+    local y
+    local z
+    local rest
+    local obj = {prop = false}
+    local v = {}
+    local ____v__1_0 = v[1]
+    if ____v__1_0 == nil then
+        x = true
+    else
+        x = ____v__1_0
+    end
+    local expressionResult = v
+    return {
+        x = x,
+        y = y,
+        z = z,
+        rest = rest,
+        expressionResult = expressionResult
+    }
+end
+return ____exports`, false, false},
+		{"in assignment expression from const variable ({\"binding\":\"[[x, y]]\",\"type\":\"Array<string[]>\",\"value\":\"[[\\\"x\\\",\\\"y\\\"]]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = [["x","y"]];
         const expressionResult = ([[x, y]] = v);
@@ -2968,7 +3219,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"[x, ...rest]\",\"value\":\"[\\\"x\\\"]\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"[x, ...rest]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\"]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = ["x"];
         const expressionResult = ([x, ...rest] = v);
@@ -2994,7 +3245,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"[x, ...rest]\",\"value\":\"[\\\"x\\\",\\\"y\\\",\\\"z\\\"]\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"[x, ...rest]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\",\\\"y\\\",\\\"z\\\"]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = ["x","y","z"];
         const expressionResult = ([x, ...rest] = v);
@@ -3020,7 +3271,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"{ y: [z = true] }\",\"value\":\"{\\\"y\\\":[false]}\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"{ y: [z = true] }\",\"type\":\"{ y: boolean[] }\",\"value\":\"{\\\"y\\\":[false]}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = {"y":[false]};
         const expressionResult = ({ y: [z = true] } = v);
@@ -3048,7 +3299,35 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"{ x: [x, y] }\",\"value\":\"{\\\"x\\\":[\\\"x\\\",\\\"y\\\"]}\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"{ y: [z = true] }\",\"type\":\"{ y: boolean[] }\",\"value\":\"{\\\"y\\\":[]}\"})", `let x, y, z, rest;
+        const obj = { prop: false };
+        const v: any = {"y":[]};
+        const expressionResult = ({ y: [z = true] } = v);
+        return { x, y, z, rest, expressionResult };`, `{expressionResult = {y = {}}, z = true}`, `local ____exports = {}
+function ____exports.__main(self)
+    local x
+    local y
+    local z
+    local rest
+    local obj = {prop = false}
+    local v = {y = {}}
+    local ____v_y__1_0 = v.y[1]
+    if ____v_y__1_0 == nil then
+        z = true
+    else
+        z = ____v_y__1_0
+    end
+    local expressionResult = v
+    return {
+        x = x,
+        y = y,
+        z = z,
+        rest = rest,
+        expressionResult = expressionResult
+    }
+end
+return ____exports`, false, false},
+		{"in assignment expression from const variable ({\"binding\":\"{ x: [x, y] }\",\"type\":\"{ x: [string, string] }\",\"value\":\"{\\\"x\\\":[\\\"x\\\",\\\"y\\\"]}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = {"x":["x","y"]};
         const expressionResult = ({ x: [x, y] } = v);
@@ -3072,7 +3351,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from const variable ({\"binding\":\"{ x: [{ y }] }\",\"value\":\"{\\\"x\\\":[{\\\"y\\\":\\\"y\\\"}]}\"})", `let x, y, z, rest;
+		{"in assignment expression from const variable ({\"binding\":\"{ x: [{ y }] }\",\"type\":\"{ x: [{ y: string }] }\",\"value\":\"{\\\"x\\\":[{\\\"y\\\":\\\"y\\\"}]}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         const v: any = {"x":[{"y":"y"}]};
         const expressionResult = ({ x: [{ y }] } = v);
@@ -3242,7 +3521,7 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"{ x }\",\"value\":\"{\\\"x\\\":true}\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"{ x }\",\"type\":\"{ x: boolean }\",\"value\":\"{\\\"x\\\":true}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ({ x } = this);
@@ -3270,7 +3549,7 @@ function ____exports.__main(self)
     return test({x = true})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"{ x, y }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":true}\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"{ x, y }\",\"type\":\"{ x: boolean, y: boolean }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":true}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ({ x, y } = this);
@@ -3299,7 +3578,7 @@ function ____exports.__main(self)
     return test({x = false, y = true})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"{ x: z, y }\",\"value\":\"{\\\"x\\\":true,\\\"y\\\":false}\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"{ x: z, y }\",\"type\":\"{ x: boolean, y?: boolean, z?: boolean }\",\"value\":\"{\\\"x\\\":true,\\\"y\\\":false}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ({ x: z, y } = this);
@@ -3328,7 +3607,7 @@ function ____exports.__main(self)
     return test({x = true, y = false})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"{ x: { x, y }, z }\",\"value\":\"{\\\"x\\\":{\\\"x\\\":true,\\\"y\\\":false},\\\"z\\\":false}\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"{ x: { x, y }, z }\",\"type\":\"{ x: { x: boolean, y: boolean }, z: boolean }\",\"value\":\"{\\\"x\\\":{\\\"x\\\":true,\\\"y\\\":false},\\\"z\\\":false}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ({ x: { x, y }, z } = this);
@@ -3358,7 +3637,7 @@ function ____exports.__main(self)
     return test({x = {x = true, y = false}, z = false})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"{ x, y = true }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":false}\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"{ x, y = true }\",\"type\":\"{ x: boolean, y?: boolean }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":false}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ({ x, y = true } = this);
@@ -3390,7 +3669,7 @@ function ____exports.__main(self)
     return test({x = false, y = false})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"{ x = true }\",\"value\":\"{}\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"{ x = true }\",\"type\":\"{ x?: boolean }\",\"value\":\"{}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ({ x = true } = this);
@@ -3421,7 +3700,7 @@ function ____exports.__main(self)
     return test({})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"{ x, y = true }\",\"value\":\"{\\\"x\\\":false}\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"{ x, y = true }\",\"type\":\"{ x: boolean, y?: boolean }\",\"value\":\"{\\\"x\\\":false}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ({ x, y = true } = this);
@@ -3453,7 +3732,7 @@ function ____exports.__main(self)
     return test({x = false})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"{ ...rest }\",\"value\":\"{}\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"{ ...rest }\",\"type\":\"any\",\"value\":\"{}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ({ ...rest } = this);
@@ -3483,7 +3762,7 @@ function ____exports.__main(self)
     return test({})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"{ x, ...rest }\",\"value\":\"{\\\"x\\\":\\\"x\\\"}\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"{ x, ...rest }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\"}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ({ x, ...rest } = this);
@@ -3514,7 +3793,7 @@ function ____exports.__main(self)
     return test({x = "x"})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"{ x, ...rest }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"{ x, ...rest }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ({ x, ...rest } = this);
@@ -3545,7 +3824,7 @@ function ____exports.__main(self)
     return test({x = "x", y = "y", z = "z"})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"{ x, ...y }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"{ x, ...y }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ({ x, ...y } = this);
@@ -3576,7 +3855,7 @@ function ____exports.__main(self)
     return test({x = "x", y = "y", z = "z"})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"{ x: y, ...z }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"{ x: y, ...z }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ({ x: y, ...z } = this);
@@ -3607,7 +3886,7 @@ function ____exports.__main(self)
     return test({x = "x", y = "y", z = "z"})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"[]\",\"value\":\"[]\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"[]\",\"type\":\"boolean[]\",\"value\":\"[]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ([] = this);
@@ -3634,7 +3913,7 @@ function ____exports.__main(self)
     return test({})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"[x, y]\",\"value\":\"[\\\"x\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"[x, y]\",\"type\":\"[string, string]\",\"value\":\"[\\\"x\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ([x, y] = this);
@@ -3663,7 +3942,7 @@ function ____exports.__main(self)
     return test({"x", "y"})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"[x, , y]\",\"value\":\"[\\\"x\\\",\\\"\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"[x, , y]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\",\\\"\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ([x, , y] = this);
@@ -3692,7 +3971,7 @@ function ____exports.__main(self)
     return test({"x", "", "y"})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"[x = true]\",\"value\":\"[false]\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"[x = true]\",\"type\":\"boolean[]\",\"value\":\"[false]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ([x = true] = this);
@@ -3725,7 +4004,40 @@ function ____exports.__main(self)
     return test({false})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"[[x, y]]\",\"value\":\"[[\\\"x\\\",\\\"y\\\"]]\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"[x = true]\",\"type\":\"boolean[]\",\"value\":\"[]\"})", `let x, y, z, rest;
+        const obj = { prop: false };
+        function test(this: any) {
+            const expressionResult = ([x = true] = this);
+            return { x, y, z, rest, obj, expressionResult };
+        }
+        return test.call([]);`, `{expressionResult = {}, obj = {prop = false}, x = true}`, `local ____exports = {}
+function ____exports.__main(self)
+    local x
+    local y
+    local z
+    local rest
+    local obj = {prop = false}
+    local function test(self)
+        local ____self__1_0 = self[1]
+        if ____self__1_0 == nil then
+            x = true
+        else
+            x = ____self__1_0
+        end
+        local expressionResult = self
+        return {
+            x = x,
+            y = y,
+            z = z,
+            rest = rest,
+            obj = obj,
+            expressionResult = expressionResult
+        }
+    end
+    return test({})
+end
+return ____exports`, false, false},
+		{"in assignment expression from this ({\"binding\":\"[[x, y]]\",\"type\":\"Array<string[]>\",\"value\":\"[[\\\"x\\\",\\\"y\\\"]]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ([[x, y]] = this);
@@ -3754,7 +4066,7 @@ function ____exports.__main(self)
     return test({{"x", "y"}})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"[x, ...rest]\",\"value\":\"[\\\"x\\\"]\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"[x, ...rest]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\"]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ([x, ...rest] = this);
@@ -3785,7 +4097,7 @@ function ____exports.__main(self)
     return test({"x"})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"[x, ...rest]\",\"value\":\"[\\\"x\\\",\\\"y\\\",\\\"z\\\"]\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"[x, ...rest]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\",\\\"y\\\",\\\"z\\\"]\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ([x, ...rest] = this);
@@ -3816,7 +4128,7 @@ function ____exports.__main(self)
     return test({"x", "y", "z"})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"{ y: [z = true] }\",\"value\":\"{\\\"y\\\":[false]}\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"{ y: [z = true] }\",\"type\":\"{ y: boolean[] }\",\"value\":\"{\\\"y\\\":[false]}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ({ y: [z = true] } = this);
@@ -3849,7 +4161,40 @@ function ____exports.__main(self)
     return test({y = {false}})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"{ x: [x, y] }\",\"value\":\"{\\\"x\\\":[\\\"x\\\",\\\"y\\\"]}\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"{ y: [z = true] }\",\"type\":\"{ y: boolean[] }\",\"value\":\"{\\\"y\\\":[]}\"})", `let x, y, z, rest;
+        const obj = { prop: false };
+        function test(this: any) {
+            const expressionResult = ({ y: [z = true] } = this);
+            return { x, y, z, rest, obj, expressionResult };
+        }
+        return test.call({"y":[]});`, `{expressionResult = {y = {}}, obj = {prop = false}, z = true}`, `local ____exports = {}
+function ____exports.__main(self)
+    local x
+    local y
+    local z
+    local rest
+    local obj = {prop = false}
+    local function test(self)
+        local ____self_y__1_0 = self.y[1]
+        if ____self_y__1_0 == nil then
+            z = true
+        else
+            z = ____self_y__1_0
+        end
+        local expressionResult = self
+        return {
+            x = x,
+            y = y,
+            z = z,
+            rest = rest,
+            obj = obj,
+            expressionResult = expressionResult
+        }
+    end
+    return test({y = {}})
+end
+return ____exports`, false, false},
+		{"in assignment expression from this ({\"binding\":\"{ x: [x, y] }\",\"type\":\"{ x: [string, string] }\",\"value\":\"{\\\"x\\\":[\\\"x\\\",\\\"y\\\"]}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ({ x: [x, y] } = this);
@@ -3878,7 +4223,7 @@ function ____exports.__main(self)
     return test({x = {"x", "y"}})
 end
 return ____exports`, false, false},
-		{"in assignment expression from this ({\"binding\":\"{ x: [{ y }] }\",\"value\":\"{\\\"x\\\":[{\\\"y\\\":\\\"y\\\"}]}\"})", `let x, y, z, rest;
+		{"in assignment expression from this ({\"binding\":\"{ x: [{ y }] }\",\"type\":\"{ x: [{ y: string }] }\",\"value\":\"{\\\"x\\\":[{\\\"y\\\":\\\"y\\\"}]}\"})", `let x, y, z, rest;
         const obj = { prop: false };
         function test(this: any) {
             const expressionResult = ({ x: [{ y }] } = this);
@@ -4105,7 +4450,7 @@ function ____exports.__main(self)
     return i
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"{ x }\",\"value\":\"{\\\"x\\\":true}\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"{ x }\",\"type\":\"{ x: boolean }\",\"value\":\"{\\\"x\\\":true}\"})", `let x, y, z, rest;
         for (const { x } of [{"x":true} as any]) {
             return { x, y, z, rest };
         }`, `{x = true}`, `local ____exports = {}
@@ -4120,7 +4465,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"{ x, y }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":true}\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"{ x, y }\",\"type\":\"{ x: boolean, y: boolean }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":true}\"})", `let x, y, z, rest;
         for (const { x, y } of [{"x":false,"y":true} as any]) {
             return { x, y, z, rest };
         }`, `{x = false, y = true}`, `local ____exports = {}
@@ -4136,7 +4481,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"{ x: z, y }\",\"value\":\"{\\\"x\\\":true,\\\"y\\\":false}\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"{ x: z, y }\",\"type\":\"{ x: boolean, y?: boolean, z?: boolean }\",\"value\":\"{\\\"x\\\":true,\\\"y\\\":false}\"})", `let x, y, z, rest;
         for (const { x: z, y } of [{"x":true,"y":false} as any]) {
             return { x, y, z, rest };
         }`, `{y = false, z = true}`, `local ____exports = {}
@@ -4152,7 +4497,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"{ x: { x, y }, z }\",\"value\":\"{\\\"x\\\":{\\\"x\\\":true,\\\"y\\\":false},\\\"z\\\":false}\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"{ x: { x, y }, z }\",\"type\":\"{ x: { x: boolean, y: boolean }, z: boolean }\",\"value\":\"{\\\"x\\\":{\\\"x\\\":true,\\\"y\\\":false},\\\"z\\\":false}\"})", `let x, y, z, rest;
         for (const { x: { x, y }, z } of [{"x":{"x":true,"y":false},"z":false} as any]) {
             return { x, y, z, rest };
         }`, `{x = true, y = false, z = false}`, `local ____exports = {}
@@ -4169,7 +4514,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"{ x, y = true }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":false}\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"{ x, y = true }\",\"type\":\"{ x: boolean, y?: boolean }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":false}\"})", `let x, y, z, rest;
         for (const { x, y = true } of [{"x":false,"y":false} as any]) {
             return { x, y, z, rest };
         }`, `{x = false, y = false}`, `local ____exports = {}
@@ -4188,7 +4533,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"{ x = true }\",\"value\":\"{}\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"{ x = true }\",\"type\":\"{ x?: boolean }\",\"value\":\"{}\"})", `let x, y, z, rest;
         for (const { x = true } of [{} as any]) {
             return { x, y, z, rest };
         }`, `{x = true}`, `local ____exports = {}
@@ -4206,7 +4551,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"{ x, y = true }\",\"value\":\"{\\\"x\\\":false}\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"{ x, y = true }\",\"type\":\"{ x: boolean, y?: boolean }\",\"value\":\"{\\\"x\\\":false}\"})", `let x, y, z, rest;
         for (const { x, y = true } of [{"x":false} as any]) {
             return { x, y, z, rest };
         }`, `{x = false, y = true}`, `local ____exports = {}
@@ -4225,7 +4570,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"{ ...rest }\",\"value\":\"{}\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"{ ...rest }\",\"type\":\"any\",\"value\":\"{}\"})", `let x, y, z, rest;
         for (const { ...rest } of [{} as any]) {
             return { x, y, z, rest };
         }`, `{rest = {}}`, `local ____lualib = require("lualib_bundle")
@@ -4242,7 +4587,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"{ x, ...rest }\",\"value\":\"{\\\"x\\\":\\\"x\\\"}\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"{ x, ...rest }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\"}\"})", `let x, y, z, rest;
         for (const { x, ...rest } of [{"x":"x"} as any]) {
             return { x, y, z, rest };
         }`, `{rest = {}, x = "x"}`, `local ____lualib = require("lualib_bundle")
@@ -4260,7 +4605,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"{ x, ...rest }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"{ x, ...rest }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         for (const { x, ...rest } of [{"x":"x","y":"y","z":"z"} as any]) {
             return { x, y, z, rest };
         }`, `{rest = {y = "y", z = "z"}, x = "x"}`, `local ____lualib = require("lualib_bundle")
@@ -4278,7 +4623,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"{ x, ...y }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"{ x, ...y }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         for (const { x, ...y } of [{"x":"x","y":"y","z":"z"} as any]) {
             return { x, y, z, rest };
         }`, `{x = "x", y = {y = "y", z = "z"}}`, `local ____lualib = require("lualib_bundle")
@@ -4296,7 +4641,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"{ x: y, ...z }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"{ x: y, ...z }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `let x, y, z, rest;
         for (const { x: y, ...z } of [{"x":"x","y":"y","z":"z"} as any]) {
             return { x, y, z, rest };
         }`, `{y = "x", z = {y = "y", z = "z"}}`, `local ____lualib = require("lualib_bundle")
@@ -4314,7 +4659,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"[]\",\"value\":\"[]\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"[]\",\"type\":\"boolean[]\",\"value\":\"[]\"})", `let x, y, z, rest;
         for (const [] of [[] as any]) {
             return { x, y, z, rest };
         }`, `{}`, `local ____exports = {}
@@ -4328,7 +4673,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"[x, y]\",\"value\":\"[\\\"x\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"[x, y]\",\"type\":\"[string, string]\",\"value\":\"[\\\"x\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
         for (const [x, y] of [["x","y"] as any]) {
             return { x, y, z, rest };
         }`, `{x = "x", y = "y"}`, `local ____exports = {}
@@ -4344,7 +4689,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"[x, , y]\",\"value\":\"[\\\"x\\\",\\\"\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"[x, , y]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\",\\\"\\\",\\\"y\\\"]\"})", `let x, y, z, rest;
         for (const [x, , y] of [["x","","y"] as any]) {
             return { x, y, z, rest };
         }`, `{x = "x", y = "y"}`, `local ____exports = {}
@@ -4360,7 +4705,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"[x = true]\",\"value\":\"[false]\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"[x = true]\",\"type\":\"boolean[]\",\"value\":\"[false]\"})", `let x, y, z, rest;
         for (const [x = true] of [[false] as any]) {
             return { x, y, z, rest };
         }`, `{x = false}`, `local ____exports = {}
@@ -4378,7 +4723,25 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"[[x, y]]\",\"value\":\"[[\\\"x\\\",\\\"y\\\"]]\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"[x = true]\",\"type\":\"boolean[]\",\"value\":\"[]\"})", `let x, y, z, rest;
+        for (const [x = true] of [[] as any]) {
+            return { x, y, z, rest };
+        }`, `{x = true}`, `local ____exports = {}
+function ____exports.__main(self)
+    local x
+    local y
+    local z
+    local rest
+    for ____, ____value in ipairs({{}}) do
+        local x = ____value[1]
+        if x == nil then
+            x = true
+        end
+        return {x = x, y = y, z = z, rest = rest}
+    end
+end
+return ____exports`, false, false},
+		{"forof variable declaration binding patterns ({\"binding\":\"[[x, y]]\",\"type\":\"Array<string[]>\",\"value\":\"[[\\\"x\\\",\\\"y\\\"]]\"})", `let x, y, z, rest;
         for (const [[x, y]] of [[["x","y"]] as any]) {
             return { x, y, z, rest };
         }`, `{x = "x", y = "y"}`, `local ____exports = {}
@@ -4394,7 +4757,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"[x, ...rest]\",\"value\":\"[\\\"x\\\"]\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"[x, ...rest]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\"]\"})", `let x, y, z, rest;
         for (const [x, ...rest] of [["x"] as any]) {
             return { x, y, z, rest };
         }`, `{rest = {}, x = "x"}`, `local ____lualib = require("lualib_bundle")
@@ -4412,7 +4775,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"[x, ...rest]\",\"value\":\"[\\\"x\\\",\\\"y\\\",\\\"z\\\"]\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"[x, ...rest]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\",\\\"y\\\",\\\"z\\\"]\"})", `let x, y, z, rest;
         for (const [x, ...rest] of [["x","y","z"] as any]) {
             return { x, y, z, rest };
         }`, `{rest = {"y", "z"}, x = "x"}`, `local ____lualib = require("lualib_bundle")
@@ -4430,7 +4793,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"{ y: [z = true] }\",\"value\":\"{\\\"y\\\":[false]}\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"{ y: [z = true] }\",\"type\":\"{ y: boolean[] }\",\"value\":\"{\\\"y\\\":[false]}\"})", `let x, y, z, rest;
         for (const { y: [z = true] } of [{"y":[false]} as any]) {
             return { x, y, z, rest };
         }`, `{z = false}`, `local ____exports = {}
@@ -4448,7 +4811,25 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"{ x: [x, y] }\",\"value\":\"{\\\"x\\\":[\\\"x\\\",\\\"y\\\"]}\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"{ y: [z = true] }\",\"type\":\"{ y: boolean[] }\",\"value\":\"{\\\"y\\\":[]}\"})", `let x, y, z, rest;
+        for (const { y: [z = true] } of [{"y":[]} as any]) {
+            return { x, y, z, rest };
+        }`, `{z = true}`, `local ____exports = {}
+function ____exports.__main(self)
+    local x
+    local y
+    local z
+    local rest
+    for ____, ____value in ipairs({{y = {}}}) do
+        local z = ____value.y[1]
+        if z == nil then
+            z = true
+        end
+        return {x = x, y = y, z = z, rest = rest}
+    end
+end
+return ____exports`, false, false},
+		{"forof variable declaration binding patterns ({\"binding\":\"{ x: [x, y] }\",\"type\":\"{ x: [string, string] }\",\"value\":\"{\\\"x\\\":[\\\"x\\\",\\\"y\\\"]}\"})", `let x, y, z, rest;
         for (const { x: [x, y] } of [{"x":["x","y"]} as any]) {
             return { x, y, z, rest };
         }`, `{x = "x", y = "y"}`, `local ____exports = {}
@@ -4464,7 +4845,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`, false, false},
-		{"forof variable declaration binding patterns ({\"binding\":\"{ x: [{ y }] }\",\"value\":\"{\\\"x\\\":[{\\\"y\\\":\\\"y\\\"}]}\"})", `let x, y, z, rest;
+		{"forof variable declaration binding patterns ({\"binding\":\"{ x: [{ y }] }\",\"type\":\"{ x: [{ y: string }] }\",\"value\":\"{\\\"x\\\":[{\\\"y\\\":\\\"y\\\"}]}\"})", `let x, y, z, rest;
         for (const { x: [{ y }] } of [{"x":[{"y":"y"}]} as any]) {
             return { x, y, z, rest };
         }`, `{y = "y"}`, `local ____exports = {}
@@ -4574,27 +4955,27 @@ return ____exports`, false, false},
 	})
 
 	batchExpectModules(t, []moduleTestCase{
-		{"in exported variable declaration ({\"binding\":\"{ x }\",\"value\":\"{\\\"x\\\":true}\"})", `export const { x } = {"x":true};`, `{x = true}`, `local ____exports = {}
+		{"in exported variable declaration ({\"binding\":\"{ x }\",\"type\":\"{ x: boolean }\",\"value\":\"{\\\"x\\\":true}\"})", `export const { x } = {"x":true};`, `{x = true}`, `local ____exports = {}
 local ____temp_0 = {x = true}
 ____exports.x = ____temp_0.x
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"{ x, y }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":true}\"})", `export const { x, y } = {"x":false,"y":true};`, `{x = false, y = true}`, `local ____exports = {}
+		{"in exported variable declaration ({\"binding\":\"{ x, y }\",\"type\":\"{ x: boolean, y: boolean }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":true}\"})", `export const { x, y } = {"x":false,"y":true};`, `{x = false, y = true}`, `local ____exports = {}
 local ____temp_0 = {x = false, y = true}
 ____exports.x = ____temp_0.x
 ____exports.y = ____temp_0.y
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"{ x: z, y }\",\"value\":\"{\\\"x\\\":true,\\\"y\\\":false}\"})", `export const { x: z, y } = {"x":true,"y":false};`, `{y = false, z = true}`, `local ____exports = {}
+		{"in exported variable declaration ({\"binding\":\"{ x: z, y }\",\"type\":\"{ x: boolean, y?: boolean, z?: boolean }\",\"value\":\"{\\\"x\\\":true,\\\"y\\\":false}\"})", `export const { x: z, y } = {"x":true,"y":false};`, `{y = false, z = true}`, `local ____exports = {}
 local ____temp_0 = {x = true, y = false}
 ____exports.z = ____temp_0.x
 ____exports.y = ____temp_0.y
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"{ x: { x, y }, z }\",\"value\":\"{\\\"x\\\":{\\\"x\\\":true,\\\"y\\\":false},\\\"z\\\":false}\"})", `export const { x: { x, y }, z } = {"x":{"x":true,"y":false},"z":false};`, `{x = true, y = false, z = false}`, `local ____exports = {}
+		{"in exported variable declaration ({\"binding\":\"{ x: { x, y }, z }\",\"type\":\"{ x: { x: boolean, y: boolean }, z: boolean }\",\"value\":\"{\\\"x\\\":{\\\"x\\\":true,\\\"y\\\":false},\\\"z\\\":false}\"})", `export const { x: { x, y }, z } = {"x":{"x":true,"y":false},"z":false};`, `{x = true, y = false, z = false}`, `local ____exports = {}
 local ____temp_0 = {x = {x = true, y = false}, z = false}
 ____exports.x = ____temp_0.x.x
 ____exports.y = ____temp_0.x.y
 ____exports.z = ____temp_0.z
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"{ x, y = true }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":false}\"})", `export const { x, y = true } = {"x":false,"y":false};`, `{x = false, y = false}`, `local ____exports = {}
+		{"in exported variable declaration ({\"binding\":\"{ x, y = true }\",\"type\":\"{ x: boolean, y?: boolean }\",\"value\":\"{\\\"x\\\":false,\\\"y\\\":false}\"})", `export const { x, y = true } = {"x":false,"y":false};`, `{x = false, y = false}`, `local ____exports = {}
 local ____temp_0 = {x = false, y = false}
 ____exports.x = ____temp_0.x
 ____exports.y = ____temp_0.y
@@ -4602,14 +4983,14 @@ if ____exports.y == nil then
     ____exports.y = true
 end
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"{ x = true }\",\"value\":\"{}\"})", `export const { x = true } = {};`, `{x = true}`, `local ____exports = {}
+		{"in exported variable declaration ({\"binding\":\"{ x = true }\",\"type\":\"{ x?: boolean }\",\"value\":\"{}\"})", `export const { x = true } = {};`, `{x = true}`, `local ____exports = {}
 local ____temp_0 = {}
 ____exports.x = ____temp_0.x
 if ____exports.x == nil then
     ____exports.x = true
 end
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"{ x, y = true }\",\"value\":\"{\\\"x\\\":false}\"})", `export const { x, y = true } = {"x":false};`, `{x = false, y = true}`, `local ____exports = {}
+		{"in exported variable declaration ({\"binding\":\"{ x, y = true }\",\"type\":\"{ x: boolean, y?: boolean }\",\"value\":\"{\\\"x\\\":false}\"})", `export const { x, y = true } = {"x":false};`, `{x = false, y = true}`, `local ____exports = {}
 local ____temp_0 = {x = false}
 ____exports.x = ____temp_0.x
 ____exports.y = ____temp_0.y
@@ -4617,87 +4998,100 @@ if ____exports.y == nil then
     ____exports.y = true
 end
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"{ ...rest }\",\"value\":\"{}\"})", `export const { ...rest } = {};`, `{rest = {}}`, `local ____lualib = require("lualib_bundle")
+		{"in exported variable declaration ({\"binding\":\"{ ...rest }\",\"type\":\"any\",\"value\":\"{}\"})", `export const { ...rest } = {};`, `{rest = {}}`, `local ____lualib = require("lualib_bundle")
 local __TS__ObjectRest = ____lualib.__TS__ObjectRest
 local ____exports = {}
 local ____temp_0 = {}
 ____exports.rest = __TS__ObjectRest(____temp_0, {})
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"{ x, ...rest }\",\"value\":\"{\\\"x\\\":\\\"x\\\"}\"})", `export const { x, ...rest } = {"x":"x"};`, `{rest = {}, x = "x"}`, `local ____lualib = require("lualib_bundle")
+		{"in exported variable declaration ({\"binding\":\"{ x, ...rest }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\"}\"})", `export const { x, ...rest } = {"x":"x"};`, `{rest = {}, x = "x"}`, `local ____lualib = require("lualib_bundle")
 local __TS__ObjectRest = ____lualib.__TS__ObjectRest
 local ____exports = {}
 local ____temp_0 = {x = "x"}
 ____exports.x = ____temp_0.x
 ____exports.rest = __TS__ObjectRest(____temp_0, {x = true})
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"{ x, ...rest }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `export const { x, ...rest } = {"x":"x","y":"y","z":"z"};`, `{rest = {y = "y", z = "z"}, x = "x"}`, `local ____lualib = require("lualib_bundle")
+		{"in exported variable declaration ({\"binding\":\"{ x, ...rest }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `export const { x, ...rest } = {"x":"x","y":"y","z":"z"};`, `{rest = {y = "y", z = "z"}, x = "x"}`, `local ____lualib = require("lualib_bundle")
 local __TS__ObjectRest = ____lualib.__TS__ObjectRest
 local ____exports = {}
 local ____temp_0 = {x = "x", y = "y", z = "z"}
 ____exports.x = ____temp_0.x
 ____exports.rest = __TS__ObjectRest(____temp_0, {x = true})
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"{ x, ...y }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `export const { x, ...y } = {"x":"x","y":"y","z":"z"};`, `{x = "x", y = {y = "y", z = "z"}}`, `local ____lualib = require("lualib_bundle")
+		{"in exported variable declaration ({\"binding\":\"{ x, ...y }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `export const { x, ...y } = {"x":"x","y":"y","z":"z"};`, `{x = "x", y = {y = "y", z = "z"}}`, `local ____lualib = require("lualib_bundle")
 local __TS__ObjectRest = ____lualib.__TS__ObjectRest
 local ____exports = {}
 local ____temp_0 = {x = "x", y = "y", z = "z"}
 ____exports.x = ____temp_0.x
 ____exports.y = __TS__ObjectRest(____temp_0, {x = true})
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"{ x: y, ...z }\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `export const { x: y, ...z } = {"x":"x","y":"y","z":"z"};`, `{y = "x", z = {y = "y", z = "z"}}`, `local ____lualib = require("lualib_bundle")
+		{"in exported variable declaration ({\"binding\":\"{ x: y, ...z }\",\"type\":\"any\",\"value\":\"{\\\"x\\\":\\\"x\\\",\\\"y\\\":\\\"y\\\",\\\"z\\\":\\\"z\\\"}\"})", `export const { x: y, ...z } = {"x":"x","y":"y","z":"z"};`, `{y = "x", z = {y = "y", z = "z"}}`, `local ____lualib = require("lualib_bundle")
 local __TS__ObjectRest = ____lualib.__TS__ObjectRest
 local ____exports = {}
 local ____temp_0 = {x = "x", y = "y", z = "z"}
 ____exports.y = ____temp_0.x
 ____exports.z = __TS__ObjectRest(____temp_0, {x = true})
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"[]\",\"value\":\"[]\"})", `export const [] = [];`, `{}`, `local ____exports = {}
+		{"in exported variable declaration ({\"binding\":\"[]\",\"type\":\"boolean[]\",\"value\":\"[]\"})", `export const [] = [];`, `{}`, `local ____exports = {}
 local ____ = nil
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"[x, y]\",\"value\":\"[\\\"x\\\",\\\"y\\\"]\"})", `export const [x, y] = ["x","y"];`, `{x = "x", y = "y"}`, `local ____exports = {}
+		{"in exported variable declaration ({\"binding\":\"[x, y]\",\"type\":\"[string, string]\",\"value\":\"[\\\"x\\\",\\\"y\\\"]\"})", `export const [x, y] = ["x","y"];`, `{x = "x", y = "y"}`, `local ____exports = {}
 ____exports.x, ____exports.y = "x", "y"
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"[x, , y]\",\"value\":\"[\\\"x\\\",\\\"\\\",\\\"y\\\"]\"})", `export const [x, , y] = ["x","","y"];`, `{x = "x", y = "y"}`, `local ____exports = {}
+		{"in exported variable declaration ({\"binding\":\"[x, , y]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\",\\\"\\\",\\\"y\\\"]\"})", `export const [x, , y] = ["x","","y"];`, `{x = "x", y = "y"}`, `local ____exports = {}
 ____exports.x, ____, ____exports.y = "x", "", "y"
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"[x = true]\",\"value\":\"[false]\"})", `export const [x = true] = [false];`, `{x = false}`, `local ____exports = {}
+		{"in exported variable declaration ({\"binding\":\"[x = true]\",\"type\":\"boolean[]\",\"value\":\"[false]\"})", `export const [x = true] = [false];`, `{x = false}`, `local ____exports = {}
 ____exports.x = false
 if ____exports.x == nil then
     ____exports.x = true
 end
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"[[x, y]]\",\"value\":\"[[\\\"x\\\",\\\"y\\\"]]\"})", `export const [[x, y]] = [["x","y"]];`, `{x = "x", y = "y"}`, `local ____exports = {}
+		{"in exported variable declaration ({\"binding\":\"[x = true]\",\"type\":\"boolean[]\",\"value\":\"[]\"})", `export const [x = true] = [];`, `{x = true}`, `local ____exports = {}
+____exports.x = nil
+if ____exports.x == nil then
+    ____exports.x = true
+end
+return ____exports`, false, false},
+		{"in exported variable declaration ({\"binding\":\"[[x, y]]\",\"type\":\"Array<string[]>\",\"value\":\"[[\\\"x\\\",\\\"y\\\"]]\"})", `export const [[x, y]] = [["x","y"]];`, `{x = "x", y = "y"}`, `local ____exports = {}
 local ____temp_0 = {{"x", "y"}}
 ____exports.x = ____temp_0[1][1]
 ____exports.y = ____temp_0[1][2]
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"[x, ...rest]\",\"value\":\"[\\\"x\\\"]\"})", `export const [x, ...rest] = ["x"];`, `{rest = {}, x = "x"}`, `local ____lualib = require("lualib_bundle")
+		{"in exported variable declaration ({\"binding\":\"[x, ...rest]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\"]\"})", `export const [x, ...rest] = ["x"];`, `{rest = {}, x = "x"}`, `local ____lualib = require("lualib_bundle")
 local __TS__ArraySlice = ____lualib.__TS__ArraySlice
 local ____exports = {}
 local ____temp_0 = {"x"}
 ____exports.x = ____temp_0[1]
 ____exports.rest = __TS__ArraySlice(____temp_0, 1)
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"[x, ...rest]\",\"value\":\"[\\\"x\\\",\\\"y\\\",\\\"z\\\"]\"})", `export const [x, ...rest] = ["x","y","z"];`, `{rest = {"y", "z"}, x = "x"}`, `local ____lualib = require("lualib_bundle")
+		{"in exported variable declaration ({\"binding\":\"[x, ...rest]\",\"type\":\"string[]\",\"value\":\"[\\\"x\\\",\\\"y\\\",\\\"z\\\"]\"})", `export const [x, ...rest] = ["x","y","z"];`, `{rest = {"y", "z"}, x = "x"}`, `local ____lualib = require("lualib_bundle")
 local __TS__ArraySlice = ____lualib.__TS__ArraySlice
 local ____exports = {}
 local ____temp_0 = {"x", "y", "z"}
 ____exports.x = ____temp_0[1]
 ____exports.rest = __TS__ArraySlice(____temp_0, 1)
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"{ y: [z = true] }\",\"value\":\"{\\\"y\\\":[false]}\"})", `export const { y: [z = true] } = {"y":[false]};`, `{z = false}`, `local ____exports = {}
+		{"in exported variable declaration ({\"binding\":\"{ y: [z = true] }\",\"type\":\"{ y: boolean[] }\",\"value\":\"{\\\"y\\\":[false]}\"})", `export const { y: [z = true] } = {"y":[false]};`, `{z = false}`, `local ____exports = {}
 local ____temp_0 = {y = {false}}
 ____exports.z = ____temp_0.y[1]
 if ____exports.z == nil then
     ____exports.z = true
 end
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"{ x: [x, y] }\",\"value\":\"{\\\"x\\\":[\\\"x\\\",\\\"y\\\"]}\"})", `export const { x: [x, y] } = {"x":["x","y"]};`, `{x = "x", y = "y"}`, `local ____exports = {}
+		{"in exported variable declaration ({\"binding\":\"{ y: [z = true] }\",\"type\":\"{ y: boolean[] }\",\"value\":\"{\\\"y\\\":[]}\"})", `export const { y: [z = true] } = {"y":[]};`, `{z = true}`, `local ____exports = {}
+local ____temp_0 = {y = {}}
+____exports.z = ____temp_0.y[1]
+if ____exports.z == nil then
+    ____exports.z = true
+end
+return ____exports`, false, false},
+		{"in exported variable declaration ({\"binding\":\"{ x: [x, y] }\",\"type\":\"{ x: [string, string] }\",\"value\":\"{\\\"x\\\":[\\\"x\\\",\\\"y\\\"]}\"})", `export const { x: [x, y] } = {"x":["x","y"]};`, `{x = "x", y = "y"}`, `local ____exports = {}
 local ____temp_0 = {x = {"x", "y"}}
 ____exports.x = ____temp_0.x[1]
 ____exports.y = ____temp_0.x[2]
 return ____exports`, false, false},
-		{"in exported variable declaration ({\"binding\":\"{ x: [{ y }] }\",\"value\":\"{\\\"x\\\":[{\\\"y\\\":\\\"y\\\"}]}\"})", `export const { x: [{ y }] } = {"x":[{"y":"y"}]};`, `{y = "y"}`, `local ____exports = {}
+		{"in exported variable declaration ({\"binding\":\"{ x: [{ y }] }\",\"type\":\"{ x: [{ y: string }] }\",\"value\":\"{\\\"x\\\":[{\\\"y\\\":\\\"y\\\"}]}\"})", `export const { x: [{ y }] } = {"x":[{"y":"y"}]};`, `{y = "y"}`, `local ____exports = {}
 local ____temp_0 = {x = {{y = "y"}}}
 ____exports.y = ____temp_0.x[1].y
 return ____exports`, false, false},
@@ -4779,7 +5173,7 @@ return ____exports`},
 	batchExpectDiagnostics(t, []diagTestCase{
 		{"no exception from semantically invalid TS", "module", `declare function testFunc(value: number): LuaMultiReturn<[number, number]>;
         let [a, b] = testFunc(5) // Missing ;
-        [a, b] = testFunc(b)     // Interpreted as testFunc(5)[a, b]`, []int32{100035}, nil},
+        [a, b] = testFunc(b)     // Interpreted as testFunc(5)[a, b]`, []int32{100034}, nil},
 	}, WithLanguageExtensions())
 
 	batchExpectCodegen(t, []codegenTestCase{

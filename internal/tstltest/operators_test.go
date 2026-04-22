@@ -15,36 +15,36 @@ func TestEval_Operators(t *testing.T) {
         declare const op: LuaFloorDivision<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (Lua 5.0 LuaBitwiseAnd)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseAnd<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (Lua 5.0 LuaBitwiseOr)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseOr<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (Lua 5.0 LuaBitwiseExclusiveOr)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseExclusiveOr<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (Lua 5.0 LuaBitwiseLeftShift)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseLeftShift<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (Lua 5.0 LuaBitwiseRightShift)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseRightShift<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported unary operator mapping (Lua 5.0 LuaBitwiseNot)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseNot<OpTest, OpTest>;
         declare const operand: OpTest;
-        op(operand);`, []int32{100028}, nil},
+        op(operand);`, []int32{100027}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetLua50), WithLanguageExtensions())
 
 	batchExpectDiagnostics(t, []diagTestCase{
@@ -52,36 +52,36 @@ func TestEval_Operators(t *testing.T) {
         declare const op: LuaFloorDivision<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (Lua 5.1 LuaBitwiseAnd)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseAnd<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (Lua 5.1 LuaBitwiseOr)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseOr<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (Lua 5.1 LuaBitwiseExclusiveOr)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseExclusiveOr<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (Lua 5.1 LuaBitwiseLeftShift)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseLeftShift<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (Lua 5.1 LuaBitwiseRightShift)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseRightShift<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported unary operator mapping (Lua 5.1 LuaBitwiseNot)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseNot<OpTest, OpTest>;
         declare const operand: OpTest;
-        op(operand);`, []int32{100028}, nil},
+        op(operand);`, []int32{100027}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetLua51), WithLanguageExtensions())
 
 	batchExpectDiagnostics(t, []diagTestCase{
@@ -89,36 +89,36 @@ func TestEval_Operators(t *testing.T) {
         declare const op: LuaFloorDivision<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (Lua 5.2 LuaBitwiseAnd)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseAnd<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (Lua 5.2 LuaBitwiseOr)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseOr<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (Lua 5.2 LuaBitwiseExclusiveOr)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseExclusiveOr<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (Lua 5.2 LuaBitwiseLeftShift)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseLeftShift<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (Lua 5.2 LuaBitwiseRightShift)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseRightShift<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported unary operator mapping (Lua 5.2 LuaBitwiseNot)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseNot<OpTest, OpTest>;
         declare const operand: OpTest;
-        op(operand);`, []int32{100028}, nil},
+        op(operand);`, []int32{100027}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetLua52), WithLanguageExtensions())
 
 	batchExpectDiagnostics(t, []diagTestCase{
@@ -126,36 +126,36 @@ func TestEval_Operators(t *testing.T) {
         declare const op: LuaFloorDivision<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (LuaJIT LuaBitwiseAnd)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseAnd<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (LuaJIT LuaBitwiseOr)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseOr<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (LuaJIT LuaBitwiseExclusiveOr)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseExclusiveOr<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (LuaJIT LuaBitwiseLeftShift)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseLeftShift<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported binary operator mapping (LuaJIT LuaBitwiseRightShift)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseRightShift<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, nil},
+        op(left, right);`, []int32{100027}, nil},
 		{"unsupported unary operator mapping (LuaJIT LuaBitwiseNot)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseNot<OpTest, OpTest>;
         declare const operand: OpTest;
-        op(operand);`, []int32{100028}, nil},
+        op(operand);`, []int32{100027}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetLuaJIT), WithLanguageExtensions())
 
 	batchExpectDiagnostics(t, []diagTestCase{
@@ -163,48 +163,48 @@ func TestEval_Operators(t *testing.T) {
         declare const op: LuaFloorDivision<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, []string{`local ____ = left // right`}},
+        op(left, right);`, []int32{100027}, []string{`local ____ = left // right`}},
 		{"unsupported binary operator mapping (universal LuaBitwiseAnd)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseAnd<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, []string{`local ____ = left & right`}},
+        op(left, right);`, []int32{100027}, []string{`local ____ = left & right`}},
 		{"unsupported binary operator mapping (universal LuaBitwiseOr)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseOr<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, []string{`local ____ = left | right`}},
+        op(left, right);`, []int32{100027}, []string{`local ____ = left | right`}},
 		{"unsupported binary operator mapping (universal LuaBitwiseExclusiveOr)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseExclusiveOr<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, []string{`local ____ = left ~ right`}},
+        op(left, right);`, []int32{100027}, []string{`local ____ = left ~ right`}},
 		{"unsupported binary operator mapping (universal LuaBitwiseLeftShift)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseLeftShift<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, []string{`local ____ = left << right`}},
+        op(left, right);`, []int32{100027}, []string{`local ____ = left << right`}},
 		{"unsupported binary operator mapping (universal LuaBitwiseRightShift)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseRightShift<OpTest, OpTest, OpTest>;
         declare const left: OpTest;
         declare const right: OpTest;
-        op(left, right);`, []int32{100028}, []string{`local ____ = left >> right`}},
+        op(left, right);`, []int32{100027}, []string{`local ____ = left >> right`}},
 		{"unsupported unary operator mapping (universal LuaBitwiseNot)", "module", `declare interface OpTest { value: number; }
         declare const op: LuaBitwiseNot<OpTest, OpTest>;
         declare const operand: OpTest;
-        op(operand);`, []int32{100028}, []string{`local ____ = ~operand`}},
+        op(operand);`, []int32{100027}, []string{`local ____ = ~operand`}},
 	}, WithLuaTarget(transpiler.LuaTargetUniversal), WithLanguageExtensions())
 
 	batchExpectDiagnostics(t, []diagTestCase{
 		{"operator mapping - invalid use (const foo: unknown = op;)", "module", `declare const op: LuaAddition<number, number, number>;
-        const foo: unknown = op;`, []int32{100036}, []string{`foo = op`}},
-		{"operator mapping - invalid use (const foo = `${op}`)", "module", "declare const op: LuaAddition<number, number, number>;\n        const foo = `${op}`", []int32{100036}, nil},
+        const foo: unknown = op;`, []int32{100035}, []string{`foo = op`}},
+		{"operator mapping - invalid use (const foo = `${op}`)", "module", "declare const op: LuaAddition<number, number, number>;\n        const foo = `${op}`", []int32{100035}, nil},
 		{"operator mapping - invalid use (declare function foo(op: LuaAddition<number, number, number>): void; foo(op);)", "module", `declare const op: LuaAddition<number, number, number>;
-        declare function foo(op: LuaAddition<number, number, number>): void; foo(op);`, []int32{100036}, []string{`foo(_G, op)`}},
+        declare function foo(op: LuaAddition<number, number, number>): void; foo(op);`, []int32{100035}, []string{`foo(_G, op)`}},
 		{"operator mapping - invalid use (const foo = (op as any)(1, 2);)", "module", `declare const op: LuaAddition<number, number, number>;
-        const foo = (op as any)(1, 2);`, []int32{100036}, []string{`foo = op(_G, 1, 2)`}},
+        const foo = (op as any)(1, 2);`, []int32{100035}, []string{`foo = op(_G, 1, 2)`}},
 		{"operator mapping - invalid use (const foo = [op];)", "module", `declare const op: LuaAddition<number, number, number>;
-        const foo = [op];`, []int32{100036}, []string{`foo = {op}`}},
+        const foo = [op];`, []int32{100035}, []string{`foo = {op}`}},
 		{"does not crash on invalid operator use global function", "module", `declare const op: LuaAddition<number, number, number>;
             op(1)`, nil, nil},
 		{"does not crash on invalid operator use unary operator", "module", `declare const op: LuaUnaryMinus<number, number>;
@@ -214,7 +214,7 @@ func TestEval_Operators(t *testing.T) {
             }
             left.op()`, nil, []string{`left = {}`}},
 		{"does not allow spread", "module", `declare const op: LuaAddition<number, number, number>;
-        op(...[1, 2] as const);`, []int32{100045}, nil},
+        op(...[1, 2] as const);`, []int32{100044}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetLua54), WithLanguageExtensions())
 
 	batchExpectCodegen(t, []codegenTestCase{

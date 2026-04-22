@@ -8,7 +8,7 @@ func TestEval_Jsx(t *testing.T) {
 
 	batchExpectDiagnostics(t, []diagTestCase{
 		{"jsx invalid jsx config", "function", `import React, { Component } from "./react";
-return <a/>`, []int32{100014}, nil},
+return <a/>`, []int32{100013}, nil},
 	})
 
 	t.Run("jsx element", func(t *testing.T) {

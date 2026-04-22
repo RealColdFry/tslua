@@ -866,7 +866,12 @@ func (t *Transpiler) transformForStatement(node *ast.Node) []lua.Statement {
 			declList := fs.Initializer.AsVariableDeclarationList()
 			for _, decl := range declList.Declarations.Nodes {
 				d := decl.AsVariableDeclaration()
-				nameExpr, namePrec := t.transformExprInScope(d.Name())
+				nameNode := d.Name()
+				if nameNode.Kind == ast.KindArrayBindingPattern || nameNode.Kind == ast.KindObjectBindingPattern {
+					outerStmts = append(outerStmts, t.transformVariableDestructuring(nameNode, d.Initializer, true, false)...)
+					continue
+				}
+				nameExpr, namePrec := t.transformExprInScope(nameNode)
 				name := identName(nameExpr)
 				outerStmts = append(outerStmts, namePrec...)
 				if d.Initializer != nil {

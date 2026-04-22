@@ -11,7 +11,7 @@ import (
 func TestOptionalChainBuiltin_NoDiagnosticForNonOptionalCall(t *testing.T) {
 	// When a builtin method call (.has, .push, etc.) is part of an optional chain
 	// but the call itself is NOT optional (no ?. on the call), there should be
-	// no TL100040 diagnostic. The optional access is on the object, not the call.
+	// no TL100039 diagnostic. The optional access is on the object, not the call.
 	t.Parallel()
 
 	diagCode := func(d *ast.Diagnostic) dw.DiagCode {

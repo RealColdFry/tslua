@@ -1672,7 +1672,7 @@ return ____exports`, false, false},
             const literal: Record<string, unknown> = {a: i, b: i++};
             const result: Record<string, unknown> = {};
             (Object.keys(result) as Array<number | string>).forEach(
-                (key: number | string) => { result[key.toString()] = literal[key as string]; }
+                key => { result[key.toString()] = literal[key]; }
             );
             return result;`, `{}`, `local ____lualib = require("lualib_bundle")
 local __TS__ObjectKeys = ____lualib.__TS__ObjectKeys
@@ -1700,7 +1700,7 @@ return ____exports`, false, true},
             const literal: Record<string, unknown> = {a: i, b: i++, c: i};
             const result: Record<string, unknown> = {};
             (Object.keys(result) as Array<number | string>).forEach(
-                (key: number | string) => { result[key.toString()] = literal[key as string]; }
+                key => { result[key.toString()] = literal[key]; }
             );
             return result;`, `{}`, `local ____lualib = require("lualib_bundle")
 local __TS__ObjectKeys = ____lualib.__TS__ObjectKeys
@@ -1728,7 +1728,7 @@ return ____exports`, false, true},
             const literal: Record<string, unknown> = {a: i, ...{b: i++}, c: i};
             const result: Record<string, unknown> = {};
             (Object.keys(result) as Array<number | string>).forEach(
-                (key: number | string) => { result[key.toString()] = literal[key as string]; }
+                key => { result[key.toString()] = literal[key]; }
             );
             return result;`, `{}`, `local ____lualib = require("lualib_bundle")
 local __TS__ObjectAssign = ____lualib.__TS__ObjectAssign
@@ -1757,7 +1757,7 @@ return ____exports`, false, true},
             const literal: Record<string, unknown> = {a: i, ...o, b: i++};
             const result: Record<string, unknown> = {};
             (Object.keys(result) as Array<number | string>).forEach(
-                (key: number | string) => { result[key.toString()] = literal[key as string]; }
+                key => { result[key.toString()] = literal[key]; }
             );
             return result;`, `{}`, `local ____lualib = require("lualib_bundle")
 local __TS__ObjectAssign = ____lualib.__TS__ObjectAssign
@@ -1786,7 +1786,7 @@ return ____exports`, false, true},
             const literal: Record<string, unknown> = {a: i, ...[i], b: i++};
             const result: Record<string, unknown> = {};
             (Object.keys(result) as Array<number | string>).forEach(
-                (key: number | string) => { result[key.toString()] = literal[key as string]; }
+                key => { result[key.toString()] = literal[key]; }
             );
             return result;`, `{}`, `local ____lualib = require("lualib_bundle")
 local __TS__ArrayToObject = ____lualib.__TS__ArrayToObject
@@ -1817,7 +1817,7 @@ return ____exports`, false, true},
             const literal: Record<string, unknown> = {a: i, ...[i++], b: i++};
             const result: Record<string, unknown> = {};
             (Object.keys(result) as Array<number | string>).forEach(
-                (key: number | string) => { result[key.toString()] = literal[key as string]; }
+                key => { result[key.toString()] = literal[key]; }
             );
             return result;`, `{}`, `local ____lualib = require("lualib_bundle")
 local __TS__ArrayToObject = ____lualib.__TS__ArrayToObject
@@ -1850,7 +1850,7 @@ return ____exports`, false, true},
             const literal: Record<string, unknown> = {a: i, ...o, b: i++, ...[i], ...{c: i++}, d: i++};
             const result: Record<string, unknown> = {};
             (Object.keys(result) as Array<number | string>).forEach(
-                (key: number | string) => { result[key.toString()] = literal[key as string]; }
+                key => { result[key.toString()] = literal[key]; }
             );
             return result;`, `{}`, `local ____lualib = require("lualib_bundle")
 local __TS__ArrayToObject = ____lualib.__TS__ArrayToObject
@@ -2878,8 +2878,8 @@ function ____exports.__main(self)
 end
 return ____exports`, false, false},
 		{"assignment execution order function method call", `let o = {val: 3};
-            let a = function(this: {val: number}, x: number) { return this.val + x; };
-            let b = function(this: {val: number}, x: number) { return (this.val + x) * 10; };
+            let a = function(this: typeof o, x: number) { return this.val + x; };
+            let b = function(this: typeof o, x: number) { return (this.val + x) * 10; };
             function foo(x: number) { return (x > 0) ? b : a; }
             let i = 0;
             const result = foo(i).call(o, i++);

@@ -7,7 +7,7 @@ func TestEval_ValidFunctionAssignments(t *testing.T) {
 	t.Parallel()
 
 	batchExpectFunctions(t, []funcTestCase{
-		{"Valid function variable declaration ({\"value\":\"s => s\"})", `const fn: (s: string) => string = s => s;
+		{"Valid function variable declaration ({\"value\":\"(s: string) => s\"})", `const fn: (s: string) => string = (s: string) => s;
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(____, s)
@@ -16,7 +16,7 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function variable declaration ({\"value\":\"(s => s)\"})", `const fn: (s: string) => string = (s => s);
+		{"Valid function variable declaration ({\"value\":\"((s: string) => s)\"})", `const fn: (s: string) => string = ((s: string) => s);
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(____, s)
@@ -25,7 +25,7 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function variable declaration ({\"value\":\"function(s) { return s; }\"})", `const fn: (s: string) => string = function(s) { return s; };
+		{"Valid function variable declaration ({\"value\":\"function(s: string) { return s; }\"})", `const fn: (s: string) => string = function(s: string) { return s; };
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(self, s)
@@ -34,7 +34,7 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function variable declaration ({\"value\":\"(function(s) { return s; })\"})", `const fn: (s: string) => string = (function(s) { return s; });
+		{"Valid function variable declaration ({\"value\":\"(function(s: string) { return s; })\"})", `const fn: (s: string) => string = (function(s: string) { return s; });
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(self, s)
@@ -43,7 +43,7 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function variable declaration ({\"value\":\"s => s\"})", `const fn: (this: any, s: string) => string = s => s;
+		{"Valid function variable declaration ({\"value\":\"(s: string) => s\"})", `const fn: (this: any, s: string) => string = (s: string) => s;
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(____, s)
@@ -52,7 +52,7 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function variable declaration ({\"value\":\"(s => s)\"})", `const fn: (this: any, s: string) => string = (s => s);
+		{"Valid function variable declaration ({\"value\":\"((s: string) => s)\"})", `const fn: (this: any, s: string) => string = ((s: string) => s);
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(____, s)
@@ -61,7 +61,7 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function variable declaration ({\"value\":\"function(s) { return s; }\"})", `const fn: (this: any, s: string) => string = function(s) { return s; };
+		{"Valid function variable declaration ({\"value\":\"function(s: string) { return s; }\"})", `const fn: (this: any, s: string) => string = function(s: string) { return s; };
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(self, s)
@@ -70,7 +70,7 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function variable declaration ({\"value\":\"(function(s) { return s; })\"})", `const fn: (this: any, s: string) => string = (function(s) { return s; });
+		{"Valid function variable declaration ({\"value\":\"(function(s: string) { return s; })\"})", `const fn: (this: any, s: string) => string = (function(s: string) { return s; });
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(self, s)
@@ -79,7 +79,7 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function variable declaration ({\"value\":\"s => s\"})", `const fn: (this: void, s: string) => string = s => s;
+		{"Valid function variable declaration ({\"value\":\"(s: string) => s\"})", `const fn: (this: void, s: string) => string = (s: string) => s;
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(s)
@@ -88,7 +88,7 @@ function ____exports.__main(self)
     return fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid function variable declaration ({\"value\":\"(s => s)\"})", `const fn: (this: void, s: string) => string = (s => s);
+		{"Valid function variable declaration ({\"value\":\"((s: string) => s)\"})", `const fn: (this: void, s: string) => string = ((s: string) => s);
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(s)
@@ -97,7 +97,7 @@ function ____exports.__main(self)
     return fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid function variable declaration ({\"value\":\"function(s) { return s; }\"})", `const fn: (this: void, s: string) => string = function(s) { return s; };
+		{"Valid function variable declaration ({\"value\":\"function(s: string) { return s; }\"})", `const fn: (this: void, s: string) => string = function(s: string) { return s; };
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(s)
@@ -106,7 +106,7 @@ function ____exports.__main(self)
     return fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid function variable declaration ({\"value\":\"(function(s) { return s; })\"})", `const fn: (this: void, s: string) => string = (function(s) { return s; });
+		{"Valid function variable declaration ({\"value\":\"(function(s: string) { return s; })\"})", `const fn: (this: void, s: string) => string = (function(s: string) { return s; });
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(s)
@@ -115,7 +115,7 @@ function ____exports.__main(self)
     return fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid function variable declaration ({\"value\":\"function(this: any, s) { return s; }\"})", `const fn: (s: string) => string = function(this: any, s) { return s; };
+		{"Valid function variable declaration ({\"value\":\"function(this: any, s: string) { return s; }\"})", `const fn: (s: string) => string = function(this: any, s: string) { return s; };
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(self, s)
@@ -124,7 +124,7 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function variable declaration ({\"value\":\"(function(this: any, s) { return s; })\"})", `const fn: (s: string) => string = (function(this: any, s) { return s; });
+		{"Valid function variable declaration ({\"value\":\"(function(this: any, s: string) { return s; })\"})", `const fn: (s: string) => string = (function(this: any, s: string) { return s; });
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(self, s)
@@ -133,7 +133,7 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function variable declaration ({\"value\":\"function(this: any, s) { return s; }\"})", `const fn: (this: any, s: string) => string = function(this: any, s) { return s; };
+		{"Valid function variable declaration ({\"value\":\"function(this: any, s: string) { return s; }\"})", `const fn: (this: any, s: string) => string = function(this: any, s: string) { return s; };
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(self, s)
@@ -142,7 +142,7 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function variable declaration ({\"value\":\"(function(this: any, s) { return s; })\"})", `const fn: (this: any, s: string) => string = (function(this: any, s) { return s; });
+		{"Valid function variable declaration ({\"value\":\"(function(this: any, s: string) { return s; })\"})", `const fn: (this: any, s: string) => string = (function(this: any, s: string) { return s; });
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(self, s)
@@ -151,7 +151,7 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function variable declaration ({\"value\":\"function(this: void, s) { return s; }\"})", `const fn: (this: void, s: string) => string = function(this: void, s) { return s; };
+		{"Valid function variable declaration ({\"value\":\"function(this: void, s: string) { return s; }\"})", `const fn: (this: void, s: string) => string = function(this: void, s: string) { return s; };
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(s)
@@ -160,7 +160,7 @@ function ____exports.__main(self)
     return fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid function variable declaration ({\"value\":\"(function(this: void, s) { return s; })\"})", `const fn: (this: void, s: string) => string = (function(this: void, s) { return s; });
+		{"Valid function variable declaration ({\"value\":\"(function(this: void, s: string) { return s; })\"})", `const fn: (this: void, s: string) => string = (function(this: void, s: string) { return s; });
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(s)
@@ -169,21 +169,21 @@ function ____exports.__main(self)
     return fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid object wit method declaration ({\"value\":\"s => s\"}, \"(s: string) => string\")", `const obj: { fn: (s: string) => string } = {fn: s => s};
+		{"Valid object wit method declaration ({\"value\":\"(s: string) => s\"}, \"(s: string) => string\")", `const obj: { fn: (s: string) => string } = {fn: (s: string) => s};
         return obj.fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local obj = {fn = function(____, s) return s end}
     return obj:fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid object wit method declaration ({\"value\":\"(s => s)\"}, \"(s: string) => string\")", `const obj: { fn: (s: string) => string } = {fn: (s => s)};
+		{"Valid object wit method declaration ({\"value\":\"((s: string) => s)\"}, \"(s: string) => string\")", `const obj: { fn: (s: string) => string } = {fn: ((s: string) => s)};
         return obj.fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local obj = {fn = function(____, s) return s end}
     return obj:fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid object wit method declaration ({\"value\":\"function(s) { return s; }\"}, \"(s: string) => string\")", `const obj: { fn: (s: string) => string } = {fn: function(s) { return s; }};
+		{"Valid object wit method declaration ({\"value\":\"function(s: string) { return s; }\"}, \"(s: string) => string\")", `const obj: { fn: (s: string) => string } = {fn: function(s: string) { return s; }};
         return obj.fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local obj = {fn = function(self, s)
@@ -192,7 +192,7 @@ function ____exports.__main(self)
     return obj:fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid object wit method declaration ({\"value\":\"(function(s) { return s; })\"}, \"(s: string) => string\")", `const obj: { fn: (s: string) => string } = {fn: (function(s) { return s; })};
+		{"Valid object wit method declaration ({\"value\":\"(function(s: string) { return s; })\"}, \"(s: string) => string\")", `const obj: { fn: (s: string) => string } = {fn: (function(s: string) { return s; })};
         return obj.fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local obj = {fn = function(self, s)
@@ -201,21 +201,21 @@ function ____exports.__main(self)
     return obj:fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid object wit method declaration ({\"value\":\"s => s\"}, \"(this: any, s: string) => string\")", `const obj: { fn: (this: any, s: string) => string } = {fn: s => s};
+		{"Valid object wit method declaration ({\"value\":\"(s: string) => s\"}, \"(this: any, s: string) => string\")", `const obj: { fn: (this: any, s: string) => string } = {fn: (s: string) => s};
         return obj.fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local obj = {fn = function(____, s) return s end}
     return obj:fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid object wit method declaration ({\"value\":\"(s => s)\"}, \"(this: any, s: string) => string\")", `const obj: { fn: (this: any, s: string) => string } = {fn: (s => s)};
+		{"Valid object wit method declaration ({\"value\":\"((s: string) => s)\"}, \"(this: any, s: string) => string\")", `const obj: { fn: (this: any, s: string) => string } = {fn: ((s: string) => s)};
         return obj.fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local obj = {fn = function(____, s) return s end}
     return obj:fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid object wit method declaration ({\"value\":\"function(s) { return s; }\"}, \"(this: any, s: string) => string\")", `const obj: { fn: (this: any, s: string) => string } = {fn: function(s) { return s; }};
+		{"Valid object wit method declaration ({\"value\":\"function(s: string) { return s; }\"}, \"(this: any, s: string) => string\")", `const obj: { fn: (this: any, s: string) => string } = {fn: function(s: string) { return s; }};
         return obj.fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local obj = {fn = function(self, s)
@@ -224,7 +224,7 @@ function ____exports.__main(self)
     return obj:fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid object wit method declaration ({\"value\":\"(function(s) { return s; })\"}, \"(this: any, s: string) => string\")", `const obj: { fn: (this: any, s: string) => string } = {fn: (function(s) { return s; })};
+		{"Valid object wit method declaration ({\"value\":\"(function(s: string) { return s; })\"}, \"(this: any, s: string) => string\")", `const obj: { fn: (this: any, s: string) => string } = {fn: (function(s: string) { return s; })};
         return obj.fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local obj = {fn = function(self, s)
@@ -233,21 +233,21 @@ function ____exports.__main(self)
     return obj:fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid object wit method declaration ({\"value\":\"s => s\"}, \"(this: void, s: string) => string\")", `const obj: { fn: (this: void, s: string) => string } = {fn: s => s};
+		{"Valid object wit method declaration ({\"value\":\"(s: string) => s\"}, \"(this: void, s: string) => string\")", `const obj: { fn: (this: void, s: string) => string } = {fn: (s: string) => s};
         return obj.fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local obj = {fn = function(s) return s end}
     return obj.fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid object wit method declaration ({\"value\":\"(s => s)\"}, \"(this: void, s: string) => string\")", `const obj: { fn: (this: void, s: string) => string } = {fn: (s => s)};
+		{"Valid object wit method declaration ({\"value\":\"((s: string) => s)\"}, \"(this: void, s: string) => string\")", `const obj: { fn: (this: void, s: string) => string } = {fn: ((s: string) => s)};
         return obj.fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local obj = {fn = function(s) return s end}
     return obj.fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid object wit method declaration ({\"value\":\"function(s) { return s; }\"}, \"(this: void, s: string) => string\")", `const obj: { fn: (this: void, s: string) => string } = {fn: function(s) { return s; }};
+		{"Valid object wit method declaration ({\"value\":\"function(s: string) { return s; }\"}, \"(this: void, s: string) => string\")", `const obj: { fn: (this: void, s: string) => string } = {fn: function(s: string) { return s; }};
         return obj.fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local obj = {fn = function(s)
@@ -256,7 +256,7 @@ function ____exports.__main(self)
     return obj.fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid object wit method declaration ({\"value\":\"(function(s) { return s; })\"}, \"(this: void, s: string) => string\")", `const obj: { fn: (this: void, s: string) => string } = {fn: (function(s) { return s; })};
+		{"Valid object wit method declaration ({\"value\":\"(function(s: string) { return s; })\"}, \"(this: void, s: string) => string\")", `const obj: { fn: (this: void, s: string) => string } = {fn: (function(s: string) { return s; })};
         return obj.fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local obj = {fn = function(s)
@@ -265,7 +265,7 @@ function ____exports.__main(self)
     return obj.fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid object wit method declaration ({\"value\":\"function(this: any, s) { return s; }\"}, \"(s: string) => string\")", `const obj: { fn: (s: string) => string } = {fn: function(this: any, s) { return s; }};
+		{"Valid object wit method declaration ({\"value\":\"function(this: any, s: string) { return s; }\"}, \"(s: string) => string\")", `const obj: { fn: (s: string) => string } = {fn: function(this: any, s: string) { return s; }};
         return obj.fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local obj = {fn = function(self, s)
@@ -274,7 +274,7 @@ function ____exports.__main(self)
     return obj:fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid object wit method declaration ({\"value\":\"(function(this: any, s) { return s; })\"}, \"(s: string) => string\")", `const obj: { fn: (s: string) => string } = {fn: (function(this: any, s) { return s; })};
+		{"Valid object wit method declaration ({\"value\":\"(function(this: any, s: string) { return s; })\"}, \"(s: string) => string\")", `const obj: { fn: (s: string) => string } = {fn: (function(this: any, s: string) { return s; })};
         return obj.fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local obj = {fn = function(self, s)
@@ -283,7 +283,7 @@ function ____exports.__main(self)
     return obj:fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid object wit method declaration ({\"value\":\"function(this: any, s) { return s; }\"}, \"(this: any, s: string) => string\")", `const obj: { fn: (this: any, s: string) => string } = {fn: function(this: any, s) { return s; }};
+		{"Valid object wit method declaration ({\"value\":\"function(this: any, s: string) { return s; }\"}, \"(this: any, s: string) => string\")", `const obj: { fn: (this: any, s: string) => string } = {fn: function(this: any, s: string) { return s; }};
         return obj.fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local obj = {fn = function(self, s)
@@ -292,7 +292,7 @@ function ____exports.__main(self)
     return obj:fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid object wit method declaration ({\"value\":\"(function(this: any, s) { return s; })\"}, \"(this: any, s: string) => string\")", `const obj: { fn: (this: any, s: string) => string } = {fn: (function(this: any, s) { return s; })};
+		{"Valid object wit method declaration ({\"value\":\"(function(this: any, s: string) { return s; })\"}, \"(this: any, s: string) => string\")", `const obj: { fn: (this: any, s: string) => string } = {fn: (function(this: any, s: string) { return s; })};
         return obj.fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local obj = {fn = function(self, s)
@@ -301,7 +301,7 @@ function ____exports.__main(self)
     return obj:fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid object wit method declaration ({\"value\":\"function(this: void, s) { return s; }\"}, \"(this: void, s: string) => string\")", `const obj: { fn: (this: void, s: string) => string } = {fn: function(this: void, s) { return s; }};
+		{"Valid object wit method declaration ({\"value\":\"function(this: void, s: string) { return s; }\"}, \"(this: void, s: string) => string\")", `const obj: { fn: (this: void, s: string) => string } = {fn: function(this: void, s: string) { return s; }};
         return obj.fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local obj = {fn = function(s)
@@ -310,7 +310,7 @@ function ____exports.__main(self)
     return obj.fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid object wit method declaration ({\"value\":\"(function(this: void, s) { return s; })\"}, \"(this: void, s: string) => string\")", `const obj: { fn: (this: void, s: string) => string } = {fn: (function(this: void, s) { return s; })};
+		{"Valid object wit method declaration ({\"value\":\"(function(this: void, s: string) { return s; })\"}, \"(this: void, s: string) => string\")", `const obj: { fn: (this: void, s: string) => string } = {fn: (function(this: void, s: string) { return s; })};
         return obj.fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local obj = {fn = function(s)
@@ -319,8 +319,8 @@ function ____exports.__main(self)
     return obj.fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid function assignment ({\"value\":\"s => s\"})", `let fn: (s: string) => string;
-        fn = s => s;
+		{"Valid function assignment ({\"value\":\"(s: string) => s\"})", `let fn: (s: string) => string;
+        fn = (s: string) => s;
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local fn
@@ -328,8 +328,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function assignment ({\"value\":\"(s => s)\"})", `let fn: (s: string) => string;
-        fn = (s => s);
+		{"Valid function assignment ({\"value\":\"((s: string) => s)\"})", `let fn: (s: string) => string;
+        fn = ((s: string) => s);
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local fn
@@ -337,8 +337,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function assignment ({\"value\":\"function(s) { return s; }\"})", `let fn: (s: string) => string;
-        fn = function(s) { return s; };
+		{"Valid function assignment ({\"value\":\"function(s: string) { return s; }\"})", `let fn: (s: string) => string;
+        fn = function(s: string) { return s; };
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local fn
@@ -348,8 +348,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function assignment ({\"value\":\"(function(s) { return s; })\"})", `let fn: (s: string) => string;
-        fn = (function(s) { return s; });
+		{"Valid function assignment ({\"value\":\"(function(s: string) { return s; })\"})", `let fn: (s: string) => string;
+        fn = (function(s: string) { return s; });
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local fn
@@ -359,8 +359,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function assignment ({\"value\":\"s => s\"})", `let fn: (this: any, s: string) => string;
-        fn = s => s;
+		{"Valid function assignment ({\"value\":\"(s: string) => s\"})", `let fn: (this: any, s: string) => string;
+        fn = (s: string) => s;
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local fn
@@ -368,8 +368,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function assignment ({\"value\":\"(s => s)\"})", `let fn: (this: any, s: string) => string;
-        fn = (s => s);
+		{"Valid function assignment ({\"value\":\"((s: string) => s)\"})", `let fn: (this: any, s: string) => string;
+        fn = ((s: string) => s);
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local fn
@@ -377,8 +377,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function assignment ({\"value\":\"function(s) { return s; }\"})", `let fn: (this: any, s: string) => string;
-        fn = function(s) { return s; };
+		{"Valid function assignment ({\"value\":\"function(s: string) { return s; }\"})", `let fn: (this: any, s: string) => string;
+        fn = function(s: string) { return s; };
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local fn
@@ -388,8 +388,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function assignment ({\"value\":\"(function(s) { return s; })\"})", `let fn: (this: any, s: string) => string;
-        fn = (function(s) { return s; });
+		{"Valid function assignment ({\"value\":\"(function(s: string) { return s; })\"})", `let fn: (this: any, s: string) => string;
+        fn = (function(s: string) { return s; });
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local fn
@@ -399,8 +399,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function assignment ({\"value\":\"s => s\"})", `let fn: (this: void, s: string) => string;
-        fn = s => s;
+		{"Valid function assignment ({\"value\":\"(s: string) => s\"})", `let fn: (this: void, s: string) => string;
+        fn = (s: string) => s;
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local fn
@@ -408,8 +408,8 @@ function ____exports.__main(self)
     return fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid function assignment ({\"value\":\"(s => s)\"})", `let fn: (this: void, s: string) => string;
-        fn = (s => s);
+		{"Valid function assignment ({\"value\":\"((s: string) => s)\"})", `let fn: (this: void, s: string) => string;
+        fn = ((s: string) => s);
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local fn
@@ -417,8 +417,8 @@ function ____exports.__main(self)
     return fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid function assignment ({\"value\":\"function(s) { return s; }\"})", `let fn: (this: void, s: string) => string;
-        fn = function(s) { return s; };
+		{"Valid function assignment ({\"value\":\"function(s: string) { return s; }\"})", `let fn: (this: void, s: string) => string;
+        fn = function(s: string) { return s; };
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local fn
@@ -428,8 +428,8 @@ function ____exports.__main(self)
     return fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid function assignment ({\"value\":\"(function(s) { return s; })\"})", `let fn: (this: void, s: string) => string;
-        fn = (function(s) { return s; });
+		{"Valid function assignment ({\"value\":\"(function(s: string) { return s; })\"})", `let fn: (this: void, s: string) => string;
+        fn = (function(s: string) { return s; });
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local fn
@@ -439,8 +439,8 @@ function ____exports.__main(self)
     return fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid function assignment ({\"value\":\"function(this: any, s) { return s; }\"})", `let fn: (s: string) => string;
-        fn = function(this: any, s) { return s; };
+		{"Valid function assignment ({\"value\":\"function(this: any, s: string) { return s; }\"})", `let fn: (s: string) => string;
+        fn = function(this: any, s: string) { return s; };
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local fn
@@ -450,8 +450,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function assignment ({\"value\":\"(function(this: any, s) { return s; })\"})", `let fn: (s: string) => string;
-        fn = (function(this: any, s) { return s; });
+		{"Valid function assignment ({\"value\":\"(function(this: any, s: string) { return s; })\"})", `let fn: (s: string) => string;
+        fn = (function(this: any, s: string) { return s; });
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local fn
@@ -461,8 +461,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function assignment ({\"value\":\"function(this: any, s) { return s; }\"})", `let fn: (this: any, s: string) => string;
-        fn = function(this: any, s) { return s; };
+		{"Valid function assignment ({\"value\":\"function(this: any, s: string) { return s; }\"})", `let fn: (this: any, s: string) => string;
+        fn = function(this: any, s: string) { return s; };
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local fn
@@ -472,8 +472,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function assignment ({\"value\":\"(function(this: any, s) { return s; })\"})", `let fn: (this: any, s: string) => string;
-        fn = (function(this: any, s) { return s; });
+		{"Valid function assignment ({\"value\":\"(function(this: any, s: string) { return s; })\"})", `let fn: (this: any, s: string) => string;
+        fn = (function(this: any, s: string) { return s; });
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local fn
@@ -483,8 +483,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function assignment ({\"value\":\"function(this: void, s) { return s; }\"})", `let fn: (this: void, s: string) => string;
-        fn = function(this: void, s) { return s; };
+		{"Valid function assignment ({\"value\":\"function(this: void, s: string) { return s; }\"})", `let fn: (this: void, s: string) => string;
+        fn = function(this: void, s: string) { return s; };
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local fn
@@ -494,8 +494,8 @@ function ____exports.__main(self)
     return fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid function assignment ({\"value\":\"(function(this: void, s) { return s; })\"})", `let fn: (this: void, s: string) => string;
-        fn = (function(this: void, s) { return s; });
+		{"Valid function assignment ({\"value\":\"(function(this: void, s: string) { return s; })\"})", `let fn: (this: void, s: string) => string;
+        fn = (function(this: void, s: string) { return s; });
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local fn
@@ -505,10 +505,10 @@ function ____exports.__main(self)
     return fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid function argument ({\"value\":\"s => s\"})", `function takesFunction(fn: (s: string) => string) {
+		{"Valid function argument ({\"value\":\"(s: string) => s\"})", `function takesFunction(fn: (s: string) => string) {
             return fn("foobar");
         }
-        return takesFunction(s => s);`, `"foobar"`, `local ____exports = {}
+        return takesFunction((s: string) => s);`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn(nil, "foobar")
@@ -519,10 +519,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function argument ({\"value\":\"(s => s)\"})", `function takesFunction(fn: (s: string) => string) {
+		{"Valid function argument ({\"value\":\"((s: string) => s)\"})", `function takesFunction(fn: (s: string) => string) {
             return fn("foobar");
         }
-        return takesFunction((s => s));`, `"foobar"`, `local ____exports = {}
+        return takesFunction(((s: string) => s));`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn(nil, "foobar")
@@ -533,10 +533,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function argument ({\"value\":\"function(s) { return s; }\"})", `function takesFunction(fn: (s: string) => string) {
+		{"Valid function argument ({\"value\":\"function(s: string) { return s; }\"})", `function takesFunction(fn: (s: string) => string) {
             return fn("foobar");
         }
-        return takesFunction(function(s) { return s; });`, `"foobar"`, `local ____exports = {}
+        return takesFunction(function(s: string) { return s; });`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn(nil, "foobar")
@@ -549,10 +549,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function argument ({\"value\":\"(function(s) { return s; })\"})", `function takesFunction(fn: (s: string) => string) {
+		{"Valid function argument ({\"value\":\"(function(s: string) { return s; })\"})", `function takesFunction(fn: (s: string) => string) {
             return fn("foobar");
         }
-        return takesFunction((function(s) { return s; }));`, `"foobar"`, `local ____exports = {}
+        return takesFunction((function(s: string) { return s; }));`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn(nil, "foobar")
@@ -565,10 +565,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function argument ({\"value\":\"s => s\"})", `function takesFunction(fn: (this: any, s: string) => string) {
+		{"Valid function argument ({\"value\":\"(s: string) => s\"})", `function takesFunction(fn: (this: any, s: string) => string) {
             return fn("foobar");
         }
-        return takesFunction(s => s);`, `"foobar"`, `local ____exports = {}
+        return takesFunction((s: string) => s);`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn(nil, "foobar")
@@ -579,10 +579,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function argument ({\"value\":\"(s => s)\"})", `function takesFunction(fn: (this: any, s: string) => string) {
+		{"Valid function argument ({\"value\":\"((s: string) => s)\"})", `function takesFunction(fn: (this: any, s: string) => string) {
             return fn("foobar");
         }
-        return takesFunction((s => s));`, `"foobar"`, `local ____exports = {}
+        return takesFunction(((s: string) => s));`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn(nil, "foobar")
@@ -593,10 +593,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function argument ({\"value\":\"function(s) { return s; }\"})", `function takesFunction(fn: (this: any, s: string) => string) {
+		{"Valid function argument ({\"value\":\"function(s: string) { return s; }\"})", `function takesFunction(fn: (this: any, s: string) => string) {
             return fn("foobar");
         }
-        return takesFunction(function(s) { return s; });`, `"foobar"`, `local ____exports = {}
+        return takesFunction(function(s: string) { return s; });`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn(nil, "foobar")
@@ -609,10 +609,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function argument ({\"value\":\"(function(s) { return s; })\"})", `function takesFunction(fn: (this: any, s: string) => string) {
+		{"Valid function argument ({\"value\":\"(function(s: string) { return s; })\"})", `function takesFunction(fn: (this: any, s: string) => string) {
             return fn("foobar");
         }
-        return takesFunction((function(s) { return s; }));`, `"foobar"`, `local ____exports = {}
+        return takesFunction((function(s: string) { return s; }));`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn(nil, "foobar")
@@ -625,10 +625,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function argument ({\"value\":\"s => s\"})", `function takesFunction(fn: (this: void, s: string) => string) {
+		{"Valid function argument ({\"value\":\"(s: string) => s\"})", `function takesFunction(fn: (this: void, s: string) => string) {
             return fn("foobar");
         }
-        return takesFunction(s => s);`, `"foobar"`, `local ____exports = {}
+        return takesFunction((s: string) => s);`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn("foobar")
@@ -639,10 +639,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function argument ({\"value\":\"(s => s)\"})", `function takesFunction(fn: (this: void, s: string) => string) {
+		{"Valid function argument ({\"value\":\"((s: string) => s)\"})", `function takesFunction(fn: (this: void, s: string) => string) {
             return fn("foobar");
         }
-        return takesFunction((s => s));`, `"foobar"`, `local ____exports = {}
+        return takesFunction(((s: string) => s));`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn("foobar")
@@ -653,10 +653,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function argument ({\"value\":\"function(s) { return s; }\"})", `function takesFunction(fn: (this: void, s: string) => string) {
+		{"Valid function argument ({\"value\":\"function(s: string) { return s; }\"})", `function takesFunction(fn: (this: void, s: string) => string) {
             return fn("foobar");
         }
-        return takesFunction(function(s) { return s; });`, `"foobar"`, `local ____exports = {}
+        return takesFunction(function(s: string) { return s; });`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn("foobar")
@@ -669,10 +669,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function argument ({\"value\":\"(function(s) { return s; })\"})", `function takesFunction(fn: (this: void, s: string) => string) {
+		{"Valid function argument ({\"value\":\"(function(s: string) { return s; })\"})", `function takesFunction(fn: (this: void, s: string) => string) {
             return fn("foobar");
         }
-        return takesFunction((function(s) { return s; }));`, `"foobar"`, `local ____exports = {}
+        return takesFunction((function(s: string) { return s; }));`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn("foobar")
@@ -685,10 +685,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function argument ({\"value\":\"function(this: any, s) { return s; }\"})", `function takesFunction(fn: (s: string) => string) {
+		{"Valid function argument ({\"value\":\"function(this: any, s: string) { return s; }\"})", `function takesFunction(fn: (s: string) => string) {
             return fn("foobar");
         }
-        return takesFunction(function(this: any, s) { return s; });`, `"foobar"`, `local ____exports = {}
+        return takesFunction(function(this: any, s: string) { return s; });`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn(nil, "foobar")
@@ -701,10 +701,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function argument ({\"value\":\"(function(this: any, s) { return s; })\"})", `function takesFunction(fn: (s: string) => string) {
+		{"Valid function argument ({\"value\":\"(function(this: any, s: string) { return s; })\"})", `function takesFunction(fn: (s: string) => string) {
             return fn("foobar");
         }
-        return takesFunction((function(this: any, s) { return s; }));`, `"foobar"`, `local ____exports = {}
+        return takesFunction((function(this: any, s: string) { return s; }));`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn(nil, "foobar")
@@ -717,10 +717,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function argument ({\"value\":\"function(this: any, s) { return s; }\"})", `function takesFunction(fn: (this: any, s: string) => string) {
+		{"Valid function argument ({\"value\":\"function(this: any, s: string) { return s; }\"})", `function takesFunction(fn: (this: any, s: string) => string) {
             return fn("foobar");
         }
-        return takesFunction(function(this: any, s) { return s; });`, `"foobar"`, `local ____exports = {}
+        return takesFunction(function(this: any, s: string) { return s; });`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn(nil, "foobar")
@@ -733,10 +733,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function argument ({\"value\":\"(function(this: any, s) { return s; })\"})", `function takesFunction(fn: (this: any, s: string) => string) {
+		{"Valid function argument ({\"value\":\"(function(this: any, s: string) { return s; })\"})", `function takesFunction(fn: (this: any, s: string) => string) {
             return fn("foobar");
         }
-        return takesFunction((function(this: any, s) { return s; }));`, `"foobar"`, `local ____exports = {}
+        return takesFunction((function(this: any, s: string) { return s; }));`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn(nil, "foobar")
@@ -749,10 +749,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function argument ({\"value\":\"function(this: void, s) { return s; }\"})", `function takesFunction(fn: (this: void, s: string) => string) {
+		{"Valid function argument ({\"value\":\"function(this: void, s: string) { return s; }\"})", `function takesFunction(fn: (this: void, s: string) => string) {
             return fn("foobar");
         }
-        return takesFunction(function(this: void, s) { return s; });`, `"foobar"`, `local ____exports = {}
+        return takesFunction(function(this: void, s: string) { return s; });`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn("foobar")
@@ -765,10 +765,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function argument ({\"value\":\"(function(this: void, s) { return s; })\"})", `function takesFunction(fn: (this: void, s: string) => string) {
+		{"Valid function argument ({\"value\":\"(function(this: void, s: string) { return s; })\"})", `function takesFunction(fn: (this: void, s: string) => string) {
             return fn("foobar");
         }
-        return takesFunction((function(this: void, s) { return s; }));`, `"foobar"`, `local ____exports = {}
+        return takesFunction((function(this: void, s: string) { return s; }));`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn("foobar")
@@ -781,10 +781,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid object with method argument ({\"value\":\"s => s\"}, \"(s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (s: string) => string }) {
+		{"Valid object with method argument ({\"value\":\"(s: string) => s\"}, \"(s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (s: string) => string }) {
             return obj.fn("foobar");
         }
-        return takesObjectWithMethod({fn: s => s});`, `"foobar"`, `local ____exports = {}
+        return takesObjectWithMethod({fn: (s: string) => s});`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesObjectWithMethod(self, obj)
         return obj:fn("foobar")
@@ -795,10 +795,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid object with method argument ({\"value\":\"(s => s)\"}, \"(s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (s: string) => string }) {
+		{"Valid object with method argument ({\"value\":\"((s: string) => s)\"}, \"(s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (s: string) => string }) {
             return obj.fn("foobar");
         }
-        return takesObjectWithMethod({fn: (s => s)});`, `"foobar"`, `local ____exports = {}
+        return takesObjectWithMethod({fn: ((s: string) => s)});`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesObjectWithMethod(self, obj)
         return obj:fn("foobar")
@@ -809,10 +809,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid object with method argument ({\"value\":\"function(s) { return s; }\"}, \"(s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (s: string) => string }) {
+		{"Valid object with method argument ({\"value\":\"function(s: string) { return s; }\"}, \"(s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (s: string) => string }) {
             return obj.fn("foobar");
         }
-        return takesObjectWithMethod({fn: function(s) { return s; }});`, `"foobar"`, `local ____exports = {}
+        return takesObjectWithMethod({fn: function(s: string) { return s; }});`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesObjectWithMethod(self, obj)
         return obj:fn("foobar")
@@ -825,10 +825,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid object with method argument ({\"value\":\"(function(s) { return s; })\"}, \"(s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (s: string) => string }) {
+		{"Valid object with method argument ({\"value\":\"(function(s: string) { return s; })\"}, \"(s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (s: string) => string }) {
             return obj.fn("foobar");
         }
-        return takesObjectWithMethod({fn: (function(s) { return s; })});`, `"foobar"`, `local ____exports = {}
+        return takesObjectWithMethod({fn: (function(s: string) { return s; })});`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesObjectWithMethod(self, obj)
         return obj:fn("foobar")
@@ -841,10 +841,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid object with method argument ({\"value\":\"s => s\"}, \"(this: any, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: any, s: string) => string }) {
+		{"Valid object with method argument ({\"value\":\"(s: string) => s\"}, \"(this: any, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: any, s: string) => string }) {
             return obj.fn("foobar");
         }
-        return takesObjectWithMethod({fn: s => s});`, `"foobar"`, `local ____exports = {}
+        return takesObjectWithMethod({fn: (s: string) => s});`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesObjectWithMethod(self, obj)
         return obj:fn("foobar")
@@ -855,10 +855,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid object with method argument ({\"value\":\"(s => s)\"}, \"(this: any, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: any, s: string) => string }) {
+		{"Valid object with method argument ({\"value\":\"((s: string) => s)\"}, \"(this: any, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: any, s: string) => string }) {
             return obj.fn("foobar");
         }
-        return takesObjectWithMethod({fn: (s => s)});`, `"foobar"`, `local ____exports = {}
+        return takesObjectWithMethod({fn: ((s: string) => s)});`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesObjectWithMethod(self, obj)
         return obj:fn("foobar")
@@ -869,10 +869,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid object with method argument ({\"value\":\"function(s) { return s; }\"}, \"(this: any, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: any, s: string) => string }) {
+		{"Valid object with method argument ({\"value\":\"function(s: string) { return s; }\"}, \"(this: any, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: any, s: string) => string }) {
             return obj.fn("foobar");
         }
-        return takesObjectWithMethod({fn: function(s) { return s; }});`, `"foobar"`, `local ____exports = {}
+        return takesObjectWithMethod({fn: function(s: string) { return s; }});`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesObjectWithMethod(self, obj)
         return obj:fn("foobar")
@@ -885,10 +885,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid object with method argument ({\"value\":\"(function(s) { return s; })\"}, \"(this: any, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: any, s: string) => string }) {
+		{"Valid object with method argument ({\"value\":\"(function(s: string) { return s; })\"}, \"(this: any, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: any, s: string) => string }) {
             return obj.fn("foobar");
         }
-        return takesObjectWithMethod({fn: (function(s) { return s; })});`, `"foobar"`, `local ____exports = {}
+        return takesObjectWithMethod({fn: (function(s: string) { return s; })});`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesObjectWithMethod(self, obj)
         return obj:fn("foobar")
@@ -901,10 +901,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid object with method argument ({\"value\":\"s => s\"}, \"(this: void, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: void, s: string) => string }) {
+		{"Valid object with method argument ({\"value\":\"(s: string) => s\"}, \"(this: void, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: void, s: string) => string }) {
             return obj.fn("foobar");
         }
-        return takesObjectWithMethod({fn: s => s});`, `"foobar"`, `local ____exports = {}
+        return takesObjectWithMethod({fn: (s: string) => s});`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesObjectWithMethod(self, obj)
         return obj.fn("foobar")
@@ -915,10 +915,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid object with method argument ({\"value\":\"(s => s)\"}, \"(this: void, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: void, s: string) => string }) {
+		{"Valid object with method argument ({\"value\":\"((s: string) => s)\"}, \"(this: void, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: void, s: string) => string }) {
             return obj.fn("foobar");
         }
-        return takesObjectWithMethod({fn: (s => s)});`, `"foobar"`, `local ____exports = {}
+        return takesObjectWithMethod({fn: ((s: string) => s)});`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesObjectWithMethod(self, obj)
         return obj.fn("foobar")
@@ -929,10 +929,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid object with method argument ({\"value\":\"function(s) { return s; }\"}, \"(this: void, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: void, s: string) => string }) {
+		{"Valid object with method argument ({\"value\":\"function(s: string) { return s; }\"}, \"(this: void, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: void, s: string) => string }) {
             return obj.fn("foobar");
         }
-        return takesObjectWithMethod({fn: function(s) { return s; }});`, `"foobar"`, `local ____exports = {}
+        return takesObjectWithMethod({fn: function(s: string) { return s; }});`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesObjectWithMethod(self, obj)
         return obj.fn("foobar")
@@ -945,10 +945,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid object with method argument ({\"value\":\"(function(s) { return s; })\"}, \"(this: void, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: void, s: string) => string }) {
+		{"Valid object with method argument ({\"value\":\"(function(s: string) { return s; })\"}, \"(this: void, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: void, s: string) => string }) {
             return obj.fn("foobar");
         }
-        return takesObjectWithMethod({fn: (function(s) { return s; })});`, `"foobar"`, `local ____exports = {}
+        return takesObjectWithMethod({fn: (function(s: string) { return s; })});`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesObjectWithMethod(self, obj)
         return obj.fn("foobar")
@@ -961,10 +961,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid object with method argument ({\"value\":\"function(this: any, s) { return s; }\"}, \"(s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (s: string) => string }) {
+		{"Valid object with method argument ({\"value\":\"function(this: any, s: string) { return s; }\"}, \"(s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (s: string) => string }) {
             return obj.fn("foobar");
         }
-        return takesObjectWithMethod({fn: function(this: any, s) { return s; }});`, `"foobar"`, `local ____exports = {}
+        return takesObjectWithMethod({fn: function(this: any, s: string) { return s; }});`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesObjectWithMethod(self, obj)
         return obj:fn("foobar")
@@ -977,10 +977,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid object with method argument ({\"value\":\"(function(this: any, s) { return s; })\"}, \"(s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (s: string) => string }) {
+		{"Valid object with method argument ({\"value\":\"(function(this: any, s: string) { return s; })\"}, \"(s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (s: string) => string }) {
             return obj.fn("foobar");
         }
-        return takesObjectWithMethod({fn: (function(this: any, s) { return s; })});`, `"foobar"`, `local ____exports = {}
+        return takesObjectWithMethod({fn: (function(this: any, s: string) { return s; })});`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesObjectWithMethod(self, obj)
         return obj:fn("foobar")
@@ -993,10 +993,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid object with method argument ({\"value\":\"function(this: any, s) { return s; }\"}, \"(this: any, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: any, s: string) => string }) {
+		{"Valid object with method argument ({\"value\":\"function(this: any, s: string) { return s; }\"}, \"(this: any, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: any, s: string) => string }) {
             return obj.fn("foobar");
         }
-        return takesObjectWithMethod({fn: function(this: any, s) { return s; }});`, `"foobar"`, `local ____exports = {}
+        return takesObjectWithMethod({fn: function(this: any, s: string) { return s; }});`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesObjectWithMethod(self, obj)
         return obj:fn("foobar")
@@ -1009,10 +1009,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid object with method argument ({\"value\":\"(function(this: any, s) { return s; })\"}, \"(this: any, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: any, s: string) => string }) {
+		{"Valid object with method argument ({\"value\":\"(function(this: any, s: string) { return s; })\"}, \"(this: any, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: any, s: string) => string }) {
             return obj.fn("foobar");
         }
-        return takesObjectWithMethod({fn: (function(this: any, s) { return s; })});`, `"foobar"`, `local ____exports = {}
+        return takesObjectWithMethod({fn: (function(this: any, s: string) { return s; })});`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesObjectWithMethod(self, obj)
         return obj:fn("foobar")
@@ -1025,10 +1025,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid object with method argument ({\"value\":\"function(this: void, s) { return s; }\"}, \"(this: void, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: void, s: string) => string }) {
+		{"Valid object with method argument ({\"value\":\"function(this: void, s: string) { return s; }\"}, \"(this: void, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: void, s: string) => string }) {
             return obj.fn("foobar");
         }
-        return takesObjectWithMethod({fn: function(this: void, s) { return s; }});`, `"foobar"`, `local ____exports = {}
+        return takesObjectWithMethod({fn: function(this: void, s: string) { return s; }});`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesObjectWithMethod(self, obj)
         return obj.fn("foobar")
@@ -1041,10 +1041,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid object with method argument ({\"value\":\"(function(this: void, s) { return s; })\"}, \"(this: void, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: void, s: string) => string }) {
+		{"Valid object with method argument ({\"value\":\"(function(this: void, s: string) { return s; })\"}, \"(this: void, s: string) => string\")", `function takesObjectWithMethod(obj: { fn: (this: void, s: string) => string }) {
             return obj.fn("foobar");
         }
-        return takesObjectWithMethod({fn: (function(this: void, s) { return s; })});`, `"foobar"`, `local ____exports = {}
+        return takesObjectWithMethod({fn: (function(this: void, s: string) { return s; })});`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesObjectWithMethod(self, obj)
         return obj.fn("foobar")
@@ -1074,10 +1074,10 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"Valid function generic argument ({\"value\":\"function(this: any, s) { return s; }\"})", `function takesFunction<T extends (s: string) => string>(fn: T) {
+		{"Valid function generic argument ({\"value\":\"function(this: any, s: string) { return s; }\"})", `function takesFunction<T extends (s: string) => string>(fn: T) {
             return fn("foobar");
         }
-        return takesFunction(function(this: any, s) { return s; });`, `"foobar"`, `local ____exports = {}
+        return takesFunction(function(this: any, s: string) { return s; });`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn(nil, "foobar")
@@ -1090,10 +1090,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function generic argument ({\"value\":\"(function(this: any, s) { return s; })\"})", `function takesFunction<T extends (s: string) => string>(fn: T) {
+		{"Valid function generic argument ({\"value\":\"(function(this: any, s: string) { return s; })\"})", `function takesFunction<T extends (s: string) => string>(fn: T) {
             return fn("foobar");
         }
-        return takesFunction((function(this: any, s) { return s; }));`, `"foobar"`, `local ____exports = {}
+        return takesFunction((function(this: any, s: string) { return s; }));`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn(nil, "foobar")
@@ -1106,10 +1106,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function generic argument ({\"value\":\"function(this: any, s) { return s; }\"})", `function takesFunction<T extends (this: any, s: string) => string>(fn: T) {
+		{"Valid function generic argument ({\"value\":\"function(this: any, s: string) { return s; }\"})", `function takesFunction<T extends (this: any, s: string) => string>(fn: T) {
             return fn("foobar");
         }
-        return takesFunction(function(this: any, s) { return s; });`, `"foobar"`, `local ____exports = {}
+        return takesFunction(function(this: any, s: string) { return s; });`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn(nil, "foobar")
@@ -1122,10 +1122,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function generic argument ({\"value\":\"(function(this: any, s) { return s; })\"})", `function takesFunction<T extends (this: any, s: string) => string>(fn: T) {
+		{"Valid function generic argument ({\"value\":\"(function(this: any, s: string) { return s; })\"})", `function takesFunction<T extends (this: any, s: string) => string>(fn: T) {
             return fn("foobar");
         }
-        return takesFunction((function(this: any, s) { return s; }));`, `"foobar"`, `local ____exports = {}
+        return takesFunction((function(this: any, s: string) { return s; }));`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn(nil, "foobar")
@@ -1138,10 +1138,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function generic argument ({\"value\":\"function(this: void, s) { return s; }\"})", `function takesFunction<T extends (this: void, s: string) => string>(fn: T) {
+		{"Valid function generic argument ({\"value\":\"function(this: void, s: string) { return s; }\"})", `function takesFunction<T extends (this: void, s: string) => string>(fn: T) {
             return fn("foobar");
         }
-        return takesFunction(function(this: void, s) { return s; });`, `"foobar"`, `local ____exports = {}
+        return takesFunction(function(this: void, s: string) { return s; });`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn("foobar")
@@ -1154,10 +1154,10 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function generic argument ({\"value\":\"(function(this: void, s) { return s; })\"})", `function takesFunction<T extends (this: void, s: string) => string>(fn: T) {
+		{"Valid function generic argument ({\"value\":\"(function(this: void, s: string) { return s; })\"})", `function takesFunction<T extends (this: void, s: string) => string>(fn: T) {
             return fn("foobar");
         }
-        return takesFunction((function(this: void, s) { return s; }));`, `"foobar"`, `local ____exports = {}
+        return takesFunction((function(this: void, s: string) { return s; }));`, `"foobar"`, `local ____exports = {}
 function ____exports.__main(self)
     local function takesFunction(self, fn)
         return fn("foobar")
@@ -1308,8 +1308,8 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"Valid function return ({\"value\":\"s => s\"})", `function returnsFunction(): (s: string) => string {
-            return s => s;
+		{"Valid function return ({\"value\":\"(s: string) => s\"})", `function returnsFunction(): (s: string) => string {
+            return (s: string) => s;
         }
         const fn = returnsFunction();
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
@@ -1321,8 +1321,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function return ({\"value\":\"(s => s)\"})", `function returnsFunction(): (s: string) => string {
-            return (s => s);
+		{"Valid function return ({\"value\":\"((s: string) => s)\"})", `function returnsFunction(): (s: string) => string {
+            return ((s: string) => s);
         }
         const fn = returnsFunction();
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
@@ -1334,8 +1334,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function return ({\"value\":\"function(s) { return s; }\"})", `function returnsFunction(): (s: string) => string {
-            return function(s) { return s; };
+		{"Valid function return ({\"value\":\"function(s: string) { return s; }\"})", `function returnsFunction(): (s: string) => string {
+            return function(s: string) { return s; };
         }
         const fn = returnsFunction();
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
@@ -1349,8 +1349,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function return ({\"value\":\"(function(s) { return s; })\"})", `function returnsFunction(): (s: string) => string {
-            return (function(s) { return s; });
+		{"Valid function return ({\"value\":\"(function(s: string) { return s; })\"})", `function returnsFunction(): (s: string) => string {
+            return (function(s: string) { return s; });
         }
         const fn = returnsFunction();
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
@@ -1364,8 +1364,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function return ({\"value\":\"s => s\"})", `function returnsFunction(): (this: any, s: string) => string {
-            return s => s;
+		{"Valid function return ({\"value\":\"(s: string) => s\"})", `function returnsFunction(): (this: any, s: string) => string {
+            return (s: string) => s;
         }
         const fn = returnsFunction();
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
@@ -1377,8 +1377,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function return ({\"value\":\"(s => s)\"})", `function returnsFunction(): (this: any, s: string) => string {
-            return (s => s);
+		{"Valid function return ({\"value\":\"((s: string) => s)\"})", `function returnsFunction(): (this: any, s: string) => string {
+            return ((s: string) => s);
         }
         const fn = returnsFunction();
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
@@ -1390,8 +1390,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function return ({\"value\":\"function(s) { return s; }\"})", `function returnsFunction(): (this: any, s: string) => string {
-            return function(s) { return s; };
+		{"Valid function return ({\"value\":\"function(s: string) { return s; }\"})", `function returnsFunction(): (this: any, s: string) => string {
+            return function(s: string) { return s; };
         }
         const fn = returnsFunction();
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
@@ -1405,8 +1405,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function return ({\"value\":\"(function(s) { return s; })\"})", `function returnsFunction(): (this: any, s: string) => string {
-            return (function(s) { return s; });
+		{"Valid function return ({\"value\":\"(function(s: string) { return s; })\"})", `function returnsFunction(): (this: any, s: string) => string {
+            return (function(s: string) { return s; });
         }
         const fn = returnsFunction();
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
@@ -1420,8 +1420,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function return ({\"value\":\"s => s\"})", `function returnsFunction(): (this: void, s: string) => string {
-            return s => s;
+		{"Valid function return ({\"value\":\"(s: string) => s\"})", `function returnsFunction(): (this: void, s: string) => string {
+            return (s: string) => s;
         }
         const fn = returnsFunction();
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
@@ -1433,8 +1433,8 @@ function ____exports.__main(self)
     return fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid function return ({\"value\":\"(s => s)\"})", `function returnsFunction(): (this: void, s: string) => string {
-            return (s => s);
+		{"Valid function return ({\"value\":\"((s: string) => s)\"})", `function returnsFunction(): (this: void, s: string) => string {
+            return ((s: string) => s);
         }
         const fn = returnsFunction();
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
@@ -1446,8 +1446,8 @@ function ____exports.__main(self)
     return fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid function return ({\"value\":\"function(s) { return s; }\"})", `function returnsFunction(): (this: void, s: string) => string {
-            return function(s) { return s; };
+		{"Valid function return ({\"value\":\"function(s: string) { return s; }\"})", `function returnsFunction(): (this: void, s: string) => string {
+            return function(s: string) { return s; };
         }
         const fn = returnsFunction();
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
@@ -1461,8 +1461,8 @@ function ____exports.__main(self)
     return fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid function return ({\"value\":\"(function(s) { return s; })\"})", `function returnsFunction(): (this: void, s: string) => string {
-            return (function(s) { return s; });
+		{"Valid function return ({\"value\":\"(function(s: string) { return s; })\"})", `function returnsFunction(): (this: void, s: string) => string {
+            return (function(s: string) { return s; });
         }
         const fn = returnsFunction();
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
@@ -1476,8 +1476,8 @@ function ____exports.__main(self)
     return fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid function return ({\"value\":\"function(this: any, s) { return s; }\"})", `function returnsFunction(): (s: string) => string {
-            return function(this: any, s) { return s; };
+		{"Valid function return ({\"value\":\"function(this: any, s: string) { return s; }\"})", `function returnsFunction(): (s: string) => string {
+            return function(this: any, s: string) { return s; };
         }
         const fn = returnsFunction();
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
@@ -1491,8 +1491,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function return ({\"value\":\"(function(this: any, s) { return s; })\"})", `function returnsFunction(): (s: string) => string {
-            return (function(this: any, s) { return s; });
+		{"Valid function return ({\"value\":\"(function(this: any, s: string) { return s; })\"})", `function returnsFunction(): (s: string) => string {
+            return (function(this: any, s: string) { return s; });
         }
         const fn = returnsFunction();
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
@@ -1506,8 +1506,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function return ({\"value\":\"function(this: any, s) { return s; }\"})", `function returnsFunction(): (this: any, s: string) => string {
-            return function(this: any, s) { return s; };
+		{"Valid function return ({\"value\":\"function(this: any, s: string) { return s; }\"})", `function returnsFunction(): (this: any, s: string) => string {
+            return function(this: any, s: string) { return s; };
         }
         const fn = returnsFunction();
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
@@ -1521,8 +1521,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function return ({\"value\":\"(function(this: any, s) { return s; })\"})", `function returnsFunction(): (this: any, s: string) => string {
-            return (function(this: any, s) { return s; });
+		{"Valid function return ({\"value\":\"(function(this: any, s: string) { return s; })\"})", `function returnsFunction(): (this: any, s: string) => string {
+            return (function(this: any, s: string) { return s; });
         }
         const fn = returnsFunction();
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
@@ -1536,8 +1536,8 @@ function ____exports.__main(self)
     return fn(nil, "foobar")
 end
 return ____exports`, false, false},
-		{"Valid function return ({\"value\":\"function(this: void, s) { return s; }\"})", `function returnsFunction(): (this: void, s: string) => string {
-            return function(this: void, s) { return s; };
+		{"Valid function return ({\"value\":\"function(this: void, s: string) { return s; }\"})", `function returnsFunction(): (this: void, s: string) => string {
+            return function(this: void, s: string) { return s; };
         }
         const fn = returnsFunction();
         return fn("foobar");`, `"foobar"`, `local ____exports = {}
@@ -1551,8 +1551,8 @@ function ____exports.__main(self)
     return fn("foobar")
 end
 return ____exports`, false, false},
-		{"Valid function return ({\"value\":\"(function(this: void, s) { return s; })\"})", `function returnsFunction(): (this: void, s: string) => string {
-            return (function(this: void, s) { return s; });
+		{"Valid function return ({\"value\":\"(function(this: void, s: string) { return s; })\"})", `function returnsFunction(): (this: void, s: string) => string {
+            return (function(this: void, s: string) { return s; });
         }
         const fn = returnsFunction();
         return fn("foobar");`, `"foobar"`, `local ____exports = {}

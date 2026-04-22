@@ -11,7 +11,7 @@ func TestEval_Functions(t *testing.T) {
 	t.Parallel()
 
 	batchExpectFunctions(t, []funcTestCase{
-		{"Arrow Function Expression", `const add = (a: any, b: any) => a + b;
+		{"Arrow Function Expression", `const add = (a: number, b: number) => a + b;
         return add(1, 2);`, `3`, `local ____exports = {}
 function ____exports.__main(self)
     local function add(____, a, b)
@@ -123,8 +123,8 @@ function ____exports.__main(self)
     return i
 end
 return ____exports`, false, false},
-		{"Arrow function assignment (\"(b: any) => a = b\")", `let a = 10;
-            let lambda = (b: any) => a = b;
+		{"Arrow function assignment (\"(b: number) => a = b\")", `let a = 10;
+            let lambda = (b: number) => a = b;
             lambda(5);
             return a;`, `5`, `local ____exports = {}
 function ____exports.__main(self)
@@ -137,8 +137,8 @@ function ____exports.__main(self)
     return a
 end
 return ____exports`, false, false},
-		{"Arrow function assignment (\"(b: any) => a += b\")", `let a = 10;
-            let lambda = (b: any) => a += b;
+		{"Arrow function assignment (\"(b: number) => a += b\")", `let a = 10;
+            let lambda = (b: number) => a += b;
             lambda(5);
             return a;`, `15`, `local ____exports = {}
 function ____exports.__main(self)
@@ -151,8 +151,8 @@ function ____exports.__main(self)
     return a
 end
 return ____exports`, false, false},
-		{"Arrow function assignment (\"(b: any) => a -= b\")", `let a = 10;
-            let lambda = (b: any) => a -= b;
+		{"Arrow function assignment (\"(b: number) => a -= b\")", `let a = 10;
+            let lambda = (b: number) => a -= b;
             lambda(5);
             return a;`, `5`, `local ____exports = {}
 function ____exports.__main(self)
@@ -165,8 +165,8 @@ function ____exports.__main(self)
     return a
 end
 return ____exports`, false, false},
-		{"Arrow function assignment (\"(b: any) => a *= b\")", `let a = 10;
-            let lambda = (b: any) => a *= b;
+		{"Arrow function assignment (\"(b: number) => a *= b\")", `let a = 10;
+            let lambda = (b: number) => a *= b;
             lambda(5);
             return a;`, `50`, `local ____exports = {}
 function ____exports.__main(self)
@@ -179,8 +179,8 @@ function ____exports.__main(self)
     return a
 end
 return ____exports`, false, false},
-		{"Arrow function assignment (\"(b: any) => a /= b\")", `let a = 10;
-            let lambda = (b: any) => a /= b;
+		{"Arrow function assignment (\"(b: number) => a /= b\")", `let a = 10;
+            let lambda = (b: number) => a /= b;
             lambda(5);
             return a;`, `2`, `local ____exports = {}
 function ____exports.__main(self)
@@ -193,8 +193,8 @@ function ____exports.__main(self)
     return a
 end
 return ____exports`, false, false},
-		{"Arrow function assignment (\"(b: any) => a **= b\")", `let a = 10;
-            let lambda = (b: any) => a **= b;
+		{"Arrow function assignment (\"(b: number) => a **= b\")", `let a = 10;
+            let lambda = (b: number) => a **= b;
             lambda(5);
             return a;`, `100000`, `local ____exports = {}
 function ____exports.__main(self)
@@ -207,8 +207,8 @@ function ____exports.__main(self)
     return a
 end
 return ____exports`, false, false},
-		{"Arrow function assignment (\"(b: any) => a %= b\")", `let a = 10;
-            let lambda = (b: any) => a %= b;
+		{"Arrow function assignment (\"(b: number) => a %= b\")", `let a = 10;
+            let lambda = (b: number) => a %= b;
             lambda(5);
             return a;`, `0`, `local ____exports = {}
 function ____exports.__main(self)
@@ -266,7 +266,7 @@ function ____exports.__main(self)
     return add(nil, 1, 2)
 end
 return ____exports`, false, false},
-		{"Function Expression", `let add = function(a: any, b: any) {return a+b};
+		{"Function Expression", `let add = function(a: number, b: number) {return a+b};
         return add(1,2);`, `3`, `local ____exports = {}
 function ____exports.__main(self)
     local function add(self, a, b)
@@ -719,7 +719,7 @@ function ____exports.__main(self)
     return abc({a = 4}, "b")
 end
 return ____exports`, false, false},
-		{"function.length (\"function fn() {}\")", `function fn() {}
+		{"function.length (\"function fn(): void {}\")", `function fn(): void {}
         return fn.length;`, `0`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(self)
@@ -727,7 +727,7 @@ function ____exports.__main(self)
     return debug.getinfo(fn).nparams - 1
 end
 return ____exports`, false, false},
-		{"function.length (\"function fn(x: any, y: any, z: any) {}\")", `function fn(x: any, y: any, z: any) {}
+		{"function.length (\"function fn(x: any, y: any, z: any): void {}\")", `function fn(x: any, y: any, z: any): void {}
         return fn.length;`, `3`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(self, x, y, z)
@@ -735,7 +735,7 @@ function ____exports.__main(self)
     return debug.getinfo(fn).nparams - 1
 end
 return ____exports`, false, false},
-		{"function.length (\"function fn(x: any, y: any, z: any, ...args: any[]) {}\")", `function fn(x: any, y: any, z: any, ...args: any[]) {}
+		{"function.length (\"function fn(x: any, y: any, z: any, ...args: any[]): void {}\")", `function fn(x: any, y: any, z: any, ...args: any[]): void {}
         return fn.length;`, `3`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(self, x, y, z, ...)
@@ -743,7 +743,7 @@ function ____exports.__main(self)
     return debug.getinfo(fn).nparams - 1
 end
 return ____exports`, false, false},
-		{"function.length (\"function fn(...args: any[]) {}\")", `function fn(...args: any[]) {}
+		{"function.length (\"function fn(...args: any[]): void {}\")", `function fn(...args: any[]): void {}
         return fn.length;`, `0`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(self, ...)
@@ -751,7 +751,7 @@ function ____exports.__main(self)
     return debug.getinfo(fn).nparams - 1
 end
 return ____exports`, false, false},
-		{"function.length (\"function fn(this: void) {}\")", `function fn(this: void) {}
+		{"function.length (\"function fn(this: void): void {}\")", `function fn(this: void): void {}
         return fn.length;`, `0`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn()
@@ -759,7 +759,7 @@ function ____exports.__main(self)
     return debug.getinfo(fn).nparams
 end
 return ____exports`, false, false},
-		{"function.length (\"function fn(this: void, x: any, y: any, z: any) {}\")", `function fn(this: void, x: any, y: any, z: any) {}
+		{"function.length (\"function fn(this: void, x: any, y: any, z: any): void {}\")", `function fn(this: void, x: any, y: any, z: any): void {}
         return fn.length;`, `3`, `local ____exports = {}
 function ____exports.__main(self)
     local function fn(x, y, z)
@@ -767,7 +767,7 @@ function ____exports.__main(self)
     return debug.getinfo(fn).nparams
 end
 return ____exports`, false, false},
-		{"function.length (\"function fnReference(x: any, y: any, z: any) {} const fn = fnReference;\")", `function fnReference(x: any, y: any, z: any) {} const fn = fnReference;
+		{"function.length (\"function fnReference(x: any, y: any, z: any): void {} const fn = fnReference;\")", `function fnReference(x: any, y: any, z: any): void {} const fn = fnReference;
         return fn.length;`, `3`, `local ____exports = {}
 function ____exports.__main(self)
     local function fnReference(self, x, y, z)
@@ -776,7 +776,7 @@ function ____exports.__main(self)
     return debug.getinfo(fn).nparams - 1
 end
 return ____exports`, false, false},
-		{"function.length (\"const wrap = (fn: (...args: any[]) => any) => (...args: any[]) => fn(...args); const fn = wrap((x: any, y: any, z: any) => {});\")", `const wrap = (fn: (...args: any[]) => any) => (...args: any[]) => fn(...args); const fn = wrap((x: any, y: any, z: any) => {});
+		{"function.length (\"const wrap = (fn: (...args: any[]) => any) => (...args: any[]) => fn(...args); const fn = wrap((x, y, z) => {});\")", `const wrap = (fn: (...args: any[]) => any) => (...args: any[]) => fn(...args); const fn = wrap((x, y, z) => {});
         return fn.length;`, `0`, `local ____exports = {}
 function ____exports.__main(self)
     local function wrap(____, fn)
@@ -1132,7 +1132,7 @@ function ____exports.__main(self)
     return ____self_0.method(____self_0)
 end
 return ____exports`, false, false},
-		{"Complex element access call statement", `let foo!: string;
+		{"Complex element access call statement", `let foo: string | undefined;
         class C {
             prop = "bar";
             method(s: string) { foo = s + this.prop; }
@@ -1338,17 +1338,17 @@ return ____exports`, extraFiles: map[string]string{"a.ts": `function foo() { ret
 
 	batchExpectDiagnostics(t, []diagTestCase{
 		{"function.length unsupported (\"Lua 5.0\")", "function", `function fn() {}
-            return fn.length;`, []int32{100028}, nil},
+            return fn.length;`, []int32{100027}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetLua50))
 
 	batchExpectDiagnostics(t, []diagTestCase{
 		{"function.length unsupported (\"Lua 5.1\")", "function", `function fn() {}
-            return fn.length;`, []int32{100028}, nil},
+            return fn.length;`, []int32{100027}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetLua51))
 
 	batchExpectDiagnostics(t, []diagTestCase{
 		{"function.length unsupported (\"universal\")", "function", `function fn() {}
-            return fn.length;`, []int32{100028}, []string{`local ____exports = {}
+            return fn.length;`, []int32{100027}, []string{`local ____exports = {}
 function ____exports.__main(self)
     local function fn(self)
     end

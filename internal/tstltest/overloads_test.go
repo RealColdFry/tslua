@@ -108,8 +108,8 @@ function ____exports.__main(self)
 end
 return ____exports`, false, false},
 		{"constructor1", `class myclass {
-            num!: number;
-            str!: string;
+            num?: number;
+            str?: string;
 
             constructor(def: number);
             constructor(def: string);
@@ -141,8 +141,8 @@ function ____exports.__main(self)
 end
 return ____exports`, false, false},
 		{"constructor2", `class myclass {
-            num!: number;
-            str!: string;
+            num?: number;
+            str?: string;
 
             constructor(def: number);
             constructor(def: string);

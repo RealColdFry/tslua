@@ -1136,7 +1136,7 @@ return ____exports`, false, false},
             try {
                 throw "foo";
             } catch (e: any) {
-                return $multi(evaluate(e as string), "bar");
+                return $multi(evaluate(e), "bar");
             } finally {
                 return $multi("final", "ly");
             }
