@@ -13,7 +13,7 @@ func TestEval_PairsIterable(t *testing.T) {
 	batchExpectDiagnostics(t, []diagTestCase{
 		{"invalid LuaPairsIterable without destructuring (\"for (const s of testIterable) {}\")", "function", `const testIterable = {a1: "a2", b1: "b2", c1: "c2"} as unknown as LuaPairsIterable<string, string>;
 
-        for (const s of testIterable) {}`, []int32{100025}, []string{`local ____exports = {}
+        for (const s of testIterable) {}`, []int32{100024}, []string{`local ____exports = {}
 function ____exports.__main(self)
     local testIterable = {a1 = "a2", b1 = "b2", c1 = "c2"}
     for ____ in pairs(testIterable) do
@@ -22,7 +22,7 @@ end
 return ____exports`}},
 		{"invalid LuaPairsIterable without destructuring (\"let s; for (s of testIterable) {}\")", "function", `const testIterable = {a1: "a2", b1: "b2", c1: "c2"} as unknown as LuaPairsIterable<string, string>;
 
-        let s; for (s of testIterable) {}`, []int32{100025}, []string{`local ____exports = {}
+        let s; for (s of testIterable) {}`, []int32{100024}, []string{`local ____exports = {}
 function ____exports.__main(self)
     local testIterable = {a1 = "a2", b1 = "b2", c1 = "c2"}
     local s

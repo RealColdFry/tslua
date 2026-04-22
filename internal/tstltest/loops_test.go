@@ -843,10 +843,10 @@ return ____exports`, false, false},
 	})
 
 	batchExpectDiagnostics(t, []diagTestCase{
-		{"forin[Array]", "function", `const array: any[] = [];
-        for (const key in array) {}`, []int32{100015}, []string{`local ____exports = {}
+		{"forin[Array]", "function", `const array = [1,2,3];
+        for (const key in array) {}`, []int32{100014}, []string{`local ____exports = {}
 function ____exports.__main(self)
-    local array = {}
+    local array = {1, 2, 3}
     for key in pairs(array) do
     end
 end
@@ -854,7 +854,7 @@ return ____exports`}},
 	})
 
 	batchExpectCodegen(t, []codegenTestCase{
-		{"forin[Array]", "function", `const array: any[] = [];
+		{"forin[Array]", "function", `const array = [1,2,3];
         for (const key in array) {}`, nil, nil, nil, nil},
 		{"do...while double-negation", "function", `let result = 0;
         do {

@@ -1265,8 +1265,8 @@ function ____exports.__main(self)
     return __TS__StringAccess(mystring, ____i_0)
 end
 return ____exports`, false, false},
-		{"string.replace", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replace", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1288,8 +1288,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replace", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replace", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1311,8 +1311,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replace", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replace", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1334,8 +1334,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replace", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replace", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1357,8 +1357,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replace", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replace", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1380,8 +1380,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replace", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replace", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1403,8 +1403,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replace", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replace", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1426,8 +1426,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replace", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replace", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1449,8 +1449,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replace", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replace", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1472,8 +1472,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replace", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replace", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1495,8 +1495,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replace", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replace", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1518,8 +1518,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replace", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replace", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1541,8 +1541,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replaceAll", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replaceAll", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1564,8 +1564,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replaceAll", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replaceAll", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1587,8 +1587,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replaceAll", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replaceAll", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1610,8 +1610,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replaceAll", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replaceAll", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1633,8 +1633,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replaceAll", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replaceAll", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1656,8 +1656,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replaceAll", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replaceAll", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1679,8 +1679,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replaceAll", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replaceAll", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1702,8 +1702,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replaceAll", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replaceAll", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1725,8 +1725,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replaceAll", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replaceAll", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1748,8 +1748,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replaceAll", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replaceAll", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1771,8 +1771,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replaceAll", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replaceAll", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {
@@ -1794,8 +1794,8 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"string.replaceAll", `const result: { args: any[], string: string } = {
-                args: [],
+		{"string.replaceAll", `const result = {
+                args: [] as string[],
                 string: ""
             }
             function replacer(...args: any[]): string {

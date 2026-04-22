@@ -18,7 +18,7 @@ func TestEval_Iterable(t *testing.T) {
         }) as any;
     }
     
-            for (const s of testIterable()) {}`, []int32{100024}, []string{`local ____exports = {}
+            for (const s of testIterable()) {}`, []int32{100023}, []string{`local ____exports = {}
 function ____exports.__main(self)
     local function testIterable()
         local strsArray = {{"a1", {a = "a"}}, {"b1", {a = "b"}}, {"c1", {a = "c"}}}
@@ -47,7 +47,7 @@ return ____exports`}},
         }) as any;
     }
     
-            let s; for (s of testIterable()) {}`, []int32{100024}, []string{`local ____exports = {}
+            let s; for (s of testIterable()) {}`, []int32{100023}, []string{`local ____exports = {}
 function ____exports.__main(self)
     local function testIterable()
         local strsArray = {{"a1", {a = "a"}}, {"b1", {a = "b"}}, {"c1", {a = "c"}}}

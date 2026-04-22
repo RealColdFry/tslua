@@ -7,7 +7,7 @@ func TestEval_Decorators(t *testing.T) {
 	t.Parallel()
 
 	batchExpectFunctions(t, []funcTestCase{
-		{"Class decorator with no parameters", `let classDecoratorContext: ClassDecoratorContext | undefined;
+		{"Class decorator with no parameters", `let classDecoratorContext;
 
         function classDecorator<T extends new (...args: any[]) => {}>(constructor: T, context: ClassDecoratorContext) {
             classDecoratorContext = context;
@@ -66,7 +66,7 @@ return ____exports`, false, false},
 
         @setNum(420)
         class TestClass {
-            public decoratorNum: any;
+            public decoratorNum?: number;
         }
 
         return new TestClass();`, `{decoratorNum = 420}`, `local ____lualib = require("lualib_bundle")
@@ -116,8 +116,8 @@ return ____exports`, false, false},
         @setTen
         @setNum
         class TestClass {
-            public decoratorTen: any;
-            public decoratorNum: any;
+            public decoratorTen?: number;
+            public decoratorNum?: number;
         }
 
         return new TestClass();`, `{decoratorNum = 410, decoratorTen = 10}`, `local ____lualib = require("lualib_bundle")
@@ -246,7 +246,7 @@ function ____exports.__main(self)
     return order
 end
 return ____exports`, false, false},
-		{"class method decorator", `let methodDecoratorContext: ClassMethodDecoratorContext | undefined;
+		{"class method decorator", `let methodDecoratorContext;
 
         function methodDecorator(method: (v: number) => number, context: ClassMethodDecoratorContext) {
             methodDecoratorContext = context;
@@ -300,7 +300,7 @@ function ____exports.__main(self)
 end
 return ____exports`, false, false},
 		{"this in decorator points to class being decorated", `function methodDecorator(method: (v: number) => number, context: ClassMethodDecoratorContext) {
-            return function(this: any) {
+            return function(this: TestClass) {
                 const thisCallTime = this.myInstanceVariable;
                 return thisCallTime;
             };
@@ -343,7 +343,7 @@ function ____exports.__main(self)
     return __TS__New(TestClass, 5):myMethod()
 end
 return ____exports`, false, false},
-		{"class getter decorator", `let getterDecoratorContext: ClassGetterDecoratorContext | undefined;
+		{"class getter decorator", `let getterDecoratorContext;
 
         function getterDecorator(getter: () => number, context: ClassGetterDecoratorContext) {
             getterDecoratorContext = context;
@@ -400,18 +400,18 @@ function ____exports.__main(self)
     }
 end
 return ____exports`, false, false},
-		{"class setter decorator", `let setterDecoratorContext: ClassSetterDecoratorContext | undefined;
+		{"class setter decorator", `let setterDecoratorContext;
 
         function setterDecorator(setter: (v: number) => void, context: ClassSetterDecoratorContext) {
             setterDecoratorContext = context;
 
-            return function(this: any, v: number) {
+            return function(this: TestClass, v: number) {
                 setter.call(this, v + 15);
             };
         }
 
         class TestClass {
-            public value!: number;
+            public value?: number;
 
             @setterDecorator
             set valueSetter(v: number) { this.value = v; }
@@ -460,7 +460,7 @@ function ____exports.__main(self)
     return {result = instance.value, context = {kind = setterDecoratorContext.kind, name = setterDecoratorContext.name, private = setterDecoratorContext.private, static = setterDecoratorContext.static}}
 end
 return ____exports`, false, false},
-		{"class field decorator", `let fieldDecoratorContext: ClassFieldDecoratorContext | undefined;
+		{"class field decorator", `let fieldDecoratorContext;
 
         function fieldDecorator(_: undefined, context: ClassFieldDecoratorContext) {
             fieldDecoratorContext = context;
@@ -471,7 +471,7 @@ return ____exports`, false, false},
             public value: number = 22;
         }
 
-        return { result: new TestClass(), context: {
+        return { result: new TestClass(), context: { 
             kind: fieldDecoratorContext!.kind,
             name: fieldDecoratorContext!.name,
             private: fieldDecoratorContext!.private,
@@ -597,7 +597,7 @@ function ____exports.__main(self)
     TestClass = __TS__Decorate(TestClass, TestClass, {decorator}, {kind = "class", name = "TestClass"})
 end
 return ____exports`}},
-		{"class field decorator warns the return value is ignored", "function", `let fieldDecoratorContext: ClassFieldDecoratorContext | undefined;
+		{"class field decorator warns the return value is ignored", "function", `let fieldDecoratorContext;
 
         function fieldDecorator(_: undefined, context: ClassFieldDecoratorContext) {
             fieldDecoratorContext = context;
@@ -637,7 +637,7 @@ return ____exports`}},
 
         @decorator
         class TestClass {}`, nil, nil, nil, nil},
-		{"class field decorator warns the return value is ignored", "function", `let fieldDecoratorContext: ClassFieldDecoratorContext | undefined;
+		{"class field decorator warns the return value is ignored", "function", `let fieldDecoratorContext;
 
         function fieldDecorator(_: undefined, context: ClassFieldDecoratorContext) {
             fieldDecoratorContext = context;
@@ -683,7 +683,7 @@ return ____exports`}},
 
             @setNum(420)
             class TestClass {
-                public decoratorNum: any;
+                public decoratorNum?: number;
             }
 
             return new TestClass();`, `{decoratorNum = 420}`, WithOptions(map[string]any{"experimentalDecorators": true}))
@@ -706,8 +706,8 @@ return ____exports`}},
             @setTen
             @setNum
             class TestClass {
-                public decoratorTen: any;
-                public decoratorNum: any;
+                public decoratorTen?: number;
+                public decoratorNum?: number;
             }
 
             return new TestClass();`, `{decoratorNum = 410, decoratorTen = 10}`, WithOptions(map[string]any{"experimentalDecorators": true}))

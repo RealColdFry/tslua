@@ -65,7 +65,7 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"can await already resolved promise", `const result: number[] = [];
+		{"can await already resolved promise", `const result: unknown[] = [];
         async function abc() {
             return await Promise.resolve(30);
         }
@@ -98,7 +98,7 @@ function ____exports.__main(self)
     return result
 end
 return ____exports`, false, false},
-		{"can await already rejected promise", `const result: string[] = [];
+		{"can await already rejected promise", `const result: unknown[] = [];
         async function abc() {
             return await Promise.reject("test rejection");
         }
@@ -2094,7 +2094,7 @@ export function __main() {let resolve: (v: string) => void = () => {};
                 }
                 catch
                 {
-                    return "" as string;
+                    return "catch";
                 }
             }
 
@@ -2134,23 +2134,31 @@ function ____exports.__main(self)
     end
     local function receive(self)
         return __TS__AsyncAwaiter(function(____awaiter_resolve)
+            local ____hasReturned, ____returnValue
             local ____try = __TS__AsyncAwaiter(function()
-                return ____awaiter_resolve(
-                    nil,
-                    __TS__New(
-                        __TS__Promise,
-                        function(____, res)
-                            resolve = res
-                        end
-                    )
+                ____hasReturned = true
+                ____returnValue = __TS__New(
+                    __TS__Promise,
+                    function(____, res)
+                        resolve = res
+                    end
                 )
+                return
             end)
-            __TS__Await(____try.catch(
+            ____try = ____try.catch(
                 ____try,
                 function(____)
-                    return ____awaiter_resolve(nil, "")
+                    return __TS__AsyncAwaiter(function()
+                        ____hasReturned = true
+                        ____returnValue = "catch"
+                        return
+                    end)
                 end
-            ))
+            )
+            __TS__Await(____try)
+            if ____hasReturned then
+                return ____awaiter_resolve(nil, ____returnValue)
+            end
         end)
     end
     local ____self_0 = receive(nil)
@@ -2667,14 +2675,17 @@ function ____exports.__main(self)
                 ____returnValue = __TS__Await(deferredPromise(nil))
                 return
             end)
-            __TS__Await(____try.catch(
+            ____try = ____try.catch(
                 ____try,
                 function(____)
-                    ____hasReturned = true
-                    ____returnValue = "caught"
-                    return
+                    return __TS__AsyncAwaiter(function()
+                        ____hasReturned = true
+                        ____returnValue = "caught"
+                        return
+                    end)
                 end
-            ))
+            )
+            __TS__Await(____try)
             if ____hasReturned then
                 return ____awaiter_resolve(nil, ____returnValue)
             end
@@ -2776,14 +2787,17 @@ function ____exports.__main(self)
                     ____returnValue = __TS__Await(deferredPromise(nil))
                     return
                 end)
-                __TS__Await(____try.catch(
+                ____try = ____try.catch(
                     ____try,
                     function(____)
-                        ____hasReturned = true
-                        ____returnValue = "caught"
-                        return
+                        return __TS__AsyncAwaiter(function()
+                            ____hasReturned = true
+                            ____returnValue = "caught"
+                            return
+                        end)
                     end
-                ))
+                )
+                __TS__Await(____try)
                 if ____hasReturned then
                     return ____awaiter_resolve(nil, ____returnValue)
                 end
@@ -2883,14 +2897,17 @@ function ____exports.__main(self)
                 ____returnValue = __TS__Await(deferredPromise(nil))
                 return
             end)
-            __TS__Await(____try.catch(
+            ____try = ____try.catch(
                 ____try,
                 function(____, e)
-                    ____hasReturned = true
-                    ____returnValue = "caught: " .. tostring(e)
-                    return
+                    return __TS__AsyncAwaiter(function()
+                        ____hasReturned = true
+                        ____returnValue = "caught: " .. tostring(e)
+                        return
+                    end)
                 end
-            ))
+            )
+            __TS__Await(____try)
             if ____hasReturned then
                 return ____awaiter_resolve(nil, ____returnValue)
             end
@@ -2988,10 +3005,12 @@ function ____exports.__main(self)
                 ____returnValue = __TS__Await(deferredPromise(nil))
                 return
             end)
-            ____try.finally(
+            ____try = ____try.finally(
                 ____try,
                 function()
-                    log(nil, "finally")
+                    return __TS__AsyncAwaiter(function()
+                        log(nil, "finally")
+                    end)
                 end
             )
             __TS__Await(____try)
@@ -3017,49 +3036,49 @@ return ____exports`},
         }
 
         await a();
-        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100040}, nil},
+        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100039}, nil},
 		{"cannot await at top-level (\"const b = await a();\")", "module", `async function a() {
             return 42;
         }
 
         const b = await a();
-        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100040}, nil},
+        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100039}, nil},
 		{"cannot await at top-level (\"export const b = await a();\")", "module", `async function a() {
             return 42;
         }
 
         export const b = await a();
-        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100040}, nil},
+        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100039}, nil},
 		{"cannot await at top-level (\"declare function foo(n: number): number; foo(await a());\")", "module", `async function a() {
             return 42;
         }
 
         declare function foo(n: number): number; foo(await a());
-        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100040}, nil},
+        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100039}, nil},
 		{"cannot await at top-level (\"declare function foo(n: number): number; const b = foo(await a());\")", "module", `async function a() {
             return 42;
         }
 
         declare function foo(n: number): number; const b = foo(await a());
-        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100040}, nil},
+        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100039}, nil},
 		{"cannot await at top-level (\"const b = [await a()];\")", "module", `async function a() {
             return 42;
         }
 
         const b = [await a()];
-        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100040}, nil},
+        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100039}, nil},
 		{"cannot await at top-level (\"const b = [4, await a()];\")", "module", `async function a() {
             return 42;
         }
 
         const b = [4, await a()];
-        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100040}, nil},
+        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100039}, nil},
 		{"cannot await at top-level (\"const b = true ? 4 : await a();\")", "module", `async function a() {
             return 42;
         }
 
         const b = true ? 4 : await a();
-        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100040}, nil},
+        export {} // Required to make TS happy, cannot await without import/exports`, []int32{100039}, nil},
 	})
 
 	batchExpectDiagnostics(t, []diagTestCase{
@@ -3073,7 +3092,7 @@ return ____exports`},
             }
             foo().then(value => {
                 result = value;
-            });`, []int32{100029}, nil},
+            });`, []int32{100028}, nil},
 		{"await inside try/catch throws inside async function [5.0]", "module", `export let reason = "";
             async function foo(): Promise<number> {
                 try {
@@ -3084,9 +3103,9 @@ return ____exports`},
             }
             foo().catch(e => {
                 reason = e;
-            });`, []int32{100029}, nil},
+            });`, []int32{100028}, nil},
 		{"await inside try/catch deferred rejection uses catch clause [5.0]", "module", `export let reason = "";
-            let reject: (reason: string) => void = () => {};
+            let reject: (reason: string) => void = () => { throw "should be overridden!"; }
 
             async function foo(): Promise<number> {
                 try {
@@ -3098,7 +3117,7 @@ return ____exports`},
             foo().catch(e => {
                 reason = e;
             });
-            reject("test error");`, []int32{100029}, nil},
+            reject("test error");`, []int32{100028}, nil},
 		{"break inside try in async loop (#1706) [5.0]", "module", `export let result = "not set";
             async function fn(): Promise<void> {
                 while (true) {
@@ -3109,7 +3128,7 @@ return ____exports`},
                 }
                 result = "done";
             }
-            fn();`, []int32{100029}, nil},
+            fn();`, []int32{100028}, nil},
 		{"continue inside try in async loop (#1706) [5.0]", "module", `export const results: number[] = [];
             async function fn(): Promise<void> {
                 for (let i = 0; i < 3; i++) {
@@ -3120,7 +3139,7 @@ return ____exports`},
                     results.push(i);
                 }
             }
-            fn();`, []int32{100029}, nil},
+            fn();`, []int32{100028}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetLua50))
 
 	batchExpectDiagnostics(t, []diagTestCase{
@@ -3134,7 +3153,7 @@ return ____exports`},
             }
             foo().then(value => {
                 result = value;
-            });`, []int32{100029}, nil},
+            });`, []int32{100028}, nil},
 		{"await inside try/catch throws inside async function [5.1]", "module", `export let reason = "";
             async function foo(): Promise<number> {
                 try {
@@ -3145,9 +3164,9 @@ return ____exports`},
             }
             foo().catch(e => {
                 reason = e;
-            });`, []int32{100029}, nil},
+            });`, []int32{100028}, nil},
 		{"await inside try/catch deferred rejection uses catch clause [5.1]", "module", `export let reason = "";
-            let reject: (reason: string) => void = () => {};
+            let reject: (reason: string) => void = () => { throw "should be overridden!"; }
 
             async function foo(): Promise<number> {
                 try {
@@ -3159,7 +3178,7 @@ return ____exports`},
             foo().catch(e => {
                 reason = e;
             });
-            reject("test error");`, []int32{100029}, nil},
+            reject("test error");`, []int32{100028}, nil},
 		{"break inside try in async loop (#1706) [5.1]", "module", `export let result = "not set";
             async function fn(): Promise<void> {
                 while (true) {
@@ -3170,7 +3189,7 @@ return ____exports`},
                 }
                 result = "done";
             }
-            fn();`, []int32{100029}, nil},
+            fn();`, []int32{100028}, nil},
 		{"continue inside try in async loop (#1706) [5.1]", "module", `export const results: number[] = [];
             async function fn(): Promise<void> {
                 for (let i = 0; i < 3; i++) {
@@ -3181,7 +3200,7 @@ return ____exports`},
                     results.push(i);
                 }
             }
-            fn();`, []int32{100029}, nil},
+            fn();`, []int32{100028}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetLua51))
 
 	batchExpectDiagnostics(t, []diagTestCase{
@@ -3195,7 +3214,7 @@ return ____exports`},
             }
             foo().then(value => {
                 result = value;
-            });`, []int32{100029}, nil},
+            });`, []int32{100028}, nil},
 		{"await inside try/catch throws inside async function [universal]", "module", `export let reason = "";
             async function foo(): Promise<number> {
                 try {
@@ -3206,9 +3225,9 @@ return ____exports`},
             }
             foo().catch(e => {
                 reason = e;
-            });`, []int32{100029}, nil},
+            });`, []int32{100028}, nil},
 		{"await inside try/catch deferred rejection uses catch clause [universal]", "module", `export let reason = "";
-            let reject: (reason: string) => void = () => {};
+            let reject: (reason: string) => void = () => { throw "should be overridden!"; }
 
             async function foo(): Promise<number> {
                 try {
@@ -3220,7 +3239,7 @@ return ____exports`},
             foo().catch(e => {
                 reason = e;
             });
-            reject("test error");`, []int32{100029}, nil},
+            reject("test error");`, []int32{100028}, nil},
 		{"break inside try in async loop (#1706) [universal]", "module", `export let result = "not set";
             async function fn(): Promise<void> {
                 while (true) {
@@ -3231,7 +3250,7 @@ return ____exports`},
                 }
                 result = "done";
             }
-            fn();`, []int32{100029}, nil},
+            fn();`, []int32{100028}, nil},
 		{"continue inside try in async loop (#1706) [universal]", "module", `export const results: number[] = [];
             async function fn(): Promise<void> {
                 for (let i = 0; i < 3; i++) {
@@ -3242,7 +3261,7 @@ return ____exports`},
                     results.push(i);
                 }
             }
-            fn();`, []int32{100029}, nil},
+            fn();`, []int32{100028}, nil},
 	}, WithLuaTarget(transpiler.LuaTargetUniversal))
 
 	t.Run("can call async function at top-level", func(t *testing.T) {
@@ -3409,7 +3428,7 @@ return ____exports`},
 	t.Run("await inside try/catch deferred rejection uses catch clause [JIT]", func(t *testing.T) {
 		t.Parallel()
 		expectModule(t, `export let reason = "";
-            let reject: (reason: string) => void = () => {};
+            let reject: (reason: string) => void = () => { throw "should be overridden!"; }
 
             async function foo(): Promise<number> {
                 try {
@@ -3427,7 +3446,7 @@ return ____exports`},
 	t.Run("await inside try/catch deferred rejection uses catch clause [5.2]", func(t *testing.T) {
 		t.Parallel()
 		expectModule(t, `export let reason = "";
-            let reject: (reason: string) => void = () => {};
+            let reject: (reason: string) => void = () => { throw "should be overridden!"; }
 
             async function foo(): Promise<number> {
                 try {
@@ -3445,7 +3464,7 @@ return ____exports`},
 	t.Run("await inside try/catch deferred rejection uses catch clause [5.3]", func(t *testing.T) {
 		t.Parallel()
 		expectModule(t, `export let reason = "";
-            let reject: (reason: string) => void = () => {};
+            let reject: (reason: string) => void = () => { throw "should be overridden!"; }
 
             async function foo(): Promise<number> {
                 try {
@@ -3463,7 +3482,7 @@ return ____exports`},
 	t.Run("await inside try/catch deferred rejection uses catch clause [5.4]", func(t *testing.T) {
 		t.Parallel()
 		expectModule(t, `export let reason = "";
-            let reject: (reason: string) => void = () => {};
+            let reject: (reason: string) => void = () => { throw "should be overridden!"; }
 
             async function foo(): Promise<number> {
                 try {
@@ -3481,7 +3500,7 @@ return ____exports`},
 	t.Run("await inside try/catch deferred rejection uses catch clause [5.5]", func(t *testing.T) {
 		t.Parallel()
 		expectModule(t, `export let reason = "";
-            let reject: (reason: string) => void = () => {};
+            let reject: (reason: string) => void = () => { throw "should be overridden!"; }
 
             async function foo(): Promise<number> {
                 try {

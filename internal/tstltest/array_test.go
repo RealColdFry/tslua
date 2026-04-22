@@ -419,6 +419,11 @@ return ____exports`, false, false},
 		{"array.join without separator argument", `["test1", "test2"].join()`, `"test1,test2"`, `local ____exports = {}
 ____exports.__result = table.concat({"test1", "test2"}, ",")
 return ____exports`, false, false},
+		{"array.indexOf empty array", `([] as string[]).indexOf("test1")`, `-1`, `local ____lualib = require("lualib_bundle")
+local __TS__ArrayIndexOf = ____lualib.__TS__ArrayIndexOf
+local ____exports = {}
+____exports.__result = __TS__ArrayIndexOf({}, "test1")
+return ____exports`, false, false},
 		{"array.indexOf ({\"array\":[\"test1\"],\"args\":[\"test1\"]})", `["test1"].indexOf("test1")`, `0`, `local ____lualib = require("lualib_bundle")
 local __TS__ArrayIndexOf = ____lualib.__TS__ArrayIndexOf
 local ____exports = {}
@@ -448,11 +453,6 @@ return ____exports`, false, false},
 local __TS__ArrayIndexOf = ____lualib.__TS__ArrayIndexOf
 local ____exports = {}
 ____exports.__result = __TS__ArrayIndexOf({"test1", "test2", "test3"}, "test1", 12)
-return ____exports`, false, false},
-		{"array.indexOf empty array", `([] as string[]).indexOf("test1")`, `-1`, `local ____lualib = require("lualib_bundle")
-local __TS__ArrayIndexOf = ____lualib.__TS__ArrayIndexOf
-local ____exports = {}
-____exports.__result = __TS__ArrayIndexOf({}, "test1")
 return ____exports`, false, false},
 		{"array.flat ({\"array\":[[]]})", `[[]].flat(undefined)`, `{}`, `local ____lualib = require("lualib_bundle")
 local __TS__ArrayFlat = ____lualib.__TS__ArrayFlat
@@ -2611,11 +2611,11 @@ return ____exports`, false, false},
 	})
 
 	batchExpectDiagnostics(t, []diagTestCase{
-		{"not allowed to use null or undefined in array literals (\"[1, undefined, 3]\")", "expression", `[1, undefined, 3]`, []int32{100043}, nil},
-		{"not allowed to use null or undefined in array literals (\"[1, null, 3]\")", "expression", `[1, null, 3]`, []int32{100043}, nil},
-		{"not allowed to use null or undefined in array literals (\"[1, undefined, 2, null]\")", "expression", `[1, undefined, 2, null]`, []int32{100043}, nil},
-		{"not allowed to use null or undefined in array literals ([undefined, null, 1])", "expression", `[undefined, null, 1]`, []int32{100043, 100043}, nil},
-		{"new Array<T>(length)", "function", `const arr = new Array<string>(10);`, []int32{100048}, nil},
+		{"not allowed to use null or undefined in array literals (\"[1, undefined, 3]\")", "expression", `[1, undefined, 3]`, []int32{100042}, nil},
+		{"not allowed to use null or undefined in array literals (\"[1, null, 3]\")", "expression", `[1, null, 3]`, []int32{100042}, nil},
+		{"not allowed to use null or undefined in array literals (\"[1, undefined, 2, null]\")", "expression", `[1, undefined, 2, null]`, []int32{100042}, nil},
+		{"not allowed to use null or undefined in array literals ([undefined, null, 1])", "expression", `[undefined, null, 1]`, []int32{100042, 100042}, nil},
+		{"new Array<T>(length)", "function", `const arr = new Array<string>(10);`, []int32{100047}, nil},
 	})
 
 	t.Run("access derived array (.{\"member\":\"firstElement()\",\"expected\":3})", func(t *testing.T) {

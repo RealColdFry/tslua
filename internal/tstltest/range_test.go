@@ -8,37 +8,37 @@ func TestEval_Range(t *testing.T) {
 
 	batchExpectDiagnostics(t, []diagTestCase{
 		{"$range invalid control variable", "function", `let i: number;
-        for (i of $range(1, 5)) {}`, []int32{100023}, []string{`local ____exports = {}
+        for (i of $range(1, 5)) {}`, []int32{100022}, []string{`local ____exports = {}
 function ____exports.__main(self)
     local i
     for ____ = 1, 5 do
     end
 end
 return ____exports`}},
-		{"$range invalid use (\"for (const i in $range(1, 10, 2)) {}\")", "function", `for (const i in $range(1, 10, 2)) {}`, []int32{100021}, []string{`local ____exports = {}
+		{"$range invalid use (\"for (const i in $range(1, 10, 2)) {}\")", "function", `for (const i in $range(1, 10, 2)) {}`, []int32{100020}, []string{`local ____exports = {}
 function ____exports.__main(self)
     for i in pairs(____(nil, 1, 10, 2)) do
     end
 end
 return ____exports`}},
-		{"$range invalid use (\"const x = $range(1, 10);\")", "function", `const x = $range(1, 10);`, []int32{100021}, []string{`local ____exports = {}
+		{"$range invalid use (\"const x = $range(1, 10);\")", "function", `const x = $range(1, 10);`, []int32{100020}, []string{`local ____exports = {}
 function ____exports.__main(self)
     local x = ____(nil, 1, 10)
 end
 return ____exports`}},
-		{"$range invalid use (\"const range = $range;\")", "function", `const range = $range;`, []int32{100021}, []string{`local ____exports = {}
+		{"$range invalid use (\"const range = $range;\")", "function", `const range = $range;`, []int32{100020}, []string{`local ____exports = {}
 function ____exports.__main(self)
     local range = ____
 end
 return ____exports`}},
-		{"$range invalid use (\"const y = [...$range(1, 10)];\")", "function", `const y = [...$range(1, 10)];`, []int32{100021}, []string{`local ____lualib = require("lualib_bundle")
+		{"$range invalid use (\"const y = [...$range(1, 10)];\")", "function", `const y = [...$range(1, 10)];`, []int32{100020}, []string{`local ____lualib = require("lualib_bundle")
 local __TS__Spread = ____lualib.__TS__Spread
 local ____exports = {}
 function ____exports.__main(self)
     local y = {__TS__Spread(____(nil, 1, 10))}
 end
 return ____exports`}},
-		{"$range invalid use (\"for (const i of ($range(1, 10, 2))) {}\")", "function", `for (const i of ($range(1, 10, 2))) {}`, []int32{100021}, []string{`local ____lualib = require("lualib_bundle")
+		{"$range invalid use (\"for (const i of ($range(1, 10, 2))) {}\")", "function", `for (const i of ($range(1, 10, 2))) {}`, []int32{100020}, []string{`local ____lualib = require("lualib_bundle")
 local __TS__Iterator = ____lualib.__TS__Iterator
 local ____exports = {}
 function ____exports.__main(self)
@@ -46,7 +46,7 @@ function ____exports.__main(self)
     end
 end
 return ____exports`}},
-		{"$range invalid use (\"for (const i of $range(1, 10, 2) as number[]) {}\")", "function", `for (const i of $range(1, 10, 2) as number[]) {}`, []int32{100021}, []string{`local ____exports = {}
+		{"$range invalid use (\"for (const i of $range(1, 10, 2) as number[]) {}\")", "function", `for (const i of $range(1, 10, 2) as number[]) {}`, []int32{100020}, []string{`local ____exports = {}
 function ____exports.__main(self)
     for ____, i in ipairs(____(nil, 1, 10, 2)) do
     end

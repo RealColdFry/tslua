@@ -133,8 +133,8 @@ export const diagSnapshotSkips: Set<string> = new Set([
   // tslua's multi destructuring wrapping differs from TSTL
   "multi::invalid direct $multi function use (let a; [a] = $multi())",
   "multi::invalid $multi call (([a] = $multi(1)) => {})",
-  "multi::invalid direct $multi function use (let a; for ([a] = $multi(1, 2); false; 1) {})",
-  "multi::invalid direct $multi function use (let a; for (const [a] = $multi(1, 2); false; 1) {})",
+  "multi::invalid direct $multi function use (let a: any; for ([a] = $multi(1, 2); false; 1) {})",
+  "multi::invalid direct $multi function use (let a: any; for (const [a] = $multi(1, 2); false; 1) {})",
   // tslua uses table wrapping for non-numeric access differently
   "multi::disallow LuaMultiReturn non-numeric access",
   // tslua emits different diagnostic code for shorthand property with $multi

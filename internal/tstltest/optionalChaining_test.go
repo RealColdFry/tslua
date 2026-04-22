@@ -603,8 +603,8 @@ function ____exports.__main(self)
     return ____opt_0 and bar(1, 2)
 end
 return ____exports`, false, false},
-		{"optional chaining function calls builtins Array: undefined", `const value = undefined as any[] | undefined
-            return value?.map((x: any)=>x+1)`, `nil`, `local ____lualib = require("lualib_bundle")
+		{"optional chaining function calls builtins Array: undefined", `const value = undefined as any[] | undefined;
+            return value?.map(x=>x+1);`, `nil`, `local ____lualib = require("lualib_bundle")
 local __TS__ArrayMap = ____lualib.__TS__ArrayMap
 local ____exports = {}
 function ____exports.__main(self)
@@ -616,8 +616,8 @@ function ____exports.__main(self)
     )
 end
 return ____exports`, false, false},
-		{"optional chaining function calls builtins Array: \"[1, 2, 3, 4]\"", `const value = [1, 2, 3, 4] as any[] | undefined
-            return value?.map((x: any)=>x+1)`, `{2, 3, 4, 5}`, `local ____lualib = require("lualib_bundle")
+		{"optional chaining function calls builtins Array: \"[1, 2, 3, 4]\"", `const value = [1, 2, 3, 4] as any[] | undefined;
+            return value?.map(x=>x+1);`, `{2, 3, 4, 5}`, `local ____lualib = require("lualib_bundle")
 local __TS__ArrayMap = ____lualib.__TS__ArrayMap
 local ____exports = {}
 function ____exports.__main(self)
@@ -659,7 +659,7 @@ end
 return ____exports`, false, false},
 		{"optional delete delete on undefined", `const table = undefined as {
                 bar?: number
-            } | undefined
+            } | undefined;
             return [delete table?.bar, table ?? "nil"]`, `{true, "nil"}`, `local ____lualib = require("lualib_bundle")
 local __TS__Delete = ____lualib.__TS__Delete
 local ____exports = {}
@@ -875,7 +875,7 @@ function ____exports.__main(self)
 end
 return ____exports`},
 		{name: "unused result with preceding statements on right side", tsCode: `export function __main() {let i = 0
-        const obj = undefined as { foo(val: any): any } | undefined;
+        const obj = undefined as any;
         obj?.foo(i++);
         return i}`, refLua: `local ____exports = {}
 function ____exports.__main(self)
@@ -891,7 +891,7 @@ function ____exports.__main(self)
 end
 return ____exports`},
 		{name: "unused result with preceding statements on right side", tsCode: `export function __main() {let i = 0
-        const obj = { foo(val: any) {return val} } as { foo(val: any): any } | undefined;
+        const obj = { foo(val: any) {return val} } as any;
         obj?.foo(i++);
         return i}`, refLua: `local ____exports = {}
 function ____exports.__main(self)

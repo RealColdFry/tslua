@@ -8,44 +8,44 @@ func TestEval_Table(t *testing.T) {
 
 	batchExpectDiagnostics(t, []diagTestCase{
 		{"LuaTableGet & LuaTableSet extensions invalid use (\"const foo: unknown = getTable;\")", "module", `declare const getTable: LuaTableGet<{}, string, number>;
-            const foo: unknown = getTable;`, []int32{100036}, []string{`foo = getTable`}},
-		{"LuaTableGet & LuaTableSet extensions invalid use (\"const foo = `${getTable}`;\")", "module", "declare const getTable: LuaTableGet<{}, string, number>;\n            const foo = `${getTable}`;", []int32{100036}, nil},
+            const foo: unknown = getTable;`, []int32{100035}, []string{`foo = getTable`}},
+		{"LuaTableGet & LuaTableSet extensions invalid use (\"const foo = `${getTable}`;\")", "module", "declare const getTable: LuaTableGet<{}, string, number>;\n            const foo = `${getTable}`;", []int32{100035}, nil},
 		{"LuaTableGet & LuaTableSet extensions invalid use (\"declare function foo(getTable: LuaTableGet<{}, string, number>): void; foo(getTable);\")", "module", `declare const getTable: LuaTableGet<{}, string, number>;
-            declare function foo(getTable: LuaTableGet<{}, string, number>): void; foo(getTable);`, []int32{100036}, []string{`foo(_G, getTable)`}},
+            declare function foo(getTable: LuaTableGet<{}, string, number>): void; foo(getTable);`, []int32{100035}, []string{`foo(_G, getTable)`}},
 		{"LuaTableGet & LuaTableSet extensions invalid use (\"const foo = (getTable as any)(1, 2);\")", "module", `declare const getTable: LuaTableGet<{}, string, number>;
-            const foo = (getTable as any)(1, 2);`, []int32{100036}, []string{`foo = getTable(_G, 1, 2)`}},
+            const foo = (getTable as any)(1, 2);`, []int32{100035}, []string{`foo = getTable(_G, 1, 2)`}},
 		{"LuaTableGet & LuaTableSet extensions invalid use (\"const foo = [getTable];\")", "module", `declare const getTable: LuaTableGet<{}, string, number>;
-            const foo = [getTable];`, []int32{100036}, []string{`foo = {getTable}`}},
+            const foo = [getTable];`, []int32{100035}, []string{`foo = {getTable}`}},
 		{"LuaTableHas extension invalid use (\"const foo: unknown = tableHas;\")", "module", `declare const tableHas: LuaTableHas<{}, string>;
-            const foo: unknown = tableHas;`, []int32{100036}, []string{`foo = tableHas`}},
-		{"LuaTableHas extension invalid use (\"const foo = `${tableHas}`;\")", "module", "declare const tableHas: LuaTableHas<{}, string>;\n            const foo = `${tableHas}`;", []int32{100036}, nil},
+            const foo: unknown = tableHas;`, []int32{100035}, []string{`foo = tableHas`}},
+		{"LuaTableHas extension invalid use (\"const foo = `${tableHas}`;\")", "module", "declare const tableHas: LuaTableHas<{}, string>;\n            const foo = `${tableHas}`;", []int32{100035}, nil},
 		{"LuaTableHas extension invalid use (\"declare function foo(tableHas: LuaTableHas<{}, string>): void; foo(tableHas);\")", "module", `declare const tableHas: LuaTableHas<{}, string>;
-            declare function foo(tableHas: LuaTableHas<{}, string>): void; foo(tableHas);`, []int32{100036}, []string{`foo(_G, tableHas)`}},
+            declare function foo(tableHas: LuaTableHas<{}, string>): void; foo(tableHas);`, []int32{100035}, []string{`foo(_G, tableHas)`}},
 		{"LuaTableHas extension invalid use (\"const foo = (tableHas as any)(1, 2);\")", "module", `declare const tableHas: LuaTableHas<{}, string>;
-            const foo = (tableHas as any)(1, 2);`, []int32{100036}, []string{`foo = tableHas(_G, 1, 2)`}},
+            const foo = (tableHas as any)(1, 2);`, []int32{100035}, []string{`foo = tableHas(_G, 1, 2)`}},
 		{"LuaTableHas extension invalid use (\"const foo = [tableHas];\")", "module", `declare const tableHas: LuaTableHas<{}, string>;
-            const foo = [tableHas];`, []int32{100036}, []string{`foo = {tableHas}`}},
+            const foo = [tableHas];`, []int32{100035}, []string{`foo = {tableHas}`}},
 		{"LuaTableHas extension invalid use method assignment (\"LuaTable<string, number>\")", "module", `const table = new LuaTable<string, number>();
-                const has = table.has;`, []int32{100036}, []string{`____table = {}
+                const has = table.has;`, []int32{100035}, []string{`____table = {}
 has = ____table.has`}},
 		{"LuaTableHas extension invalid use method assignment (\"LuaMap<string, number>\")", "module", `const table = new LuaMap<string, number>();
-                const has = table.has;`, []int32{100036}, []string{`____table = {}
+                const has = table.has;`, []int32{100035}, []string{`____table = {}
 has = ____table.has`}},
 		{"LuaTableHas extension invalid use method assignment (\"LuaSet<string>\")", "module", `const table = new LuaSet<string>();
-                const has = table.has;`, []int32{100036}, []string{`____table = {}
+                const has = table.has;`, []int32{100035}, []string{`____table = {}
 has = ____table.has`}},
 		{"LuaTableHas extension invalid use method expression (\"LuaTable<string, number>\")", "module", `const table = new LuaTable<string, number>();
-                ["a", "b", "c"].map(table.has);`, []int32{100036}, []string{`local ____lualib = require("lualib_bundle")
+                ["a", "b", "c"].map(table.has);`, []int32{100035}, []string{`local ____lualib = require("lualib_bundle")
 local __TS__ArrayMap = ____lualib.__TS__ArrayMap
 ____table = {}
 __TS__ArrayMap({"a", "b", "c"}, ____table.has)`}},
 		{"LuaTableHas extension invalid use method expression (\"LuaMap<string, number>\")", "module", `const table = new LuaMap<string, number>();
-                ["a", "b", "c"].map(table.has);`, []int32{100036}, []string{`local ____lualib = require("lualib_bundle")
+                ["a", "b", "c"].map(table.has);`, []int32{100035}, []string{`local ____lualib = require("lualib_bundle")
 local __TS__ArrayMap = ____lualib.__TS__ArrayMap
 ____table = {}
 __TS__ArrayMap({"a", "b", "c"}, ____table.has)`}},
 		{"LuaTableHas extension invalid use method expression (\"LuaSet<string>\")", "module", `const table = new LuaSet<string>();
-                ["a", "b", "c"].map(table.has);`, []int32{100036}, []string{`local ____lualib = require("lualib_bundle")
+                ["a", "b", "c"].map(table.has);`, []int32{100035}, []string{`local ____lualib = require("lualib_bundle")
 local __TS__ArrayMap = ____lualib.__TS__ArrayMap
 ____table = {}
 __TS__ArrayMap({"a", "b", "c"}, ____table.has)`}},

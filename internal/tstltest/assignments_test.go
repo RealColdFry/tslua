@@ -2459,7 +2459,7 @@ function ____exports.__main(self)
     return {r = r, o = o, a = a}
 end
 return ____exports`, false, false},
-		{"local variable declaration referencing self indirectly", `let cb!: () => void;
+		{"local variable declaration referencing self indirectly", `let cb: () => void = () => { throw "Expecting this to be overwritten"; };
 
         function foo(newCb: () => void) {
             cb = newCb;
@@ -2473,7 +2473,9 @@ return ____exports`, false, false},
         cb();
         return bar;`, `"bar"`, `local ____exports = {}
 function ____exports.__main(self)
-    local cb
+    local function cb()
+        error("Expecting this to be overwritten", 0)
+    end
     local function foo(self, newCb)
         cb = newCb
         return "foo"
@@ -2489,7 +2491,7 @@ function ____exports.__main(self)
     return bar
 end
 return ____exports`, false, false},
-		{"local multiple variable declaration referencing self indirectly", `let cb!: () => void;
+		{"local multiple variable declaration referencing self indirectly", `let cb: () => void = () => { throw "Expecting this to be overwritten"; };
 
         function foo(newCb: () => void) {
             cb = newCb;
@@ -2503,7 +2505,9 @@ return ____exports`, false, false},
         cb();
         return bar;`, `"bar"`, `local ____exports = {}
 function ____exports.__main(self)
-    local cb
+    local function cb()
+        error("Expecting this to be overwritten", 0)
+    end
     local function foo(self, newCb)
         cb = newCb
         return {"a", "foo", "c"}
@@ -3134,12 +3138,12 @@ return ____exports`, extraFiles: map[string]string{"a.ts": `let foo = true;`}},
 	})
 
 	batchExpectDiagnostics(t, []diagTestCase{
-		{"var is disallowed var declaration", "function", `var foo = true;`, []int32{100032}, []string{`local ____exports = {}
+		{"var is disallowed var declaration", "function", `var foo = true;`, []int32{100031}, []string{`local ____exports = {}
 function ____exports.__main(self)
     local foo = true
 end
 return ____exports`}},
-		{"var is disallowed for loop", "function", `for (var foo = 0;;) {}`, []int32{100032}, []string{`local ____exports = {}
+		{"var is disallowed for loop", "function", `for (var foo = 0;;) {}`, []int32{100031}, []string{`local ____exports = {}
 function ____exports.__main(self)
     do
         local foo = 0
@@ -3148,13 +3152,13 @@ function ____exports.__main(self)
     end
 end
 return ____exports`}},
-		{"var is disallowed for...in loop", "function", `for (var foo in {}) {}`, []int32{100032}, []string{`local ____exports = {}
+		{"var is disallowed for...in loop", "function", `for (var foo in {}) {}`, []int32{100031}, []string{`local ____exports = {}
 function ____exports.__main(self)
     for foo in pairs({}) do
     end
 end
 return ____exports`}},
-		{"var is disallowed for...of loop", "function", `for (var foo of []) {}`, []int32{100032}, []string{`local ____exports = {}
+		{"var is disallowed for...of loop", "function", `for (var foo of []) {}`, []int32{100031}, []string{`local ____exports = {}
 function ____exports.__main(self)
     for ____, foo in ipairs({}) do
     end

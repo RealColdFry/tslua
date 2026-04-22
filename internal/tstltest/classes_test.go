@@ -1705,7 +1705,7 @@ return ____exports`},
             interface Connected extends I {}
             class Connected {}
 
-            declare function setmetatable(this: void, t: any, mt: any): any;
+            declare function setmetatable(this: void, t: any, mt: any): void;
             
             const A = {
                 foo() {

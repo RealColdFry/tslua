@@ -20,7 +20,7 @@ return ____exports`, false, false},
 	})
 
 	batchExpectDiagnostics(t, []diagTestCase{
-		{"Unknown builtin property access", "expression", `Math.unknownProperty`, []int32{100030}, []string{`local ____exports = {}
+		{"Unknown builtin property access", "expression", `Math.unknownProperty`, []int32{100029}, []string{`local ____exports = {}
 ____exports.__result = Math.unknownProperty
 return ____exports`}},
 	})
