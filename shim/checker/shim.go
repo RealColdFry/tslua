@@ -811,7 +811,6 @@ const ObjectFlagsCouldContainTypeVariables = checker.ObjectFlagsCouldContainType
 const ObjectFlagsCouldContainTypeVariablesComputed = checker.ObjectFlagsCouldContainTypeVariablesComputed
 const ObjectFlagsEvolvingArray = checker.ObjectFlagsEvolvingArray
 const ObjectFlagsFreshLiteral = checker.ObjectFlagsFreshLiteral
-const ObjectFlagsFromTypeNode = checker.ObjectFlagsFromTypeNode
 const ObjectFlagsIdenticalBaseTypeCalculated = checker.ObjectFlagsIdenticalBaseTypeCalculated
 const ObjectFlagsIdenticalBaseTypeExists = checker.ObjectFlagsIdenticalBaseTypeExists
 const ObjectFlagsInstantiated = checker.ObjectFlagsInstantiated
