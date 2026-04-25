@@ -43,7 +43,7 @@ func NewCompilerHost(currentDirectory string, fs vfs.FS, defaultLibraryPath stri
 func NewProgram(opts compiler.ProgramOptions) *compiler.Program
 type Program = compiler.Program
 //go:linkname Program_UpdateProgram github.com/microsoft/typescript-go/internal/compiler.(*Program).UpdateProgram
-func Program_UpdateProgram(recv *compiler.Program, changedFilePath tspath.Path, newHost compiler.CompilerHost) (*compiler.Program, bool)
+func Program_UpdateProgram(recv *compiler.Program, changedFilePath tspath.Path, newHost compiler.CompilerHost, createCheckerPool func(*compiler.Program) compiler.CheckerPool) (*compiler.Program, bool)
 //go:linkname Program_ForEachCheckerParallel github.com/microsoft/typescript-go/internal/compiler.(*Program).ForEachCheckerParallel
 func Program_ForEachCheckerParallel(recv *compiler.Program, cb func(idx int, c *checker.Checker))
 //go:linkname Program_GetSyntacticDiagnostics github.com/microsoft/typescript-go/internal/compiler.(*Program).GetSyntacticDiagnostics

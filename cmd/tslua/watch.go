@@ -133,6 +133,7 @@ func runWatch(cfg *buildConfig, host compiler.CompilerHost) error {
 				program,
 				tspath.Path(tspath.ToPath(changedPath, "", false)),
 				newHost,
+				nil,
 			)
 			if ok {
 				updatedProgram.BindSourceFiles()

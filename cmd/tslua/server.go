@@ -307,7 +307,7 @@ func handleInlineRequest(req serverRequest, luaTarget transpiler.LuaTarget) serv
 		configDir := tspath.GetDirectoryPath(tspath.ResolvePath("", filepath.Join(projectDir, "tsconfig.json")))
 		newHost := compiler.NewCompilerHost(configDir, fs, bundled.LibPath(), nil, nil)
 
-		updatedProgram, reused := compiler.Program_UpdateProgram(inlineOldProgram, inlineMainPath, newHost)
+		updatedProgram, reused := compiler.Program_UpdateProgram(inlineOldProgram, inlineMainPath, newHost, nil)
 
 		t2 := time.Now()
 
