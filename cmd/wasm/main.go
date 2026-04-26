@@ -68,6 +68,7 @@ func (m *memFS) ReadFile(path string) (string, bool) {
 }
 
 func (m *memFS) WriteFile(string, string) error             { return fmt.Errorf("read-only") }
+func (m *memFS) AppendFile(string, string) error            { return fmt.Errorf("read-only") }
 func (m *memFS) Remove(string) error                        { return fmt.Errorf("read-only") }
 func (m *memFS) Chtimes(string, time.Time, time.Time) error { return fmt.Errorf("read-only") }
 
