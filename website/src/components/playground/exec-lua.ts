@@ -67,6 +67,12 @@ function killWorker() {
 
 export function execLua(code: string, target: string, lualib?: string): Promise<DualExecResult> {
   return new Promise((resolve) => {
+    // Preempt any in-flight or queued exec: terminate and respawn so the new
+    // request can't get stuck behind a runaway loop. killWorker resolves all
+    // prior pending with a timeout result; the main thread's epoch check
+    // discards those stale results.
+    if (pending.size > 0) killWorker();
+
     const id = nextId++;
     const timer = setTimeout(() => {
       killWorker();

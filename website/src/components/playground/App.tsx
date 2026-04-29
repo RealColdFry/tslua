@@ -454,7 +454,7 @@ function PlaygroundApp() {
       execDebounceRef.current = setTimeout(() => {
         if (!isCurrent()) return;
         runExecution(epoch, code, result.lua, tgt, result.lualibBundle);
-      }, 500);
+      }, 100);
     },
     [loading, runExecution, setTsluaMarkers, syncMonacoOptions],
   );

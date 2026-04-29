@@ -2,10 +2,7 @@
 // All transpile work runs off-main-thread; this module only sends messages
 // and resolves promises with results.
 
-import type {
-  TranspileWorkerMessage,
-  TranspileWorkerResponse,
-} from "./wasm-worker";
+import type { TranspileWorkerMessage, TranspileWorkerResponse } from "./wasm-worker";
 
 export interface WasmDiagnostic {
   startLine: number; // 1-based
