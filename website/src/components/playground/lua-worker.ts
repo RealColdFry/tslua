@@ -68,9 +68,25 @@ const createLauxLibTyped = createLauxLib as (
 ) => LauxLib;
 const createLuaLibTyped = createLuaLib as (glue: LuaEmscriptenModule, semver: string) => LuaStdLib;
 
+export interface MemoryStats {
+  // KB allocated by user code, net of baseline (lualib + setup overhead).
+  // Computed from collectgarbage("count") deltas.
+  allocatedKb: number;
+  // KB still live after a forced full GC, net of baseline. Closer to "leak".
+  retainedKb: number;
+  // Total Lua heap KB at end of user code, before forced GC.
+  heapKb: number;
+  // Wall-clock ms spent in the forced full GC after user code.
+  gcMs: number;
+  // Total WASM linear memory committed for the Lua interpreter, in MB.
+  // Monotonic across the lifetime of the worker.
+  wasmHeapMb: number;
+}
+
 interface ExecResult {
   output: string[];
   error: string | null;
+  memory?: MemoryStats | undefined;
 }
 
 // --- Pretty print preambles ---
@@ -206,6 +222,7 @@ interface LuaModule {
   lua: LuaLib;
   lauxlib: LauxLib;
   lualib: LuaStdLib;
+  glue: LuaEmscriptenModule;
 }
 
 const moduleCache = new Map<string, LuaModule>();
@@ -238,7 +255,7 @@ async function getLuaModule(version: string): Promise<LuaModule> {
   const lauxlib = createLauxLibTyped(luaGlue, lua, ver.semver);
   const lualib = createLuaLibTyped(luaGlue, ver.semver);
 
-  const mod: LuaModule = { lua, lauxlib, lualib };
+  const mod: LuaModule = { lua, lauxlib, lualib, glue: luaGlue };
   moduleCache.set(version, mod);
   return mod;
 }
@@ -263,12 +280,26 @@ function formatError(raw: string | null): string {
     .replace(/\t/g, TRACEBACK_INDENT);
 }
 
+// `lua_tonumber` isn't in the lua-wasm-bindings surface for any version, but
+// `lua_tostring` is. We coerce the global to its string repr via Lua, then
+// parseFloat on the JS side. Setting the global from a `tostring(...)` call
+// in Lua avoids the in-place coerce semantics of older Lua's lua_tostring.
+function readGlobalNumber(lua: LuaLib, L: LuaState, name: string): number {
+  lua.lua_getglobal(L, name);
+  const s = lua.lua_tostring(L, -1);
+  lua.lua_pop(L, 1);
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function runOnce(
+  glue: LuaEmscriptenModule,
   lua: LuaLib,
   lauxlib: LauxLib,
   lualib: LuaStdLib,
   setupChunks: string[],
   code: string,
+  withMemory: boolean,
 ): ExecResult {
   currentOutput = [];
   try {
@@ -284,6 +315,18 @@ function runOnce(
         lua.lua_close(L);
         return { output: [...currentOutput], error: formatError(errMsg) };
       }
+    }
+
+    // Sample baseline heap after setup so lualib/middleclass overhead doesn't
+    // count as "user-allocated". Force a collect first so the baseline is
+    // settled and not inflated by transient setup garbage.
+    let baselineKb = 0;
+    if (withMemory) {
+      lauxlib.luaL_dostring(
+        L,
+        'collectgarbage("collect"); __tslua_baseline = tostring(collectgarbage("count"))',
+      );
+      baselineKb = readGlobalNumber(lua, L, "__tslua_baseline");
     }
 
     // Push `debug.traceback` as the message handler so errors come back with
@@ -307,8 +350,26 @@ function runOnce(
       return { output: [...currentOutput], error: formatError(errMsg) };
     }
 
+    let memory: MemoryStats | undefined;
+    if (withMemory) {
+      lauxlib.luaL_dostring(L, '__tslua_after = tostring(collectgarbage("count"))');
+      const afterKb = readGlobalNumber(lua, L, "__tslua_after");
+      const t0 = performance.now();
+      lauxlib.luaL_dostring(L, 'collectgarbage("collect")');
+      const gcMs = performance.now() - t0;
+      lauxlib.luaL_dostring(L, '__tslua_retained = tostring(collectgarbage("count"))');
+      const retainedKb = readGlobalNumber(lua, L, "__tslua_retained");
+      memory = {
+        allocatedKb: Math.max(0, afterKb - baselineKb),
+        retainedKb: Math.max(0, retainedKb - baselineKb),
+        heapKb: afterKb,
+        gcMs,
+        wasmHeapMb: (glue as unknown as { HEAPU8: Uint8Array }).HEAPU8.byteLength / 1048576,
+      };
+    }
+
     lua.lua_close(L);
-    return { output: [...currentOutput], error: null };
+    return { output: [...currentOutput], error: null, memory };
   } catch (e) {
     return { output: [...currentOutput], error: String(e) };
   }
@@ -373,15 +434,25 @@ self.addEventListener("message", async (e: MessageEvent<LuaWorkerRequest>) => {
   const version = TARGET_TO_VERSION[target] ?? "5.4";
 
   try {
-    const { lua, lauxlib, lualib } = await getLuaModule(version);
+    const { lua, lauxlib, lualib, glue } = await getLuaModule(version);
     const setup: string[] = [];
     if (lualibBundle) setup.push(buildLualibPrelude(lualibBundle));
     // Always register middleclass — cost is ~6KB of Lua source parsed once per
     // run, trivial next to the Lua WASM binary itself. User code that doesn't
     // use middleclass style simply never calls require("middleclass").
     setup.push(buildMiddleclassPrelude(middleclassSource));
-    const raw = runOnce(lua, lauxlib, lualib, setup, code);
-    const pretty = runOnce(lua, lauxlib, lualib, [...setup, getPreamble(target)], code);
+    // Memory stats only on the raw run; the pretty preamble allocates its own
+    // formatting tables and would skew the user-visible numbers.
+    const raw = runOnce(glue, lua, lauxlib, lualib, setup, code, true);
+    const pretty = runOnce(
+      glue,
+      lua,
+      lauxlib,
+      lualib,
+      [...setup, getPreamble(target)],
+      code,
+      false,
+    );
     self.postMessage({ id, raw, pretty } satisfies LuaWorkerResponse);
   } catch (err) {
     const errResult: ExecResult = { output: [], error: String(err) };

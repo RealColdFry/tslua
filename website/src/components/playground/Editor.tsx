@@ -56,14 +56,14 @@ export function Editor({
           renderValidationDecorations: "on",
           fixedOverflowWidgets: true,
           minimap: { enabled: false },
-          fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-          fontSize: 14,
+          fontFamily: 'ui-monospace, Menlo, Consolas, "Liberation Mono", monospace',
+          fontSize: 13,
           lineNumbers: "on",
           scrollBeyondLastLine: false,
           automaticLayout: true,
           tabSize: 2,
           wordWrap: "on",
-          padding: { top: 12 },
+          padding: { top: 6 },
         }}
       />
     </div>

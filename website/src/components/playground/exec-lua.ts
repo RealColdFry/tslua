@@ -1,11 +1,14 @@
 // Main-thread wrapper for the Lua execution Web Worker.
 // Handles message passing, timeouts, and worker respawning.
 
-import type { LuaWorkerRequest, LuaWorkerResponse } from "./lua-worker";
+import type { LuaWorkerRequest, LuaWorkerResponse, MemoryStats } from "./lua-worker";
+
+export type { MemoryStats } from "./lua-worker";
 
 export interface ExecResult {
   output: string[];
   error: string | null;
+  memory?: MemoryStats | undefined;
 }
 
 export interface DualExecResult {
@@ -22,14 +25,36 @@ const pending = new Map<
   { resolve: (r: DualExecResult) => void; timer: ReturnType<typeof setTimeout> }
 >();
 
+function coerceMemory(v: unknown): MemoryStats | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const m = v as Partial<MemoryStats>;
+  if (
+    typeof m.allocatedKb !== "number" ||
+    typeof m.retainedKb !== "number" ||
+    typeof m.heapKb !== "number" ||
+    typeof m.gcMs !== "number" ||
+    typeof m.wasmHeapMb !== "number"
+  ) {
+    return undefined;
+  }
+  return {
+    allocatedKb: m.allocatedKb,
+    retainedKb: m.retainedKb,
+    heapKb: m.heapKb,
+    gcMs: m.gcMs,
+    wasmHeapMb: m.wasmHeapMb,
+  };
+}
+
 function coerceExecResult(data: unknown): ExecResult {
   if (typeof data !== "object" || data === null) {
     return { output: [], error: "Invalid worker response" };
   }
-  const d = data as { output?: unknown; error?: unknown };
+  const d = data as { output?: unknown; error?: unknown; memory?: unknown };
   const output = Array.isArray(d.output) ? d.output.map((v) => String(v)) : [];
   const error = typeof d.error === "string" ? d.error : d.error == null ? null : String(d.error);
-  return { output, error };
+  const memory = coerceMemory(d.memory);
+  return memory ? { output, error, memory } : { output, error };
 }
 
 function getWorker(): Worker {
