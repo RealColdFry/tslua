@@ -437,7 +437,7 @@ function PlaygroundApp() {
       if (!isCurrent()) return;
       const t0 = performance.now();
       const lib = [(cfg.compilerOptions?.target as string) || "ESNext"];
-      const result = transpile(code, {
+      const result = await transpile(code, {
         compilerOptions: { ...cfg.compilerOptions, lib },
         extraFiles,
         ...(cfg.tstl ? { tstl: cfg.tstl } : {}),
@@ -454,7 +454,7 @@ function PlaygroundApp() {
       execDebounceRef.current = setTimeout(() => {
         if (!isCurrent()) return;
         runExecution(epoch, code, result.lua, tgt, result.lualibBundle);
-      }, 500);
+      }, 100);
     },
     [loading, runExecution, setTsluaMarkers, syncMonacoOptions],
   );
@@ -476,7 +476,7 @@ function PlaygroundApp() {
       setStaleJs(true);
       setStaleLuaEval(true);
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => doTranspile(value, tsconfigRef.current), 300);
+      debounceRef.current = setTimeout(() => doTranspile(value, tsconfigRef.current), 60);
     },
     [doTranspile, setPgState],
   );

@@ -1,12 +1,8 @@
-import wasmUrl from "../../assets/wasm/tslua.wasm?url";
-import wasmExecUrl from "../../assets/wasm/wasm_exec.js?url";
+// Main-thread proxy for the tslua WASM transpile worker.
+// All transpile work runs off-main-thread; this module only sends messages
+// and resolves promises with results.
 
-declare class Go {
-  importObject: WebAssembly.Imports;
-  run(instance: WebAssembly.Instance): void;
-}
-
-declare function tslua_transpile(code: string, optionsJson: string): unknown;
+import type { TranspileWorkerMessage, TranspileWorkerResponse } from "./wasm-worker";
 
 export interface WasmDiagnostic {
   startLine: number; // 1-based
@@ -32,22 +28,6 @@ export interface TsluaOptions {
   };
 }
 
-let ready = false;
-let initPromise: Promise<void> | null = null;
-
-export function loadWasm(): Promise<void> {
-  if (initPromise) return initPromise;
-  initPromise = (async () => {
-    // wasm_exec.js defines the Go class globally
-    await loadScript(wasmExecUrl);
-    const go = new Go();
-    const result = await WebAssembly.instantiateStreaming(fetch(wasmUrl), go.importObject);
-    go.run(result.instance);
-    ready = true;
-  })();
-  return initPromise;
-}
-
 export interface TranspileResult {
   lua: string;
   lualibBundle: string;
@@ -55,44 +35,56 @@ export interface TranspileResult {
   diagnostics: WasmDiagnostic[];
 }
 
-export function transpile(code: string, options: TsluaOptions): TranspileResult {
-  if (!ready) return { lua: "", lualibBundle: "", errors: ["WASM not loaded"], diagnostics: [] };
+let worker: Worker | null = null;
+let loadPromise: Promise<void> | null = null;
+let nextId = 0;
+const pending = new Map<number, (r: TranspileResult) => void>();
 
-  const raw = tslua_transpile(code, JSON.stringify(options)) as
-    | { lua?: unknown; lualibBundle?: unknown; errors?: unknown; diagnostics?: unknown }
-    | null
-    | undefined;
-  if (!raw || typeof raw !== "object") {
-    return {
-      lua: "",
-      lualibBundle: "",
-      errors: ["WASM returned invalid result"],
-      diagnostics: [],
+function getWorker(): Worker {
+  if (worker) return worker;
+  worker = new Worker(new URL("./wasm-worker.ts", import.meta.url), { type: "module" });
+  worker.addEventListener("message", (e: MessageEvent<TranspileWorkerResponse>) => {
+    const msg = e.data;
+    if (msg.type === "result") {
+      const cb = pending.get(msg.id);
+      if (cb) {
+        pending.delete(msg.id);
+        cb(msg.result);
+      }
+    }
+  });
+  return worker;
+}
+
+export function loadWasm(): Promise<void> {
+  if (loadPromise) return loadPromise;
+  loadPromise = new Promise<void>((resolve, reject) => {
+    const w = getWorker();
+    const onMsg = (e: MessageEvent<TranspileWorkerResponse>) => {
+      const msg = e.data;
+      if (msg.type === "ready") {
+        w.removeEventListener("message", onMsg);
+        resolve();
+      } else if (msg.type === "init-error") {
+        w.removeEventListener("message", onMsg);
+        reject(new Error(msg.message));
+      }
     };
-  }
-  const lua = typeof raw.lua === "string" ? raw.lua : "";
-  const lualibBundle = typeof raw.lualibBundle === "string" ? raw.lualibBundle : "";
-  const errors = isArrayLike(raw.errors)
-    ? Array.from(raw.errors as ArrayLike<unknown>, (v) => String(v))
-    : [];
-  const diagnostics = isArrayLike(raw.diagnostics)
-    ? Array.from(raw.diagnostics as ArrayLike<WasmDiagnostic>)
-    : [];
-  return { lua, lualibBundle, errors, diagnostics };
+    w.addEventListener("message", onMsg);
+    w.postMessage({ type: "init" } satisfies TranspileWorkerMessage);
+  });
+  return loadPromise;
 }
 
-function isArrayLike(v: unknown): v is ArrayLike<unknown> {
-  return (
-    v != null && typeof v === "object" && typeof (v as { length?: unknown }).length === "number"
-  );
-}
-
-function loadScript(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = src;
-    script.addEventListener("load", () => resolve());
-    script.addEventListener("error", reject);
-    document.head.appendChild(script);
+export function transpile(code: string, options: TsluaOptions): Promise<TranspileResult> {
+  return new Promise((resolve) => {
+    const id = nextId++;
+    pending.set(id, resolve);
+    getWorker().postMessage({
+      type: "transpile",
+      id,
+      code,
+      options,
+    } satisfies TranspileWorkerMessage);
   });
 }
