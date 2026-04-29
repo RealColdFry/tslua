@@ -88,6 +88,9 @@ import { CONSOLE_DTS, langExtDts, getLuaTypesDts, AVAILABLE_TYPES } from "./buil
 
 const EMPTY_EXEC: ExecResult = { output: [], error: null };
 
+const DEFAULT_COL_PCT = 50;
+const DEFAULT_ROW_PCT = 70;
+
 if (typeof window !== "undefined") {
   loader.init().then((monaco) => {
     monaco.languages.register({ id: "lua" });
@@ -207,8 +210,9 @@ function PlaygroundApp() {
       if (execDebounceRef.current) clearTimeout(execDebounceRef.current);
     };
   }, []);
-  const [colPct, setColPct] = useState(50);
-  const [rowPct, setRowPct] = useState(60);
+  const [colPct, setColPct] = useState(DEFAULT_COL_PCT);
+  const [rowPct, setRowPct] = useState(DEFAULT_ROW_PCT);
+  const [dragging, setDragging] = useState<"col" | "row" | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   const startDrag = useCallback((axis: "col" | "row", e: React.MouseEvent) => {
@@ -230,15 +234,23 @@ function PlaygroundApp() {
       document.removeEventListener("mouseup", onUp);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
+      setDragging(null);
     };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
     document.body.style.cursor = axis === "col" ? "col-resize" : "row-resize";
     document.body.style.userSelect = "none";
+    setDragging(axis);
   }, []);
 
   const onColDrag = useCallback((e: React.MouseEvent) => startDrag("col", e), [startDrag]);
   const onRowDrag = useCallback((e: React.MouseEvent) => startDrag("row", e), [startDrag]);
+  const onColReset = useCallback(() => setColPct(DEFAULT_COL_PCT), []);
+  const onRowReset = useCallback(() => setRowPct(DEFAULT_ROW_PCT), []);
+  const onCenterReset = useCallback(() => {
+    setColPct(DEFAULT_COL_PCT);
+    setRowPct(DEFAULT_ROW_PCT);
+  }, []);
 
   useEffect(() => {
     loadWasm()
@@ -718,6 +730,7 @@ function PlaygroundApp() {
             output={luaPretty ? luaDualResult.pretty.output : luaDualResult.raw.output}
             error={luaPretty ? luaDualResult.pretty.error : luaDualResult.raw.error}
             timeMs={luaEvalMs}
+            memory={luaDualResult.raw.memory}
             toggle={luaPretty}
             onToggle={() => setLuaPretty((v) => !v)}
           />
@@ -740,6 +753,7 @@ function PlaygroundApp() {
         <div
           ref={gridRef}
           className="pg-grid"
+          data-dragging={dragging ?? undefined}
           style={{
             gridTemplateColumns: `${colPct}% 6px 1fr`,
             gridTemplateRows: `${rowPct}% 6px 1fr`,
@@ -778,7 +792,11 @@ function PlaygroundApp() {
             </div>
           </div>
 
-          <div className="pg-divider pg-divider-col" onMouseDown={onColDrag} />
+          <div
+            className="pg-divider pg-divider-col"
+            onMouseDown={onColDrag}
+            onDoubleClick={onColReset}
+          />
 
           {/* Top-right: Lua output */}
           <div className="pg-cell">
@@ -786,7 +804,9 @@ function PlaygroundApp() {
               <span>Lua</span>
               {staleLua && <span className="pg-stale" />}
               {transpileMs !== null && (
-                <span className="pg-timing">{transpileMs.toFixed(1)}ms</span>
+                <span className="pg-timing">
+                  <span className="pg-stat-value">{transpileMs.toFixed(1)}</span> ms
+                </span>
               )}
             </div>
             <div className="pg-cell-content">
@@ -803,9 +823,17 @@ function PlaygroundApp() {
             </div>
           </div>
 
-          <div className="pg-divider pg-divider-row" onMouseDown={onRowDrag} />
-          <div className="pg-divider-center" />
-          <div className="pg-divider pg-divider-row" onMouseDown={onRowDrag} />
+          <div
+            className="pg-divider pg-divider-row"
+            onMouseDown={onRowDrag}
+            onDoubleClick={onRowReset}
+          />
+          <div className="pg-divider-center" onDoubleClick={onCenterReset} />
+          <div
+            className="pg-divider pg-divider-row"
+            onMouseDown={onRowDrag}
+            onDoubleClick={onRowReset}
+          />
 
           {/* Bottom-left: JS eval */}
           <div className="pg-cell-overflow">
@@ -818,7 +846,11 @@ function PlaygroundApp() {
             />
           </div>
 
-          <div className="pg-divider pg-divider-col" onMouseDown={onColDrag} />
+          <div
+            className="pg-divider pg-divider-col"
+            onMouseDown={onColDrag}
+            onDoubleClick={onColReset}
+          />
 
           {/* Bottom-right: Lua eval */}
           <div className="pg-cell-overflow">
@@ -827,6 +859,7 @@ function PlaygroundApp() {
               output={luaPretty ? luaDualResult.pretty.output : luaDualResult.raw.output}
               error={luaPretty ? luaDualResult.pretty.error : luaDualResult.raw.error}
               timeMs={luaEvalMs}
+              memory={luaDualResult.raw.memory}
               toggle={luaPretty}
               onToggle={() => setLuaPretty((v) => !v)}
               stale={staleLuaEval}
