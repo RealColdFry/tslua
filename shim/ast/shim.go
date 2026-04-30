@@ -190,18 +190,12 @@ type DeleteExpression = ast.DeleteExpression
 type DeleteExpressionNode = ast.DeleteExpressionNode
 type DestructuringAssignment = ast.DestructuringAssignment
 type Diagnostic = ast.Diagnostic
-//go:linkname Diagnostic_File github.com/microsoft/typescript-go/internal/ast.(*Diagnostic).File
-func Diagnostic_File(recv *ast.Diagnostic) *ast.SourceFile
-//go:linkname Diagnostic_Loc github.com/microsoft/typescript-go/internal/ast.(*Diagnostic).Loc
-func Diagnostic_Loc(recv *ast.Diagnostic) core.TextRange
 //go:linkname Diagnostic_Code github.com/microsoft/typescript-go/internal/ast.(*Diagnostic).Code
 func Diagnostic_Code(recv *ast.Diagnostic) int32
 //go:linkname Diagnostic_Category github.com/microsoft/typescript-go/internal/ast.(*Diagnostic).Category
 func Diagnostic_Category(recv *ast.Diagnostic) diagnostics.Category
 //go:linkname Diagnostic_MessageKey github.com/microsoft/typescript-go/internal/ast.(*Diagnostic).MessageKey
 func Diagnostic_MessageKey(recv *ast.Diagnostic) diagnostics.Key
-//go:linkname Diagnostic_MessageArgs github.com/microsoft/typescript-go/internal/ast.(*Diagnostic).MessageArgs
-func Diagnostic_MessageArgs(recv *ast.Diagnostic) []string
 //go:linkname Diagnostic_Localize github.com/microsoft/typescript-go/internal/ast.(*Diagnostic).Localize
 func Diagnostic_Localize(recv *ast.Diagnostic, locale locale.Locale) string
 type DiagnosticsCollection = ast.DiagnosticsCollection
@@ -2169,8 +2163,6 @@ func NewNodeVisitor(visit func(node *ast.Node) *ast.Node, factory *ast.NodeFacto
 type NoSubstitutionTemplateLiteral = ast.NoSubstitutionTemplateLiteral
 type NoSubstitutionTemplateLiteralNode = ast.NoSubstitutionTemplateLiteralNode
 type Node = ast.Node
-//go:linkname Node_Type github.com/microsoft/typescript-go/internal/ast.(*Node).Type
-func Node_Type(recv *ast.Node) *ast.Node
 type NodeBase = ast.NodeBase
 type NodeBody = ast.NodeBody
 //go:linkname NodeCanBeDecorated github.com/microsoft/typescript-go/internal/ast.NodeCanBeDecorated
