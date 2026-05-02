@@ -183,6 +183,6 @@ jobs:
       - name: oxlint
         run: npx oxlint scripts/ website/
 
-      - name: Check playground preludes on every Lua target
+      - name: Website tests
         working-directory: website
-        run: node --import tsx scripts/check-playground-preludes.ts
+        run: npm test

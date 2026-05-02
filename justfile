@@ -101,13 +101,10 @@ lint:
     npm run typecheck
     cd website && npx astro check
     npx oxlint scripts/ website/
-    just check-playground-preludes
 
-# Exercise the playground worker's setup chunks on every supported Lua target
-# using the real lua-wasm-bindings build the playground itself uses. Requires
-# website's node_modules (run `cd website && npm ci` first).
-check-playground-preludes:
-    cd website && node --import tsx scripts/check-playground-preludes.ts
+# Run website unit tests (vitest)
+website-test:
+    cd website && npm test
 
 # Migrate TSTL spec file(s) to Go tests
 # Usage: just migrate extern/tstl/test/unit/builtins/math.spec.ts
