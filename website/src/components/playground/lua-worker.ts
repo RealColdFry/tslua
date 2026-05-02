@@ -9,6 +9,8 @@
 import { createLua, createLauxLib, createLuaLib } from "lua-wasm-bindings/dist/binding-factory";
 import type { LuaEmscriptenModule } from "lua-wasm-bindings/dist/glue/glue";
 
+import { buildLualibPrelude, buildMiddleclassPrelude, TARGET_TO_VERSION } from "./lua-preludes";
+
 // Middleclass library source, copied into assets/wasm/ by `just wasm`
 // alongside the tslua WASM binary. Inlined at build time via vite's ?raw
 // so the worker always has the module available to register under
@@ -189,17 +191,6 @@ function getPreamble(target: string): string {
 }
 
 // --- WASM module management ---
-
-const TARGET_TO_VERSION: Record<string, string> = {
-  JIT: "5.1",
-  "5.0": "5.0",
-  "5.1": "5.1",
-  "5.2": "5.2",
-  "5.3": "5.3",
-  "5.4": "5.4",
-  "5.5": "5.5",
-  universal: "5.4",
-};
 
 interface VersionInfo {
   factory: GlueFactory | { default: GlueFactory };
@@ -390,45 +381,6 @@ export interface LuaWorkerResponse {
   pretty: ExecResult;
 }
 
-// Wraps `bundleCode` so that `require("lualib_bundle")` returns the table the
-// bundle's `return { ... }` produces. Uses a long bracket with enough equals
-// signs to avoid collision with anything the bundle itself could contain.
-function buildLualibPrelude(bundleCode: string): string {
-  let eqs = "=====";
-  while (bundleCode.includes("]" + eqs + "]")) eqs += "=";
-  const open = "[" + eqs + "[";
-  const close = "]" + eqs + "]";
-  return `do
-  local ____lualib_chunk = assert(loadstring or load)(${open}
-${bundleCode}
-${close}, "lualib_bundle")
-  local ____lualib_table = ____lualib_chunk()
-  local ____orig_require = require
-  require = function(name)
-    if name == "lualib_bundle" then return ____lualib_table end
-    return ____orig_require(name)
-  end
-end
-`;
-}
-
-// Registers the kikito/middleclass module under `package.loaded["middleclass"]`
-// so the transpiler-injected `local class = require("middleclass")` header
-// resolves when middleclass class-style output runs in the playground.
-function buildMiddleclassPrelude(moduleCode: string): string {
-  let eqs = "=====";
-  while (moduleCode.includes("]" + eqs + "]")) eqs += "=";
-  const open = "[" + eqs + "[";
-  const close = "]" + eqs + "]";
-  return `do
-  local ____mc_chunk = assert(loadstring or load)(${open}
-${moduleCode}
-${close}, "middleclass")
-  package.loaded["middleclass"] = ____mc_chunk()
-end
-`;
-}
-
 self.addEventListener("message", async (e: MessageEvent<LuaWorkerRequest>) => {
   const { id, code, target, lualib: lualibBundle } = e.data;
   const version = TARGET_TO_VERSION[target] ?? "5.4";
@@ -436,11 +388,11 @@ self.addEventListener("message", async (e: MessageEvent<LuaWorkerRequest>) => {
   try {
     const { lua, lauxlib, lualib, glue } = await getLuaModule(version);
     const setup: string[] = [];
-    if (lualibBundle) setup.push(buildLualibPrelude(lualibBundle));
-    // Always register middleclass — cost is ~6KB of Lua source parsed once per
+    if (lualibBundle) setup.push(buildLualibPrelude(lualibBundle, version));
+    // Always register middleclass, cost is ~6KB of Lua source parsed once per
     // run, trivial next to the Lua WASM binary itself. User code that doesn't
     // use middleclass style simply never calls require("middleclass").
-    setup.push(buildMiddleclassPrelude(middleclassSource));
+    setup.push(buildMiddleclassPrelude(middleclassSource, version));
     // Memory stats only on the raw run; the pretty preamble allocates its own
     // formatting tables and would skew the user-visible numbers.
     const raw = runOnce(glue, lua, lauxlib, lualib, setup, code, true);

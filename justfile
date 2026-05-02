@@ -101,6 +101,12 @@ lint:
     npm run typecheck
     cd website && npx astro check
     npx oxlint scripts/ website/
+    just check-playground-preludes
+
+# Verify the playground worker's setup-chunk builders parse on every Lua target.
+# Requires luac5.0..luac5.5 on PATH.
+check-playground-preludes:
+    node --require tsx/cjs scripts/check-playground-preludes.ts
 
 # Migrate TSTL spec file(s) to Go tests
 # Usage: just migrate extern/tstl/test/unit/builtins/math.spec.ts
