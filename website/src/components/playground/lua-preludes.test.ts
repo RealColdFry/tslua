@@ -13,22 +13,35 @@ import { describe, expect, it } from "vitest";
 // @ts-expect-error binding-factory has no .d.ts upstream
 import { createLua, createLauxLib, createLuaLib } from "lua-wasm-bindings/dist/binding-factory.js";
 
-import { buildLualibPrelude, buildMiddleclassPrelude, TARGET_TO_VERSION } from "./lua-preludes";
+import {
+  buildLualibPrelude,
+  buildMiddleclassPrelude,
+  getPrettyPrintPreamble,
+  TARGET_TO_VERSION,
+} from "./lua-preludes";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEBSITE_ROOT = path.resolve(HERE, "../../..");
+const REPO_ROOT = path.resolve(WEBSITE_ROOT, "..");
 
 const middleclassSource = readFileSync(
   path.join(WEBSITE_ROOT, "src/assets/wasm/middleclass.lua"),
   "utf8",
 );
 
-// Synthetic stand-in for the per-request lualib bundle. The committed
-// internal/lualib/lualib_bundle.lua targets 5.1+, so it can't load on 5.0
-// for reasons unrelated to the prelude builders themselves. We only want to
-// exercise the literal encoder and prelude wrapper here, including bytes
-// that would collide with naive long-bracket escaping (`]]`, `]==]`).
-const fakeLualibBundle = `-- contains ]] and ]==] to stress the literal encoder
+// The real, committed lualib bundles the WASM transpiler ships. 5.0 has its
+// own bundle with 5.0-compatible code (uses `arg` table, table.getn, etc.);
+// 5.1+ all share the same bundle. Mirrors internal/lualib/lualib.go's
+// BundleForTarget.
+function realLualibBundleFor(version: string): string {
+  const file = version === "5.0" ? "lualib_bundle_50.lua" : "lualib_bundle.lua";
+  return readFileSync(path.join(REPO_ROOT, "internal/lualib", file), "utf8");
+}
+
+// Synthetic stand-in used for one targeted edge-case test: a bundle that
+// contains `]]` and `]==]` to stress the literal encoder's bracket-collision
+// avoidance. The real bundles don't necessarily hit those collisions.
+const trickyLualibBundle = `-- contains ]] and ]==] to stress the literal encoder
 return { tag = "fake-lualib" }
 `;
 
@@ -119,14 +132,34 @@ function runChunk(h: LuaHandles, chunk: string): string | null {
 describe("playground preludes", () => {
   for (const [target, version] of Object.entries(TARGET_TO_VERSION)) {
     describe(`target=${target} (Lua ${version})`, () => {
-      it("lualib prelude loads, runs, and exposes require('lualib_bundle')", async () => {
+      it("lualib prelude with the real bundle loads on this target", async () => {
         const h = await newLuaState(version);
-        const err = runChunk(h, buildLualibPrelude(fakeLualibBundle, target));
-        expect(err, `lualib prelude failed: ${err}`).toBeNull();
+        const err = runChunk(h, buildLualibPrelude(realLualibBundleFor(version), target));
+        expect(err, `real lualib prelude failed: ${err}`).toBeNull();
         const probeErr = runChunk(h, 'print("lualib=" .. type(require("lualib_bundle")))');
         expect(probeErr).toBeNull();
         h.lua.lua_close(h.L);
         expect(h.output).toContain("lualib=table");
+      });
+
+      it("lualib prelude handles bundles with `]]` and `]==]` (literal-encoder edge case)", async () => {
+        const h = await newLuaState(version);
+        const err = runChunk(h, buildLualibPrelude(trickyLualibBundle, target));
+        expect(err, `tricky-bundle prelude failed: ${err}`).toBeNull();
+        h.lua.lua_close(h.L);
+      });
+
+      it("pretty-print preamble loads and forwards console.log varargs", async () => {
+        const h = await newLuaState(version);
+        const err = runChunk(h, getPrettyPrintPreamble(target));
+        expect(err, `pretty preamble failed: ${err}`).toBeNull();
+        // console.log on the playground is invoked as a method (`console.log(a, b)`
+        // becomes `console:log(a, b)` after transpile), so the first arg `_` is
+        // the table itself. Forwarding the rest must work on every target.
+        const probeErr = runChunk(h, 'console:log("hello", "world")');
+        expect(probeErr, `console:log failed: ${probeErr}`).toBeNull();
+        h.lua.lua_close(h.L);
+        expect(h.output).toContain("hello world");
       });
 
       // middleclass.lua uses 5.1+ `...` varargs, so the worker skips its

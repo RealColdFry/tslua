@@ -1,6 +1,6 @@
-// Setup-chunk builders for the playground's Lua worker. Kept in a separate
-// module (no DOM, no WASM, no `?raw` imports) so it can be exercised from a
-// plain Node script that pipes the output through the real `lua5.X` binaries.
+// Setup-chunk builders and pretty-print preambles for the playground's Lua
+// worker. Kept in a separate module (no DOM, no WASM, no `?raw` imports) so
+// it can be unit-tested directly against `lua-wasm-bindings`.
 
 export const TARGET_TO_VERSION: Record<string, string> = {
   JIT: "5.1",
@@ -63,4 +63,108 @@ export function buildMiddleclassPrelude(moduleCode: string, target: string): str
   package.loaded["middleclass"] = ____mc_chunk()
 end
 `;
+}
+
+// Pretty-print preamble installed before the user's Lua code runs. Wraps
+// `print` so tables come out as JS-style "{ k: v, ... }" / "[a,b,c]" rather
+// than `table: 0x...`, and registers a `console` shim.
+//
+// Lua 5.0 needs a separate body: `select(...)`, `#table`, and referencing
+// `...` in expressions are all 5.1+ features. On 5.0 we use the implicit
+// `arg` table and `table.getn`, and we forward varargs via `unpack(arg)`.
+const PRETTY_PRINT_PREAMBLE_50 = `
+local function jsString(v)
+  if type(v) == "table" then
+    local n = table.getn(v)
+    local isArray = true
+    if n == 0 then
+      isArray = false
+    else
+      for i = 1, n do
+        if v[i] == nil then isArray = false; break end
+      end
+    end
+    if isArray then
+      local parts = {}
+      for i = 1, n do parts[i] = jsString(v[i]) end
+      return table.concat(parts, ",")
+    else
+      local parts = {}
+      for k, val in pairs(v) do
+        table.insert(parts, tostring(k) .. ": " .. jsString(val))
+      end
+      table.sort(parts)
+      return "{ " .. table.concat(parts, ", ") .. " }"
+    end
+  end
+  return tostring(v)
+end
+local _origPrint = print
+print = function(...)
+  local args = arg
+  local parts = {}
+  for i = 1, table.getn(args) do
+    parts[i] = jsString(args[i])
+  end
+  _origPrint(table.concat(parts, " "))
+end
+console = {
+  log = function(_, ...) print(unpack(arg)) end,
+  warn = function(_, ...) print(unpack(arg)) end,
+  error = function(_, ...) print(unpack(arg)) end,
+  info = function(_, ...) print(unpack(arg)) end,
+  debug = function(_, ...) print(unpack(arg)) end,
+  trace = function(_, ...) print(unpack(arg)) end,
+  assert = function(_, ...) print(unpack(arg)) end,
+}
+`;
+
+const PRETTY_PRINT_PREAMBLE = `
+local function jsString(v)
+  if type(v) == "table" then
+    local n = #v
+    local isArray = true
+    if n == 0 then
+      isArray = false
+    else
+      for i = 1, n do
+        if v[i] == nil then isArray = false; break end
+      end
+    end
+    if isArray then
+      local parts = {}
+      for i = 1, n do parts[i] = jsString(v[i]) end
+      return table.concat(parts, ",")
+    else
+      local parts = {}
+      for k, val in pairs(v) do
+        parts[#parts+1] = tostring(k) .. ": " .. jsString(val)
+      end
+      table.sort(parts)
+      return "{ " .. table.concat(parts, ", ") .. " }"
+    end
+  end
+  return tostring(v)
+end
+local _origPrint = print
+print = function(...)
+  local args = {}
+  for i = 1, select("#", ...) do
+    args[i] = jsString(select(i, ...))
+  end
+  _origPrint(table.concat(args, " "))
+end
+console = {
+  log = function(_, ...) print(...) end,
+  warn = function(_, ...) print(...) end,
+  error = function(_, ...) print(...) end,
+  info = function(_, ...) print(...) end,
+  debug = function(_, ...) print(...) end,
+  trace = function(_, ...) print(...) end,
+  assert = function(_, ...) print(...) end,
+}
+`;
+
+export function getPrettyPrintPreamble(target: string): string {
+  return target === "5.0" ? PRETTY_PRINT_PREAMBLE_50 : PRETTY_PRINT_PREAMBLE;
 }

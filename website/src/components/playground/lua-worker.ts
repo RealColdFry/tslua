@@ -9,7 +9,12 @@
 import { createLua, createLauxLib, createLuaLib } from "lua-wasm-bindings/dist/binding-factory";
 import type { LuaEmscriptenModule } from "lua-wasm-bindings/dist/glue/glue";
 
-import { buildLualibPrelude, buildMiddleclassPrelude, TARGET_TO_VERSION } from "./lua-preludes";
+import {
+  buildLualibPrelude,
+  buildMiddleclassPrelude,
+  getPrettyPrintPreamble,
+  TARGET_TO_VERSION,
+} from "./lua-preludes";
 
 // Middleclass library source, copied into assets/wasm/ by `just wasm`
 // alongside the tslua WASM binary. Inlined at build time via vite's ?raw
@@ -89,105 +94,6 @@ interface ExecResult {
   output: string[];
   error: string | null;
   memory?: MemoryStats | undefined;
-}
-
-// --- Pretty print preambles ---
-
-const PRETTY_PRINT_PREAMBLE_50 = `
-local function jsString(v)
-  if type(v) == "table" then
-    local n = table.getn(v)
-    local isArray = true
-    if n == 0 then
-      isArray = false
-    else
-      for i = 1, n do
-        if v[i] == nil then isArray = false; break end
-      end
-    end
-    if isArray then
-      local parts = {}
-      for i = 1, n do parts[i] = jsString(v[i]) end
-      return table.concat(parts, ",")
-    else
-      local parts = {}
-      for k, val in pairs(v) do
-        table.insert(parts, tostring(k) .. ": " .. jsString(val))
-      end
-      table.sort(parts)
-      return "{ " .. table.concat(parts, ", ") .. " }"
-    end
-  end
-  return tostring(v)
-end
-local _origPrint = print
-print = function(...)
-  local args = arg
-  local parts = {}
-  for i = 1, table.getn(args) do
-    parts[i] = jsString(args[i])
-  end
-  _origPrint(table.concat(parts, " "))
-end
-console = {
-  log = function(_, ...) print(...) end,
-  warn = function(_, ...) print(...) end,
-  error = function(_, ...) print(...) end,
-  info = function(_, ...) print(...) end,
-  debug = function(_, ...) print(...) end,
-  trace = function(_, ...) print(...) end,
-  assert = function(_, ...) print(...) end,
-}
-`;
-
-const PRETTY_PRINT_PREAMBLE = `
-local function jsString(v)
-  if type(v) == "table" then
-    local n = #v
-    local isArray = true
-    if n == 0 then
-      isArray = false
-    else
-      for i = 1, n do
-        if v[i] == nil then isArray = false; break end
-      end
-    end
-    if isArray then
-      local parts = {}
-      for i = 1, n do parts[i] = jsString(v[i]) end
-      return table.concat(parts, ",")
-    else
-      local parts = {}
-      for k, val in pairs(v) do
-        parts[#parts+1] = tostring(k) .. ": " .. jsString(val)
-      end
-      table.sort(parts)
-      return "{ " .. table.concat(parts, ", ") .. " }"
-    end
-  end
-  return tostring(v)
-end
-local _origPrint = print
-print = function(...)
-  local args = {}
-  for i = 1, select("#", ...) do
-    args[i] = jsString(select(i, ...))
-  end
-  _origPrint(table.concat(args, " "))
-end
-console = {
-  log = function(_, ...) print(...) end,
-  warn = function(_, ...) print(...) end,
-  error = function(_, ...) print(...) end,
-  info = function(_, ...) print(...) end,
-  debug = function(_, ...) print(...) end,
-  trace = function(_, ...) print(...) end,
-  assert = function(_, ...) print(...) end,
-}
-`;
-
-function getPreamble(target: string): string {
-  return target === "5.0" ? PRETTY_PRINT_PREAMBLE_50 : PRETTY_PRINT_PREAMBLE;
 }
 
 // --- WASM module management ---
@@ -404,7 +310,7 @@ self.addEventListener("message", async (e: MessageEvent<LuaWorkerRequest>) => {
       lua,
       lauxlib,
       lualib,
-      [...setup, getPreamble(target)],
+      [...setup, getPrettyPrintPreamble(target)],
       code,
       false,
     );
