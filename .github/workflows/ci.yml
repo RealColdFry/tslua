@@ -182,3 +182,7 @@ jobs:
 
       - name: oxlint
         run: npx oxlint scripts/ website/
+
+      - name: Website tests
+        working-directory: website
+        run: npm test

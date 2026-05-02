@@ -9,6 +9,13 @@
 import { createLua, createLauxLib, createLuaLib } from "lua-wasm-bindings/dist/binding-factory";
 import type { LuaEmscriptenModule } from "lua-wasm-bindings/dist/glue/glue";
 
+import {
+  buildLualibPrelude,
+  buildMiddleclassPrelude,
+  getPrettyPrintPreamble,
+  TARGET_TO_VERSION,
+} from "./lua-preludes";
+
 // Middleclass library source, copied into assets/wasm/ by `just wasm`
 // alongside the tslua WASM binary. Inlined at build time via vite's ?raw
 // so the worker always has the module available to register under
@@ -89,117 +96,7 @@ interface ExecResult {
   memory?: MemoryStats | undefined;
 }
 
-// --- Pretty print preambles ---
-
-const PRETTY_PRINT_PREAMBLE_50 = `
-local function jsString(v)
-  if type(v) == "table" then
-    local n = table.getn(v)
-    local isArray = true
-    if n == 0 then
-      isArray = false
-    else
-      for i = 1, n do
-        if v[i] == nil then isArray = false; break end
-      end
-    end
-    if isArray then
-      local parts = {}
-      for i = 1, n do parts[i] = jsString(v[i]) end
-      return table.concat(parts, ",")
-    else
-      local parts = {}
-      for k, val in pairs(v) do
-        table.insert(parts, tostring(k) .. ": " .. jsString(val))
-      end
-      table.sort(parts)
-      return "{ " .. table.concat(parts, ", ") .. " }"
-    end
-  end
-  return tostring(v)
-end
-local _origPrint = print
-print = function(...)
-  local args = arg
-  local parts = {}
-  for i = 1, table.getn(args) do
-    parts[i] = jsString(args[i])
-  end
-  _origPrint(table.concat(parts, " "))
-end
-console = {
-  log = function(_, ...) print(...) end,
-  warn = function(_, ...) print(...) end,
-  error = function(_, ...) print(...) end,
-  info = function(_, ...) print(...) end,
-  debug = function(_, ...) print(...) end,
-  trace = function(_, ...) print(...) end,
-  assert = function(_, ...) print(...) end,
-}
-`;
-
-const PRETTY_PRINT_PREAMBLE = `
-local function jsString(v)
-  if type(v) == "table" then
-    local n = #v
-    local isArray = true
-    if n == 0 then
-      isArray = false
-    else
-      for i = 1, n do
-        if v[i] == nil then isArray = false; break end
-      end
-    end
-    if isArray then
-      local parts = {}
-      for i = 1, n do parts[i] = jsString(v[i]) end
-      return table.concat(parts, ",")
-    else
-      local parts = {}
-      for k, val in pairs(v) do
-        parts[#parts+1] = tostring(k) .. ": " .. jsString(val)
-      end
-      table.sort(parts)
-      return "{ " .. table.concat(parts, ", ") .. " }"
-    end
-  end
-  return tostring(v)
-end
-local _origPrint = print
-print = function(...)
-  local args = {}
-  for i = 1, select("#", ...) do
-    args[i] = jsString(select(i, ...))
-  end
-  _origPrint(table.concat(args, " "))
-end
-console = {
-  log = function(_, ...) print(...) end,
-  warn = function(_, ...) print(...) end,
-  error = function(_, ...) print(...) end,
-  info = function(_, ...) print(...) end,
-  debug = function(_, ...) print(...) end,
-  trace = function(_, ...) print(...) end,
-  assert = function(_, ...) print(...) end,
-}
-`;
-
-function getPreamble(target: string): string {
-  return target === "5.0" ? PRETTY_PRINT_PREAMBLE_50 : PRETTY_PRINT_PREAMBLE;
-}
-
 // --- WASM module management ---
-
-const TARGET_TO_VERSION: Record<string, string> = {
-  JIT: "5.1",
-  "5.0": "5.0",
-  "5.1": "5.1",
-  "5.2": "5.2",
-  "5.3": "5.3",
-  "5.4": "5.4",
-  "5.5": "5.5",
-  universal: "5.4",
-};
 
 interface VersionInfo {
   factory: GlueFactory | { default: GlueFactory };
@@ -390,45 +287,6 @@ export interface LuaWorkerResponse {
   pretty: ExecResult;
 }
 
-// Wraps `bundleCode` so that `require("lualib_bundle")` returns the table the
-// bundle's `return { ... }` produces. Uses a long bracket with enough equals
-// signs to avoid collision with anything the bundle itself could contain.
-function buildLualibPrelude(bundleCode: string): string {
-  let eqs = "=====";
-  while (bundleCode.includes("]" + eqs + "]")) eqs += "=";
-  const open = "[" + eqs + "[";
-  const close = "]" + eqs + "]";
-  return `do
-  local ____lualib_chunk = assert(loadstring or load)(${open}
-${bundleCode}
-${close}, "lualib_bundle")
-  local ____lualib_table = ____lualib_chunk()
-  local ____orig_require = require
-  require = function(name)
-    if name == "lualib_bundle" then return ____lualib_table end
-    return ____orig_require(name)
-  end
-end
-`;
-}
-
-// Registers the kikito/middleclass module under `package.loaded["middleclass"]`
-// so the transpiler-injected `local class = require("middleclass")` header
-// resolves when middleclass class-style output runs in the playground.
-function buildMiddleclassPrelude(moduleCode: string): string {
-  let eqs = "=====";
-  while (moduleCode.includes("]" + eqs + "]")) eqs += "=";
-  const open = "[" + eqs + "[";
-  const close = "]" + eqs + "]";
-  return `do
-  local ____mc_chunk = assert(loadstring or load)(${open}
-${moduleCode}
-${close}, "middleclass")
-  package.loaded["middleclass"] = ____mc_chunk()
-end
-`;
-}
-
 self.addEventListener("message", async (e: MessageEvent<LuaWorkerRequest>) => {
   const { id, code, target, lualib: lualibBundle } = e.data;
   const version = TARGET_TO_VERSION[target] ?? "5.4";
@@ -436,11 +294,14 @@ self.addEventListener("message", async (e: MessageEvent<LuaWorkerRequest>) => {
   try {
     const { lua, lauxlib, lualib, glue } = await getLuaModule(version);
     const setup: string[] = [];
-    if (lualibBundle) setup.push(buildLualibPrelude(lualibBundle));
-    // Always register middleclass — cost is ~6KB of Lua source parsed once per
-    // run, trivial next to the Lua WASM binary itself. User code that doesn't
-    // use middleclass style simply never calls require("middleclass").
-    setup.push(buildMiddleclassPrelude(middleclassSource));
+    if (lualibBundle) setup.push(buildLualibPrelude(lualibBundle, version));
+    // Register middleclass on every target except 5.0, where it can't run
+    // (middleclass.lua uses `...` varargs, which Lua 5.0 doesn't support).
+    // User code targeting 5.0 won't get middleclass-style classes; the cost is
+    // ~6KB of Lua source parsed once per run on 5.1+, trivial next to the WASM.
+    if (version !== "5.0") {
+      setup.push(buildMiddleclassPrelude(middleclassSource, version));
+    }
     // Memory stats only on the raw run; the pretty preamble allocates its own
     // formatting tables and would skew the user-visible numbers.
     const raw = runOnce(glue, lua, lauxlib, lualib, setup, code, true);
@@ -449,7 +310,7 @@ self.addEventListener("message", async (e: MessageEvent<LuaWorkerRequest>) => {
       lua,
       lauxlib,
       lualib,
-      [...setup, getPreamble(target)],
+      [...setup, getPrettyPrintPreamble(target)],
       code,
       false,
     );

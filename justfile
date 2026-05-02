@@ -102,6 +102,10 @@ lint:
     cd website && npx astro check
     npx oxlint scripts/ website/
 
+# Run website unit tests (vitest)
+website-test:
+    cd website && npm test
+
 # Migrate TSTL spec file(s) to Go tests
 # Usage: just migrate extern/tstl/test/unit/builtins/math.spec.ts
 
