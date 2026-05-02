@@ -55,6 +55,8 @@ end
 // Registers the kikito/middleclass module under `package.loaded["middleclass"]`
 // so the transpiler-injected `local class = require("middleclass")` header
 // resolves when middleclass class-style output runs in the playground.
+// Not used on Lua 5.0 (middleclass uses 5.1+ `...` varargs); the worker
+// skips this prelude there.
 export function buildMiddleclassPrelude(moduleCode: string, target: string): string {
   return `do
   local ____mc_chunk = assert(loadstring or load)(${luaSourceLiteral(moduleCode, target)}, "middleclass")

@@ -73,11 +73,6 @@ jobs:
       - name: Build tslua
         run: go build -o tslua ./cmd/tslua/
 
-      - name: Check playground preludes parse on every Lua target
-        run: |
-          export PATH="$PWD/.lua-runtimes/bin:$PATH"
-          node --require tsx/cjs scripts/check-playground-preludes.ts
-
       - name: Tests
         run: |
           export PATH="$PWD/.lua-runtimes/bin:$PATH"
@@ -187,3 +182,7 @@ jobs:
 
       - name: oxlint
         run: npx oxlint scripts/ website/
+
+      - name: Check playground preludes on every Lua target
+        working-directory: website
+        run: node --import tsx scripts/check-playground-preludes.ts

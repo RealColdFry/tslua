@@ -389,10 +389,13 @@ self.addEventListener("message", async (e: MessageEvent<LuaWorkerRequest>) => {
     const { lua, lauxlib, lualib, glue } = await getLuaModule(version);
     const setup: string[] = [];
     if (lualibBundle) setup.push(buildLualibPrelude(lualibBundle, version));
-    // Always register middleclass, cost is ~6KB of Lua source parsed once per
-    // run, trivial next to the Lua WASM binary itself. User code that doesn't
-    // use middleclass style simply never calls require("middleclass").
-    setup.push(buildMiddleclassPrelude(middleclassSource, version));
+    // Register middleclass on every target except 5.0, where it can't run
+    // (middleclass.lua uses `...` varargs, which Lua 5.0 doesn't support).
+    // User code targeting 5.0 won't get middleclass-style classes; the cost is
+    // ~6KB of Lua source parsed once per run on 5.1+, trivial next to the WASM.
+    if (version !== "5.0") {
+      setup.push(buildMiddleclassPrelude(middleclassSource, version));
+    }
     // Memory stats only on the raw run; the pretty preamble allocates its own
     // formatting tables and would skew the user-visible numbers.
     const raw = runOnce(glue, lua, lauxlib, lualib, setup, code, true);
