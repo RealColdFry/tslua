@@ -24,8 +24,11 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEBSITE_ROOT = path.resolve(HERE, "../../..");
 const REPO_ROOT = path.resolve(WEBSITE_ROOT, "..");
 
+// Read middleclass directly from the committed source rather than the copy
+// at website/src/assets/wasm/middleclass.lua — that copy is produced by
+// `just wasm` and isn't present in CI's lint job.
 const middleclassSource = readFileSync(
-  path.join(WEBSITE_ROOT, "src/assets/wasm/middleclass.lua"),
+  path.join(REPO_ROOT, "internal/lualib/middleclass/middleclass.lua"),
   "utf8",
 );
 
