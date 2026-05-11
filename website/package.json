@@ -11,14 +11,14 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@astrojs/check": "0.9.8",
+    "@astrojs/check": "0.9.9",
     "@astrojs/react": "5.0.4",
     "@astrojs/starlight": "^0.38.4",
     "@monaco-editor/react": "4.7.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@typescript-to-lua/language-extensions": "1.19.0",
-    "astro": "^6.1.9",
+    "astro": "^6.2.1",
     "lua-types": "2.14.1",
     "lua-wasm-bindings": "0.5.3",
     "monaco-editor": "0.55.1",
