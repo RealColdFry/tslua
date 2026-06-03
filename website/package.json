@@ -15,10 +15,10 @@
     "@astrojs/react": "5.0.5",
     "@astrojs/starlight": "^0.39.2",
     "@monaco-editor/react": "4.7.0",
-    "@types/react": "19.2.14",
+    "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
     "@typescript-to-lua/language-extensions": "1.19.0",
-    "astro": "^6.3.3",
+    "astro": "^6.3.7",
     "lua-types": "2.14.1",
     "lua-wasm-bindings": "0.5.3",
     "monaco-editor": "0.55.1",
@@ -29,7 +29,7 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
-    "vitest": "4.1.6"
+    "vitest": "4.1.7"
   },
   "overrides": {
     "dompurify": "^3.3.3"
