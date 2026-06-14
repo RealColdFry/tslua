@@ -12,24 +12,24 @@
   },
   "dependencies": {
     "@astrojs/check": "0.9.9",
-    "@astrojs/react": "5.0.5",
-    "@astrojs/starlight": "^0.39.2",
+    "@astrojs/react": "5.0.7",
+    "@astrojs/starlight": "^0.39.3",
     "@monaco-editor/react": "4.7.0",
-    "@types/react": "19.2.15",
+    "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@typescript-to-lua/language-extensions": "1.19.0",
-    "astro": "^6.3.7",
+    "astro": "^6.4.4",
     "lua-types": "2.14.1",
     "lua-wasm-bindings": "0.5.3",
     "monaco-editor": "0.55.1",
     "prettier": "3.8.3",
-    "react": "19.2.6",
-    "react-dom": "19.2.6",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
     "sharp": "^0.34.2",
     "typescript": "^5.9.3"
   },
   "devDependencies": {
-    "vitest": "4.1.7"
+    "vitest": "4.1.8"
   },
   "overrides": {
     "dompurify": "^3.3.3"
