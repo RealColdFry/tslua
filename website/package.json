@@ -11,25 +11,25 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@astrojs/check": "0.9.9",
-    "@astrojs/react": "5.0.7",
-    "@astrojs/starlight": "^0.40.0",
+    "@astrojs/check": "0.9.10",
+    "@astrojs/react": "6.0.2",
+    "@astrojs/starlight": "^0.41.6",
     "@monaco-editor/react": "4.7.0",
-    "@types/react": "19.2.17",
-    "@types/react-dom": "19.2.3",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
     "@typescript-to-lua/language-extensions": "1.19.0",
-    "astro": "^6.3.7",
+    "astro": "^7.1.6",
     "lua-types": "2.14.1",
     "lua-wasm-bindings": "0.5.3",
-    "monaco-editor": "0.55.1",
-    "prettier": "3.8.4",
-    "react": "19.2.7",
-    "react-dom": "19.2.7",
-    "sharp": "^0.35.1",
+    "monaco-editor": "0.56.0",
+    "prettier": "3.9.6",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "sharp": "^0.35.3",
     "typescript": "^5.9.3"
   },
   "devDependencies": {
-    "vitest": "4.1.8"
+    "vitest": "4.1.10"
   },
   "overrides": {
     "dompurify": "^3.3.3"
